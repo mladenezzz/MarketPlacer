@@ -1,7 +1,8 @@
 from flask_wtf import FlaskForm
-from wtforms import StringField, PasswordField, BooleanField, SubmitField, SelectField, TextAreaField
-from wtforms.validators import DataRequired, Email, EqualTo, Length, ValidationError, Optional
-from models import User
+from wtforms import StringField, PasswordField, BooleanField, SubmitField
+from wtforms.validators import DataRequired, Email, EqualTo, Length, ValidationError
+from app.models import User
+
 
 class RegistrationForm(FlaskForm):
     """Форма регистрации"""
@@ -39,6 +40,7 @@ class RegistrationForm(FlaskForm):
         if user:
             raise ValidationError('Этот email уже зарегистрирован. Используйте другой.')
 
+
 class LoginForm(FlaskForm):
     """Форма входа"""
     username = StringField('Имя пользователя или Email', 
@@ -47,43 +49,4 @@ class LoginForm(FlaskForm):
                             validators=[DataRequired(message='Это поле обязательно')])
     remember_me = BooleanField('Запомнить меня')
     submit = SubmitField('Войти')
-
-class ChangeRoleForm(FlaskForm):
-    """Форма изменения роли пользователя"""
-    role = SelectField('Роль', 
-                      choices=[
-                          ('user', 'Пользователь'),
-                          ('admin', 'Администратор'),
-                          ('analyst', 'Аналитик'),
-                          ('accountant', 'Бухгалтер')
-                      ],
-                      validators=[DataRequired(message='Выберите роль')])
-    submit = SubmitField('Изменить роль')
-
-
-class TokenForm(FlaskForm):
-    """Форма добавления/редактирования токена маркетплейса"""
-    name = StringField('Название токена', 
-                      validators=[
-                          Optional(),
-                          Length(max=100, message='Название не должно превышать 100 символов')
-                      ],
-                      render_kw={'placeholder': 'Например: Основной магазин, Тестовый аккаунт'})
-    marketplace = SelectField('Маркетплейс', 
-                             choices=[
-                                 ('wildberries', 'Wildberries'),
-                                 ('ozon', 'Ozon'),
-                                 ('telegram', 'Telegram')
-                             ],
-                             validators=[DataRequired(message='Выберите маркетплейс')])
-    token = TextAreaField('API Token', 
-                         validators=[
-                             DataRequired(message='Введите токен'),
-                             Length(min=10, max=500, message='Токен должен быть от 10 до 500 символов')
-                         ],
-                         render_kw={'rows': 3, 'placeholder': 'Вставьте ваш API токен'})
-    client_id = StringField('Client ID (только для Ozon)', 
-                           validators=[Optional(), Length(max=200)],
-                           render_kw={'placeholder': 'Введите Client ID для Ozon'})
-    submit = SubmitField('Сохранить токен')
 

@@ -1,9 +1,15 @@
 """
 Скрипт миграции для добавления ролей к существующим пользователям
 """
-from app import app
-from models import db, User
+import sys
+import os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from app import create_app
+from app.models import db, User
 from sqlalchemy import text
+
+app = create_app()
 
 def migrate_add_roles():
     """Добавить поле роли к существующим пользователям"""

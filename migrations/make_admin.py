@@ -1,8 +1,14 @@
 """
 Скрипт для назначения пользователя администратором
 """
-from app import app
-from models import db, User
+import sys
+import os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from app import create_app
+from app.models import db, User
+
+app = create_app()
 
 def make_admin():
     """Назначить пользователя администратором"""

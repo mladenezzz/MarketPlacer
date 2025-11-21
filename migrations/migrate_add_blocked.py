@@ -1,9 +1,15 @@
 """
 Скрипт миграции для добавления поля is_blocked в таблицу users
 """
-from app import app
-from models import db
+import sys
+import os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from app import create_app
+from app.models import db
 from sqlalchemy import text
+
+app = create_app()
 
 def migrate():
     with app.app_context():

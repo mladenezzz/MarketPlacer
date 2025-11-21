@@ -77,6 +77,6 @@ if __name__ == '__main__':
     
     print()
     print("Done! You can now run the application:")
-    print("   python app.py")
+    print("   python run.py")
     print()
 

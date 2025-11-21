@@ -98,6 +98,6 @@ if __name__ == '__main__':
     
     print()
     print("✨ Готово! Можете запускать приложение:")
-    print("   python app.py")
+    print("   python run.py")
     print()
 
