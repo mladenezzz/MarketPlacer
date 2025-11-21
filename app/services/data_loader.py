@@ -419,6 +419,9 @@ class DataLoader:
                         order_date = datetime.fromisoformat(order_date_str.replace('Z', '+00:00'))
                     else:
                         order_date = datetime.fromisoformat(order_date_str)
+                    # Преобразуем в naive datetime для сравнения
+                    if order_date.tzinfo is not None:
+                        order_date = order_date.replace(tzinfo=None)
                 except:
                     continue
                 if order_date < period_start or order_date > period_end:
@@ -457,6 +460,9 @@ class DataLoader:
                         sale_date = datetime.fromisoformat(sale_date_str.replace('Z', '+00:00'))
                     else:
                         sale_date = datetime.fromisoformat(sale_date_str)
+                    # Преобразуем в naive datetime для сравнения
+                    if sale_date.tzinfo is not None:
+                        sale_date = sale_date.replace(tzinfo=None)
                 except:
                     continue
                 if sale_date < period_start or sale_date > period_end:
@@ -494,6 +500,9 @@ class DataLoader:
                         order_date = datetime.fromisoformat(order_date_str.replace('Z', '+00:00'))
                     else:
                         order_date = datetime.fromisoformat(order_date_str)
+                    # Преобразуем в naive datetime для сравнения
+                    if order_date.tzinfo is not None:
+                        order_date = order_date.replace(tzinfo=None)
                 except:
                     continue
                 if order_date < period_start or order_date > period_end:
@@ -544,6 +553,9 @@ class DataLoader:
                         sale_date = datetime.fromisoformat(sale_date_str.replace('Z', '+00:00'))
                     else:
                         sale_date = datetime.fromisoformat(sale_date_str)
+                    # Преобразуем в naive datetime для сравнения
+                    if sale_date.tzinfo is not None:
+                        sale_date = sale_date.replace(tzinfo=None)
                 except:
                     continue
                 if sale_date < period_start or sale_date > period_end:

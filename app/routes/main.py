@@ -49,6 +49,7 @@ def get_token_orders(token_id):
     
     # Получаем дату из параметров или используем сегодняшнюю
     date_str = request.args.get('date')
+    
     if date_str:
         try:
             selected_date = datetime.strptime(date_str, '%Y-%m-%d').date()
@@ -105,6 +106,7 @@ def get_token_sales(token_id):
     
     # Получаем дату из параметров или используем сегодняшнюю
     date_str = request.args.get('date')
+    
     if date_str:
         try:
             selected_date = datetime.strptime(date_str, '%Y-%m-%d').date()
