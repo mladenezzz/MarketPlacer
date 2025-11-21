@@ -188,7 +188,7 @@ class MarketplaceAPI:
             # Получаем заказы из обоих типов: FBS и FBO
             endpoints = [
                 ('https://api-seller.ozon.ru/v3/posting/fbs/list', 'FBS'),
-                ('https://api-seller.ozon.ru/v3/posting/fbo/list', 'FBO')
+                ('https://api-seller.ozon.ru/v2/posting/fbo/list', 'FBO')
             ]
             
             for url, scheme_type in endpoints:
