@@ -48,7 +48,7 @@
                                         <h5 class="card-title">
                                             <i class="bi bi-cash-stack"></i> Общая сумма
                                         </h5>
-                                        <h2 class="display-4">{{ "%.2f"|format(total_sum) }} ₽</h2>
+                                        <h2 class="display-4" id="total-sum">-</h2>
                                     </div>
                                 </div>
                             </div>
@@ -58,7 +58,7 @@
                                         <h5 class="card-title">
                                             <i class="bi bi-cart-check"></i> Количество заказов
                                         </h5>
-                                        <h2 class="display-4">{{ total_count }}</h2>
+                                        <h2 class="display-4" id="total-count">-</h2>
                                     </div>
                                 </div>
                             </div>
@@ -77,45 +77,31 @@
                                         <th>Статус</th>
                                     </tr>
                                 </thead>
-                                <tbody>
-                                    {% for order in orders_data %}
-                                    <tr>
+                                <tbody id="orders-table-body">
+                                    {% for token in tokens_info %}
+                                    <tr data-token-id="{{ token.token_id }}">
                                         <td>
-                                            {% if order.marketplace == 'Wildberries' %}
-                                                <span class="badge bg-purple">{{ order.marketplace }}</span>
-                                            {% elif order.marketplace == 'Ozon' %}
-                                                <span class="badge bg-primary">{{ order.marketplace }}</span>
-                                            {% elif order.marketplace == 'Telegram' %}
-                                                <span class="badge bg-info">{{ order.marketplace }}</span>
+                                            {% if token.marketplace == 'Wildberries' %}
+                                                <span class="badge bg-purple">{{ token.marketplace }}</span>
+                                            {% elif token.marketplace == 'Ozon' %}
+                                                <span class="badge bg-primary">{{ token.marketplace }}</span>
+                                            {% elif token.marketplace == 'Telegram' %}
+                                                <span class="badge bg-info">{{ token.marketplace }}</span>
                                             {% else %}
-                                                <span class="badge bg-secondary">{{ order.marketplace }}</span>
+                                                <span class="badge bg-secondary">{{ token.marketplace }}</span>
                                             {% endif %}
                                         </td>
-                                        <td>{{ order.token_name }}</td>
-                                        <td class="text-center">
-                                            {% if order.success %}
-                                                <span class="badge bg-info">{{ order.count }}</span>
-                                            {% else %}
-                                                <span class="text-muted">-</span>
-                                            {% endif %}
+                                        <td>{{ token.token_name }}</td>
+                                        <td class="text-center order-count">
+                                            <span class="text-muted">-</span>
                                         </td>
-                                        <td class="text-end">
-                                            {% if order.success %}
-                                                <strong>{{ "%.2f"|format(order.total) }} ₽</strong>
-                                            {% else %}
-                                                <span class="text-muted">-</span>
-                                            {% endif %}
+                                        <td class="text-end order-total">
+                                            <span class="text-muted">-</span>
                                         </td>
-                                        <td>
-                                            {% if order.success %}
-                                                <span class="badge bg-success">
-                                                    <i class="bi bi-check-circle"></i> Успешно
-                                                </span>
-                                            {% else %}
-                                                <span class="badge bg-danger" data-bs-toggle="tooltip" title="{{ order.error }}">
-                                                    <i class="bi bi-x-circle"></i> Ошибка
-                                                </span>
-                                            {% endif %}
+                                        <td class="order-status">
+                                            <span class="badge bg-warning">
+                                                <i class="bi bi-hourglass-split"></i> Получение данных
+                                            </span>
                                         </td>
                                     </tr>
                                     {% endfor %}
@@ -178,5 +164,86 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+{% if current_user.is_authenticated and has_tokens %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    let totalSum = 0;
+    let totalCount = 0;
+    let completedRequests = 0;
+    const totalTokens = document.querySelectorAll('#orders-table-body tr').length;
+    
+    // Функция для обновления общей статистики
+    function updateTotalStats() {
+        document.getElementById('total-sum').textContent = totalSum.toFixed(2) + ' ₽';
+        document.getElementById('total-count').textContent = totalCount;
+    }
+    
+    // Функция для загрузки данных по токену
+    async function loadTokenData(tokenId, row) {
+        try {
+            const response = await fetch(`{{ url_for('main.get_token_orders', token_id=0) }}`.replace('0', tokenId));
+            const data = await response.json();
+            
+            // Обновляем ячейки таблицы
+            const countCell = row.querySelector('.order-count');
+            const totalCell = row.querySelector('.order-total');
+            const statusCell = row.querySelector('.order-status');
+            
+            if (data.success) {
+                // Успешно получены данные
+                countCell.innerHTML = `<span class="badge bg-info">${data.count}</span>`;
+                totalCell.innerHTML = `<strong>${data.total.toFixed(2)} ₽</strong>`;
+                statusCell.innerHTML = `
+                    <span class="badge bg-success">
+                        <i class="bi bi-check-circle"></i> Успешно
+                    </span>
+                `;
+                
+                // Добавляем к общей статистике
+                totalSum += data.total;
+                totalCount += data.count;
+            } else {
+                // Ошибка при получении данных
+                countCell.innerHTML = '<span class="text-muted">-</span>';
+                totalCell.innerHTML = '<span class="text-muted">-</span>';
+                statusCell.innerHTML = `
+                    <span class="badge bg-danger" data-bs-toggle="tooltip" title="${data.error}">
+                        <i class="bi bi-x-circle"></i> Ошибка
+                    </span>
+                `;
+            }
+        } catch (error) {
+            // Ошибка сети или сервера
+            const countCell = row.querySelector('.order-count');
+            const totalCell = row.querySelector('.order-total');
+            const statusCell = row.querySelector('.order-status');
+            
+            countCell.innerHTML = '<span class="text-muted">-</span>';
+            totalCell.innerHTML = '<span class="text-muted">-</span>';
+            statusCell.innerHTML = `
+                <span class="badge bg-danger" data-bs-toggle="tooltip" title="Ошибка сети">
+                    <i class="bi bi-x-circle"></i> Ошибка
+                </span>
+            `;
+        } finally {
+            completedRequests++;
+            // После загрузки всех данных обновляем общую статистику
+            if (completedRequests === totalTokens) {
+                updateTotalStats();
+            }
+        }
+    }
+    
+    // Загружаем данные для всех токенов
+    document.querySelectorAll('#orders-table-body tr').forEach(row => {
+        const tokenId = row.getAttribute('data-token-id');
+        loadTokenData(tokenId, row);
+    });
+});
+</script>
+{% endif %}
 {% endblock %}
 
