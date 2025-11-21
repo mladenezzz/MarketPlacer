@@ -1,7 +1,8 @@
-from flask import Blueprint, render_template, redirect, url_for, flash, request
+from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify
 from flask_login import login_required, current_user
 from app.models import db, Token
 from app.forms import TokenForm
+from app.services.data_loader import DataLoader
 
 tokens_bp = Blueprint('tokens', __name__, url_prefix='/settings/tokens')
 
@@ -37,8 +38,12 @@ def add():
         db.session.add(token)
         db.session.commit()
         
+        # Запускаем фоновую загрузку исторических данных
+        if token.marketplace in ['wildberries', 'ozon']:
+            DataLoader.start_background_loading(token.id)
+        
         token_display = f'"{token.name}"' if token.name else token.get_marketplace_display()
-        flash(f'Токен {token_display} успешно добавлен.', 'success')
+        flash(f'Токен {token_display} успешно добавлен. Начата загрузка исторических данных.', 'success')
         return redirect(url_for('tokens.list_tokens'))
     
     return render_template('add_token.html', form=form)
@@ -101,4 +106,25 @@ def delete(token_id):
     
     flash(f'Токен {token_display} успешно удален.', 'success')
     return redirect(url_for('tokens.list_tokens'))
+
+
+@tokens_bp.route('/<int:token_id>/loading-status')
+@login_required
+def loading_status(token_id):
+    """API endpoint для получения статуса загрузки данных токена"""
+    token = Token.query.get_or_404(token_id)
+    
+    # Проверка, что токен принадлежит текущему пользователю
+    if token.user_id != current_user.id:
+        return jsonify({'error': 'У вас нет прав для просмотра этого токена'}), 403
+    
+    return jsonify({
+        'status': token.data_loading_status,
+        'progress': token.data_loading_progress,
+        'loaded_periods': token.data_loading_loaded_periods,
+        'total_periods': token.data_loading_total_periods,
+        'started_at': token.data_loading_started_at.isoformat() if token.data_loading_started_at else None,
+        'completed_at': token.data_loading_completed_at.isoformat() if token.data_loading_completed_at else None,
+        'error': token.data_loading_error
+    })
 

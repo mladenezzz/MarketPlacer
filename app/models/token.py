@@ -15,6 +15,15 @@ class Token(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
+    # Поля для отслеживания загрузки исторических данных
+    data_loading_status = db.Column(db.String(20), default='pending', nullable=False)  # 'pending', 'loading', 'completed', 'error'
+    data_loading_progress = db.Column(db.Integer, default=0, nullable=False)  # Процент загрузки (0-100)
+    data_loading_total_periods = db.Column(db.Integer, default=0, nullable=False)  # Всего периодов для загрузки
+    data_loading_loaded_periods = db.Column(db.Integer, default=0, nullable=False)  # Загружено периодов
+    data_loading_started_at = db.Column(db.DateTime, nullable=True)  # Когда началась загрузка
+    data_loading_completed_at = db.Column(db.DateTime, nullable=True)  # Когда завершилась загрузка
+    data_loading_error = db.Column(db.Text, nullable=True)  # Сообщение об ошибке, если есть
+    
     # Связь с пользователем
     user = db.relationship('User', backref=db.backref('tokens', lazy=True, cascade='all, delete-orphan'))
     

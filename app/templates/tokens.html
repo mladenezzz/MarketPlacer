@@ -41,6 +41,13 @@
                                                     {% if token.name %}
                                                         <span class="badge bg-secondary ms-2">{{ token.name }}</span>
                                                     {% endif %}
+                                                    {% if token.data_loading_status == 'completed' %}
+                                                        <i class="bi bi-check-circle-fill text-success ms-2" title="Загрузка данных завершена"></i>
+                                                    {% elif token.data_loading_status == 'loading' %}
+                                                        <i class="bi bi-arrow-repeat text-primary ms-2 spinning" title="Загрузка данных..."></i>
+                                                    {% elif token.data_loading_status == 'error' %}
+                                                        <i class="bi bi-exclamation-triangle-fill text-danger ms-2" title="Ошибка загрузки данных"></i>
+                                                    {% endif %}
                                                 </h5>
                                                 <small class="text-muted">
                                                     <i class="bi bi-calendar"></i> 
@@ -103,6 +110,46 @@
                                                 Обновлен: {{ token.updated_at.strftime('%d.%m.%Y %H:%M') }}
                                             </small>
                                             {% endif %}
+                                            
+                                            {% if token.data_loading_status == 'loading' or token.data_loading_status == 'pending' %}
+                                            <div class="mt-3" id="loading-progress-{{ token.id }}">
+                                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                                    <small class="text-muted">
+                                                        <i class="bi bi-download"></i> Загрузка исторических данных
+                                                    </small>
+                                                    <small class="text-muted" id="progress-text-{{ token.id }}">0%</small>
+                                                </div>
+                                                <div class="progress" style="height: 8px;">
+                                                    <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                                                         role="progressbar" 
+                                                         id="progress-bar-{{ token.id }}"
+                                                         style="width: 0%"></div>
+                                                </div>
+                                                <small class="text-muted" id="progress-details-{{ token.id }}">
+                                                    Загрузка началась...
+                                                </small>
+                                            </div>
+                                            {% elif token.data_loading_status == 'completed' %}
+                                            <div class="mt-3">
+                                                <small class="text-success">
+                                                    <i class="bi bi-check-circle"></i> 
+                                                    Загрузка данных завершена
+                                                    {% if token.data_loading_completed_at %}
+                                                        ({{ token.data_loading_completed_at.strftime('%d.%m.%Y %H:%M') }})
+                                                    {% endif %}
+                                                </small>
+                                            </div>
+                                            {% elif token.data_loading_status == 'error' %}
+                                            <div class="mt-3">
+                                                <small class="text-danger">
+                                                    <i class="bi bi-exclamation-triangle"></i> 
+                                                    Ошибка загрузки данных
+                                                    {% if token.data_loading_error %}
+                                                        <br><span class="text-muted small">{{ token.data_loading_error[:100] }}{% if token.data_loading_error|length > 100 %}...{% endif %}</span>
+                                                    {% endif %}
+                                                </small>
+                                            </div>
+                                            {% endif %}
                                         </div>
                                     </div>
                                 </div>
@@ -162,6 +209,20 @@
     .dropdown-menu {
         min-width: 180px;
     }
+    
+    .spinning {
+        animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+    
+    .progress {
+        border-radius: 10px;
+        overflow: hidden;
+    }
 </style>
 {% endblock %}
 
@@ -182,6 +243,61 @@
             icon.classList.add('bi-eye');
         }
     }
+    
+    // Обновление прогресса загрузки данных
+    function updateLoadingProgress(tokenId) {
+        const progressContainer = document.getElementById('loading-progress-' + tokenId);
+        if (!progressContainer) return;
+        
+        fetch('/settings/tokens/' + tokenId + '/loading-status')
+            .then(response => response.json())
+            .then(data => {
+                const progressBar = document.getElementById('progress-bar-' + tokenId);
+                const progressText = document.getElementById('progress-text-' + tokenId);
+                const progressDetails = document.getElementById('progress-details-' + tokenId);
+                
+                if (progressBar) {
+                    progressBar.style.width = data.progress + '%';
+                }
+                
+                if (progressText) {
+                    progressText.textContent = data.progress + '%';
+                }
+                
+                if (progressDetails) {
+                    if (data.status === 'loading') {
+                        progressDetails.textContent = 
+                            `Загружено: ${data.loaded_periods} из ${data.total_periods} периодов`;
+                    } else if (data.status === 'completed') {
+                        progressDetails.textContent = 'Загрузка завершена';
+                        progressContainer.style.display = 'none';
+                        // Перезагружаем страницу для обновления статуса
+                        setTimeout(() => location.reload(), 1000);
+                    } else if (data.status === 'error') {
+                        progressDetails.textContent = 'Ошибка: ' + (data.error || 'Неизвестная ошибка');
+                        progressContainer.style.display = 'none';
+                        setTimeout(() => location.reload(), 2000);
+                    }
+                }
+                
+                // Продолжаем обновление, если загрузка еще идет
+                if (data.status === 'loading' || data.status === 'pending') {
+                    setTimeout(() => updateLoadingProgress(tokenId), 2000);
+                }
+            })
+            .catch(error => {
+                console.error('Ошибка при обновлении прогресса:', error);
+            });
+    }
+    
+    // Запускаем обновление прогресса для всех токенов со статусом loading или pending
+    document.addEventListener('DOMContentLoaded', function() {
+        {% for token in tokens %}
+            {% if token.data_loading_status == 'loading' or token.data_loading_status == 'pending' %}
+            updateLoadingProgress({{ token.id }});
+            {% endif %}
+        {% endfor %}
+    });
 </script>
 {% endblock %}
 {% endblock %}
