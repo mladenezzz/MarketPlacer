@@ -14,7 +14,7 @@
                         </h3>
                     </div>
                     <div class="card-body">
-                        <form method="POST" action="{{ url_for('add_token') }}">
+                        <form method="POST" action="{{ url_for('tokens.add') }}">
                             {{ form.hidden_tag() }}
                             
                             <div class="mb-3">
@@ -101,7 +101,7 @@
                             
                             <div class="d-grid gap-2">
                                 {{ form.submit(class="btn btn-primary btn-lg") }}
-                                <a href="{{ url_for('tokens') }}" class="btn btn-outline-secondary">
+                                <a href="{{ url_for('tokens.list_tokens') }}" class="btn btn-outline-secondary">
                                     <i class="bi bi-x-circle"></i> Отмена
                                 </a>
                             </div>

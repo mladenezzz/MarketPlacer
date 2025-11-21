@@ -19,7 +19,7 @@
                             <strong>Внимание!</strong> Изменение токена может повлиять на работу интеграций с маркетплейсом.
                         </div>
                         
-                        <form method="POST" action="{{ url_for('edit_token', token_id=token.id) }}">
+                        <form method="POST" action="{{ url_for('tokens.edit', token_id=token.id) }}">
                             {{ form.hidden_tag() }}
                             
                             <div class="mb-3">
@@ -81,7 +81,7 @@
                             
                             <div class="d-grid gap-2">
                                 {{ form.submit(class="btn btn-primary btn-lg") }}
-                                <a href="{{ url_for('tokens') }}" class="btn btn-outline-secondary">
+                                <a href="{{ url_for('tokens.list_tokens') }}" class="btn btn-outline-secondary">
                                     <i class="bi bi-x-circle"></i> Отмена
                                 </a>
                             </div>
@@ -91,7 +91,7 @@
                         
                         <div class="text-center">
                             <p class="text-muted mb-2">Или удалить этот токен:</p>
-                            <form method="POST" action="{{ url_for('delete_token', token_id=token.id) }}" style="display: inline;">
+                            <form method="POST" action="{{ url_for('tokens.delete', token_id=token.id) }}" style="display: inline;">
                                 <button type="submit" class="btn btn-danger"
                                         onclick="return confirm('Вы уверены, что хотите удалить этот токен? Это действие нельзя отменить.')">
                                     <i class="bi bi-trash"></i> Удалить токен
