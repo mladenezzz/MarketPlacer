@@ -485,18 +485,34 @@ class MarketplaceAPI:
                         else:
                             postings = []
                         
-                        # Подсчитываем сумму
+                        # Подсчитываем сумму продаж
                         for posting in postings:
                             # Получаем финансовые данные
                             financial_data = posting.get('financial_data', {})
-                            products = financial_data.get('products', [])
+                            
+                            # Пробуем получить товары из разных источников
+                            products_financial = financial_data.get('products', [])
+                            products_main = posting.get('products', [])
                             
                             # Суммируем стоимость всех товаров в заказе
-                            # В Ozon API price уже в рублях (не в копейках)
-                            for product in products:
-                                # Используем price - стоимость товара для покупателя
-                                price = float(product.get('price', 0))
-                                total_sum += price
+                            posting_total = 0.0
+                            
+                            # Сначала пробуем получить из financial_data
+                            if products_financial:
+                                for product in products_financial:
+                                    price = float(product.get('price', 0))
+                                    if price > 0:
+                                        posting_total += price
+                            
+                            # Если financial_data пустой, берем из основных products
+                            if posting_total == 0 and products_main:
+                                for product in products_main:
+                                    # Пробуем разные поля
+                                    price = float(product.get('price', 0))
+                                    quantity = int(product.get('quantity', 1))
+                                    posting_total += price * quantity
+                            
+                            total_sum += posting_total
                         
                         total_count += len(postings)
                     elif response.status_code == 401:
