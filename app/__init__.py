@@ -2,11 +2,16 @@ from flask import Flask
 from flask_login import LoginManager
 from app.models import db, User
 from config import Config
+import os
 
 
 def create_app(config_class=Config):
     """Фабрика приложения Flask"""
-    app = Flask(__name__)
+    # Указываем пути к шаблонам и статическим файлам
+    template_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'templates')
+    static_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static')
+    
+    app = Flask(__name__, template_folder=template_dir, static_folder=static_dir)
     app.config.from_object(config_class)
     
     # Инициализация расширений
