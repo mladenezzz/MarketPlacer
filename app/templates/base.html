@@ -151,8 +151,13 @@
             right: 0;
             width: 100%;
             z-index: 1000;
-            transform: translateZ(0);
+            transform: translateY(0);
+            transition: transform 0.3s ease-in-out;
             -webkit-transform: translateZ(0);
+        }
+        
+        footer.hidden {
+            transform: translateY(100%);
         }
         
         /* Добавляем отступ снизу для body, чтобы контент не перекрывался футером */
@@ -419,6 +424,37 @@
                     });
                 });
             }
+            
+            // Управление видимостью футера при скролле
+            const footer = document.querySelector('footer');
+            let lastScrollTop = 0;
+            let scrollTimeout;
+            
+            function handleScroll() {
+                const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+                const windowHeight = window.innerHeight;
+                const documentHeight = document.documentElement.scrollHeight;
+                const isAtBottom = scrollTop + windowHeight >= documentHeight - 10; // 10px допуск
+                
+                // Показываем футер если внизу страницы или скроллим вниз
+                if (isAtBottom || scrollTop < lastScrollTop) {
+                    footer.classList.remove('hidden');
+                } else {
+                    // Скрываем футер при скролле вверх
+                    footer.classList.add('hidden');
+                }
+                
+                lastScrollTop = scrollTop <= 0 ? 0 : scrollTop;
+            }
+            
+            // Обработчик скролла с debounce
+            window.addEventListener('scroll', function() {
+                clearTimeout(scrollTimeout);
+                scrollTimeout = setTimeout(handleScroll, 10);
+            }, { passive: true });
+            
+            // Проверяем начальное состояние
+            handleScroll();
         });
     </script>
     
