@@ -30,19 +30,39 @@
 <div class="container mb-5">
     {% if current_user.is_authenticated %}
         {% if has_tokens %}
-        <!-- Статистика заказов на сегодня -->
+        <!-- Статистика заказов -->
         <div class="row mb-4">
             <div class="col-12">
                 <div class="card">
                     <div class="card-header bg-primary text-white">
-                        <div class="d-flex justify-content-between align-items-center">
+                        <div class="d-flex justify-content-between align-items-center flex-wrap">
                             <h4 class="mb-0">
-                                <i class="bi bi-calendar-check"></i> Заказы на сегодня
+                                <i class="bi bi-calendar-check"></i> Заказы
                                 <span id="current-date" class="ms-2"></span>
                             </h4>
-                            <div class="text-end">
-                                <small>Последнее обновление:</small><br>
-                                <span id="last-update-time">-</span>
+                            <div class="d-flex align-items-center gap-2 mt-2 mt-md-0">
+                                <div class="input-group" style="max-width: 300px;">
+                                    <span class="input-group-text">
+                                        <i class="bi bi-calendar3"></i>
+                                    </span>
+                                    <input type="date" 
+                                           id="datePicker" 
+                                           class="form-control" 
+                                           value="{{ '' }}">
+                                    <button class="btn btn-light btn-sm" onclick="changeDate(-1)" title="Предыдущий день">
+                                        <i class="bi bi-chevron-left"></i>
+                                    </button>
+                                    <button class="btn btn-light btn-sm" onclick="changeDate(0)" title="Сегодня">
+                                        <i class="bi bi-calendar-today"></i>
+                                    </button>
+                                    <button class="btn btn-light btn-sm" onclick="changeDate(1)" title="Следующий день">
+                                        <i class="bi bi-chevron-right"></i>
+                                    </button>
+                                </div>
+                                <div class="text-end" id="update-time-container">
+                                    <small>Последнее обновление:</small><br>
+                                    <span id="last-update-time">-</span>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -120,19 +140,21 @@
             </div>
         </div>
         
-        <!-- Статистика продаж на сегодня -->
+        <!-- Статистика продаж -->
         <div class="row mb-4">
             <div class="col-12">
                 <div class="card">
                     <div class="card-header bg-success text-white">
-                        <div class="d-flex justify-content-between align-items-center">
+                        <div class="d-flex justify-content-between align-items-center flex-wrap">
                             <h4 class="mb-0">
-                                <i class="bi bi-bag-check"></i> Продажи на сегодня
+                                <i class="bi bi-bag-check"></i> Продажи
                                 <span id="current-date-sales" class="ms-2"></span>
                             </h4>
-                            <div class="text-end">
-                                <small>Последнее обновление:</small><br>
-                                <span id="last-update-time-sales">-</span>
+                            <div class="d-flex align-items-center gap-2 mt-2 mt-md-0">
+                                <div class="text-end" id="update-time-sales-container">
+                                    <small>Последнее обновление:</small><br>
+                                    <span id="last-update-time-sales">-</span>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -235,8 +257,27 @@ document.addEventListener('DOMContentLoaded', function() {
     const tokenOrdersData = {};
     const tokenSalesData = {};
     let updateInterval;
+    let currentSelectedDate = new Date();
     
-    // Функция для форматирования даты
+    // Инициализация date picker с сегодняшней датой
+    const datePicker = document.getElementById('datePicker');
+    if (datePicker) {
+        const today = new Date();
+        const dateStr = formatDateForInput(today);
+        datePicker.value = dateStr;
+        currentSelectedDate = new Date(today);
+        updateCurrentDate();
+    }
+    
+    // Функция для форматирования даты для input[type="date"]
+    function formatDateForInput(date) {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    }
+    
+    // Функция для форматирования даты для отображения
     function formatDate(date) {
         const day = String(date.getDate()).padStart(2, '0');
         const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -252,12 +293,75 @@ document.addEventListener('DOMContentLoaded', function() {
         return `${hours}:${minutes}:${seconds}`;
     }
     
+    // Проверка, является ли дата сегодняшней
+    function isToday(date) {
+        const today = new Date();
+        return date.getDate() === today.getDate() &&
+               date.getMonth() === today.getMonth() &&
+               date.getFullYear() === today.getFullYear();
+    }
+    
     // Обновляем текущую дату для обеих секций
     function updateCurrentDate() {
-        const now = new Date();
-        const dateStr = `(${formatDate(now)})`;
+        const dateStr = `(${formatDate(currentSelectedDate)})`;
         document.getElementById('current-date').textContent = dateStr;
         document.getElementById('current-date-sales').textContent = dateStr;
+        
+        // Обновляем date picker
+        if (datePicker) {
+            datePicker.value = formatDateForInput(currentSelectedDate);
+        }
+        
+        // Показываем/скрываем время обновления в зависимости от даты
+        const isTodayDate = isToday(currentSelectedDate);
+        const updateTimeContainer = document.getElementById('update-time-container');
+        const updateTimeSalesContainer = document.getElementById('update-time-sales-container');
+        
+        if (updateTimeContainer) {
+            updateTimeContainer.style.display = isTodayDate ? 'block' : 'none';
+        }
+        if (updateTimeSalesContainer) {
+            updateTimeSalesContainer.style.display = isTodayDate ? 'block' : 'none';
+        }
+        
+        // Управляем автоматическим обновлением
+        if (isTodayDate) {
+            // Для сегодняшнего дня включаем автообновление
+            if (!updateInterval) {
+                updateInterval = setInterval(function() {
+                    loadAllData(true);
+                }, 60000);
+            }
+        } else {
+            // Для прошлых дней отключаем автообновление
+            if (updateInterval) {
+                clearInterval(updateInterval);
+                updateInterval = null;
+            }
+        }
+    }
+    
+    // Функция для изменения даты
+    window.changeDate = function(days) {
+        if (days === 0) {
+            currentSelectedDate = new Date();
+        } else {
+            currentSelectedDate.setDate(currentSelectedDate.getDate() + days);
+        }
+        updateCurrentDate();
+        loadAllData(false);
+    };
+    
+    // Обработчик изменения даты в date picker
+    if (datePicker) {
+        datePicker.addEventListener('change', function() {
+            const selectedDate = new Date(this.value + 'T00:00:00');
+            if (!isNaN(selectedDate.getTime())) {
+                currentSelectedDate = selectedDate;
+                updateCurrentDate();
+                loadAllData(false);
+            }
+        });
     }
     
     // Обновляем время последнего обновления для заказов
@@ -322,7 +426,9 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         try {
-            const response = await fetch(`{{ url_for('main.get_token_orders', token_id=0) }}`.replace('0', tokenId));
+            const dateParam = formatDateForInput(currentSelectedDate);
+            const url = `{{ url_for('main.get_token_orders', token_id=0) }}`.replace('0', tokenId) + `?date=${dateParam}`;
+            const response = await fetch(url);
             const data = await response.json();
             
             if (data.success) {
@@ -403,7 +509,9 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         try {
-            const response = await fetch(`{{ url_for('main.get_token_sales', token_id=0) }}`.replace('0', tokenId));
+            const dateParam = formatDateForInput(currentSelectedDate);
+            const url = `{{ url_for('main.get_token_sales', token_id=0) }}`.replace('0', tokenId) + `?date=${dateParam}`;
+            const response = await fetch(url);
             const data = await response.json();
             
             if (data.success) {
@@ -513,13 +621,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     // Инициализация: обновляем дату и загружаем данные
-    updateCurrentDate();
     loadAllData(false);
-    
-    // Устанавливаем автоматическое обновление каждую минуту (60000 мс)
-    updateInterval = setInterval(function() {
-        loadAllData(true);
-    }, 60000);
     
     // Очищаем интервал при уходе со страницы
     window.addEventListener('beforeunload', function() {

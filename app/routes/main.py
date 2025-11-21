@@ -47,10 +47,50 @@ def get_token_orders(token_id):
     if not token:
         return jsonify({'success': False, 'error': 'Токен не найден'}), 404
     
-    # Получаем данные о заказах
-    order_info = MarketplaceAPI.get_today_orders_total(token)
+    # Получаем дату из параметров или используем сегодняшнюю
+    date_str = request.args.get('date')
+    if date_str:
+        try:
+            selected_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+        except:
+            selected_date = datetime.now().date()
+    else:
+        selected_date = datetime.now().date()
     
-    return jsonify(order_info)
+    today = datetime.now().date()
+    
+    # Если выбран сегодняшний день - используем API
+    if selected_date == today:
+        order_info = MarketplaceAPI.get_today_orders_total(token)
+        return jsonify(order_info)
+    else:
+        # Для прошлых дней берем из базы данных
+        start_datetime = datetime.combine(selected_date, datetime.min.time())
+        end_datetime = datetime.combine(selected_date, datetime.max.time())
+        
+        orders_query = Order.query.filter(
+            and_(
+                Order.token_id == token.id,
+                Order.order_date >= start_datetime,
+                Order.order_date <= end_datetime
+            )
+        )
+        
+        orders_count = orders_query.count()
+        orders_total = db.session.query(func.sum(Order.price)).filter(
+            and_(
+                Order.token_id == token.id,
+                Order.order_date >= start_datetime,
+                Order.order_date <= end_datetime
+            )
+        ).scalar() or 0.0
+        
+        return jsonify({
+            'success': True,
+            'count': orders_count,
+            'total': float(orders_total),
+            'error': None
+        })
 
 
 @main_bp.route('/api/sales/<int:token_id>')
@@ -63,10 +103,50 @@ def get_token_sales(token_id):
     if not token:
         return jsonify({'success': False, 'error': 'Токен не найден'}), 404
     
-    # Получаем данные о продажах
-    sales_info = MarketplaceAPI.get_today_sales_total(token)
+    # Получаем дату из параметров или используем сегодняшнюю
+    date_str = request.args.get('date')
+    if date_str:
+        try:
+            selected_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+        except:
+            selected_date = datetime.now().date()
+    else:
+        selected_date = datetime.now().date()
     
-    return jsonify(sales_info)
+    today = datetime.now().date()
+    
+    # Если выбран сегодняшний день - используем API
+    if selected_date == today:
+        sales_info = MarketplaceAPI.get_today_sales_total(token)
+        return jsonify(sales_info)
+    else:
+        # Для прошлых дней берем из базы данных
+        start_datetime = datetime.combine(selected_date, datetime.min.time())
+        end_datetime = datetime.combine(selected_date, datetime.max.time())
+        
+        sales_query = Sale.query.filter(
+            and_(
+                Sale.token_id == token.id,
+                Sale.sale_date >= start_datetime,
+                Sale.sale_date <= end_datetime
+            )
+        )
+        
+        sales_count = sales_query.count()
+        sales_total = db.session.query(func.sum(Sale.price)).filter(
+            and_(
+                Sale.token_id == token.id,
+                Sale.sale_date >= start_datetime,
+                Sale.sale_date <= end_datetime
+            )
+        ).scalar() or 0.0
+        
+        return jsonify({
+            'success': True,
+            'count': sales_count,
+            'total': float(sales_total),
+            'error': None
+        })
 
 
 @main_bp.route('/dashboard')
