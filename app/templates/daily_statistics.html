@@ -1,0 +1,243 @@
+{% extends "base.html" %}
+
+{% block title %}Подневная статистика - MarketPlacer{% endblock %}
+
+{% block content %}
+<div class="content-wrapper">
+    <div class="container">
+        <div class="row">
+            <div class="col-12">
+                <div class="card mb-4">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h3 class="mb-0">
+                            <i class="bi bi-calendar-day"></i> Подневная статистика
+                        </h3>
+                        <div>
+                            <a href="{{ url_for('main.dashboard') }}" class="btn btn-sm btn-outline-secondary">
+                                <i class="bi bi-arrow-left"></i> Назад
+                            </a>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <!-- Навигация по датам -->
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <div class="input-group">
+                                    <span class="input-group-text">
+                                        <i class="bi bi-calendar3"></i>
+                                    </span>
+                                    <input type="date" 
+                                           id="datePicker" 
+                                           class="form-control" 
+                                           value="{{ selected_date.strftime('%Y-%m-%d') }}">
+                                    <button class="btn btn-primary" onclick="loadStatistics()">
+                                        <i class="bi bi-search"></i> Загрузить
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="col-md-6 text-end">
+                                <div class="btn-group" role="group">
+                                    <button class="btn btn-outline-primary" onclick="changeDate(-1)">
+                                        <i class="bi bi-chevron-left"></i> Предыдущий день
+                                    </button>
+                                    <button class="btn btn-outline-primary" onclick="changeDate(0)">
+                                        <i class="bi bi-calendar-today"></i> Сегодня
+                                    </button>
+                                    <button class="btn btn-outline-primary" onclick="changeDate(1)">
+                                        Следующий день <i class="bi bi-chevron-right"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Информация о выбранной дате -->
+                        <div class="alert alert-info" id="dateInfo">
+                            <i class="bi bi-info-circle"></i>
+                            <strong>Выбранная дата:</strong> 
+                            <span id="selectedDateText">{{ selected_date.strftime('%d.%m.%Y') }}</span>
+                        </div>
+                        
+                        <!-- Загрузка данных -->
+                        <div id="loadingIndicator" class="text-center py-5" style="display: none;">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Загрузка...</span>
+                            </div>
+                            <p class="mt-2">Загрузка данных...</p>
+                        </div>
+                        
+                        <!-- Таблица статистики -->
+                        <div id="statisticsTable" style="display: none;">
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>Токен</th>
+                                            <th>Маркетплейс</th>
+                                            <th class="text-end">Заказов</th>
+                                            <th class="text-end">Сумма заказов</th>
+                                            <th class="text-end">Продаж</th>
+                                            <th class="text-end">Сумма продаж</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="statisticsBody">
+                                        <!-- Данные будут загружены через JavaScript -->
+                                    </tbody>
+                                    <tfoot>
+                                        <tr class="table-primary">
+                                            <th colspan="2">Итого:</th>
+                                            <th class="text-end" id="totalOrders">0</th>
+                                            <th class="text-end" id="totalOrdersSum">0.00 ₽</th>
+                                            <th class="text-end" id="totalSales">0</th>
+                                            <th class="text-end" id="totalSalesSum">0.00 ₽</th>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                            </div>
+                            
+                            <!-- Сообщение, если нет данных -->
+                            <div id="noDataMessage" class="alert alert-warning" style="display: none;">
+                                <i class="bi bi-exclamation-triangle"></i>
+                                На выбранную дату нет данных.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let currentDate = new Date('{{ selected_date.strftime("%Y-%m-%d") }}');
+
+function formatDate(date) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+}
+
+function formatDateDisplay(date) {
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = date.getFullYear();
+    return `${day}.${month}.${year}`;
+}
+
+function changeDate(days) {
+    if (days === 0) {
+        currentDate = new Date();
+    } else {
+        currentDate.setDate(currentDate.getDate() + days);
+    }
+    
+    document.getElementById('datePicker').value = formatDate(currentDate);
+    document.getElementById('selectedDateText').textContent = formatDateDisplay(currentDate);
+    loadStatistics();
+}
+
+function loadStatistics() {
+    const datePicker = document.getElementById('datePicker');
+    const selectedDate = datePicker.value;
+    
+    if (!selectedDate) {
+        alert('Пожалуйста, выберите дату');
+        return;
+    }
+    
+    currentDate = new Date(selectedDate + 'T00:00:00');
+    document.getElementById('selectedDateText').textContent = formatDateDisplay(currentDate);
+    
+    // Показываем индикатор загрузки
+    document.getElementById('loadingIndicator').style.display = 'block';
+    document.getElementById('statisticsTable').style.display = 'none';
+    document.getElementById('noDataMessage').style.display = 'none';
+    
+    // Загружаем данные
+    fetch(`/api/statistics/daily?date=${selectedDate}`)
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('loadingIndicator').style.display = 'none';
+            
+            if (!data.success) {
+                alert('Ошибка загрузки данных: ' + (data.error || 'Неизвестная ошибка'));
+                return;
+            }
+            
+            if (data.tokens.length === 0) {
+                document.getElementById('noDataMessage').style.display = 'block';
+                document.getElementById('statisticsTable').style.display = 'none';
+                return;
+            }
+            
+            // Отображаем данные
+            const tbody = document.getElementById('statisticsBody');
+            tbody.innerHTML = '';
+            
+            let totalOrders = 0;
+            let totalOrdersSum = 0;
+            let totalSales = 0;
+            let totalSalesSum = 0;
+            
+            data.tokens.forEach(token => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${escapeHtml(token.token_name)}</td>
+                    <td>${escapeHtml(token.marketplace)}</td>
+                    <td class="text-end">${token.orders.count}</td>
+                    <td class="text-end"><strong>${formatCurrency(token.orders.total)}</strong></td>
+                    <td class="text-end">${token.sales.count}</td>
+                    <td class="text-end"><strong>${formatCurrency(token.sales.total)}</strong></td>
+                `;
+                tbody.appendChild(row);
+                
+                totalOrders += token.orders.count;
+                totalOrdersSum += token.orders.total;
+                totalSales += token.sales.count;
+                totalSalesSum += token.sales.total;
+            });
+            
+            // Обновляем итоги
+            document.getElementById('totalOrders').textContent = totalOrders;
+            document.getElementById('totalOrdersSum').textContent = formatCurrency(totalOrdersSum);
+            document.getElementById('totalSales').textContent = totalSales;
+            document.getElementById('totalSalesSum').textContent = formatCurrency(totalSalesSum);
+            
+            document.getElementById('statisticsTable').style.display = 'block';
+        })
+        .catch(error => {
+            document.getElementById('loadingIndicator').style.display = 'none';
+            alert('Ошибка при загрузке данных: ' + error.message);
+        });
+}
+
+function formatCurrency(amount) {
+    return new Intl.NumberFormat('ru-RU', {
+        style: 'currency',
+        currency: 'RUB',
+        minimumFractionDigits: 2
+    }).format(amount);
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// Загружаем данные при загрузке страницы
+document.addEventListener('DOMContentLoaded', function() {
+    loadStatistics();
+    
+    // Обработчик изменения даты в datePicker
+    document.getElementById('datePicker').addEventListener('change', function() {
+        const selectedDate = this.value;
+        if (selectedDate) {
+            currentDate = new Date(selectedDate + 'T00:00:00');
+            document.getElementById('selectedDateText').textContent = formatDateDisplay(currentDate);
+        }
+    });
+});
+</script>
+{% endblock %}
+
