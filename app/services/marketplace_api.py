@@ -105,7 +105,7 @@ class MarketplaceAPI:
                 # Подсчитываем сумму по priceWithDisc (цена для покупателя со скидкой)
                 # Это реальная сумма заказов, которую платят покупатели
                 # Значение в копейках, поэтому делим на 100
-                total = sum(float(order.get('priceWithDisc', 0))  for order in today_orders)
+                total = sum(float(order.get('priceWithDisc', 0)) / 100.0 for order in today_orders)
                 
                 return {
                     'success': True,
@@ -368,9 +368,9 @@ class MarketplaceAPI:
                         except:
                             continue
                 
-                # Подсчитываем сумму по finishedPrice (итоговая цена продажи)
+                # Подсчитываем сумму по finishedPrice (итоговая цена продажи для продавца)
                 # Значение в копейках, поэтому делим на 100
-                total = sum(float(sale.get('finishedPrice', 0)) for sale in today_sales)
+                total = sum(float(sale.get('finishedPrice', 0)) / 100.0 for sale in today_sales)
                 
                 return {
                     'success': True,
@@ -421,7 +421,7 @@ class MarketplaceAPI:
         Получить продажи Ozon на сегодня
         
         API документация: https://docs.ozon.ru/api/seller/
-        Использует метод /v3/finance/transaction/list для получения финансовых операций
+        Продажи = доставленные заказы (статус delivered)
         """
         try:
             if not token.client_id:
@@ -446,67 +446,82 @@ class MarketplaceAPI:
                 'Content-Type': 'application/json'
             }
             
-            # API endpoint для получения финансовых транзакций
-            url = 'https://api-seller.ozon.ru/v3/finance/transaction/list'
-            payload = {
-                "filter": {
-                    "date": {
-                        "from": date_from,
-                        "to": date_to
-                    },
-                    "operation_type": ["OperationAgentDeliveredToCustomer"],  # Продажи
-                    "transaction_type": "orders"
-                },
-                "page": 1,
-                "page_size": 1000
-            }
+            total_sum = 0.0
+            total_count = 0
+            errors = []
             
-            try:
-                response = requests.post(url, headers=headers, json=payload, timeout=10)
+            # Получаем доставленные заказы (продажи) из обоих типов: FBS и FBO
+            endpoints = [
+                ('https://api-seller.ozon.ru/v3/posting/fbs/list', 'FBS'),
+                ('https://api-seller.ozon.ru/v2/posting/fbo/list', 'FBO')
+            ]
+            
+            for url, scheme_type in endpoints:
+                payload = {
+                    "dir": "ASC",
+                    "filter": {
+                        "since": date_from,
+                        "to": date_to,
+                        "status": "delivered"  # Только доставленные = продажи
+                    },
+                    "limit": 1000,
+                    "offset": 0,
+                    "with": {
+                        "analytics_data": True,
+                        "financial_data": True
+                    }
+                }
                 
-                if response.status_code == 200:
-                    data = response.json()
-                    result = data.get('result', {})
-                    operations = result.get('operations', [])
+                try:
+                    response = requests.post(url, headers=headers, json=payload, timeout=10)
                     
-                    # Подсчитываем сумму продаж
-                    total_sum = 0.0
-                    total_count = len(operations)
-                    
-                    for operation in operations:
-                        # Получаем сумму продажи из поля sale_commission или accruals_for_sale
-                        items = operation.get('items', [])
-                        for item in items:
-                            # Используем поле amount - итоговая сумма
-                            amount = float(item.get('amount', 0))
-                            total_sum += abs(amount)  # Используем abs, т.к. может быть отрицательным
-                    
-                    return {
-                        'success': True,
-                        'total': total_sum,
-                        'count': total_count,
-                        'error': None
-                    }
-                elif response.status_code == 401:
-                    return {
-                        'success': False,
-                        'total': 0.0,
-                        'count': 0,
-                        'error': 'Неверный API ключ или Client-Id'
-                    }
-                else:
-                    return {
-                        'success': False,
-                        'total': 0.0,
-                        'count': 0,
-                        'error': f'Ошибка API: {response.status_code}'
-                    }
-            except Exception as e:
+                    if response.status_code == 200:
+                        data = response.json()
+                        result = data.get('result', {})
+                        
+                        # FBO v2 может возвращать result как список, а FBS v3 как dict с postings
+                        if isinstance(result, list):
+                            postings = result
+                        elif isinstance(result, dict):
+                            postings = result.get('postings', [])
+                        else:
+                            postings = []
+                        
+                        # Подсчитываем сумму
+                        for posting in postings:
+                            # Получаем финансовые данные
+                            financial_data = posting.get('financial_data', {})
+                            products = financial_data.get('products', [])
+                            
+                            # Суммируем стоимость всех товаров в заказе
+                            # В Ozon API price уже в рублях (не в копейках)
+                            for product in products:
+                                # Используем price - стоимость товара для покупателя
+                                price = float(product.get('price', 0))
+                                total_sum += price
+                        
+                        total_count += len(postings)
+                    elif response.status_code == 401:
+                        errors.append(f'{scheme_type}: Неверный API ключ или Client-Id')
+                    else:
+                        errors.append(f'{scheme_type}: Ошибка API {response.status_code}')
+                except Exception as e:
+                    errors.append(f'{scheme_type}: {str(e)}')
+            
+            # Если есть данные, считаем успешным
+            if total_count > 0 or not errors:
+                return {
+                    'success': True,
+                    'total': total_sum,
+                    'count': total_count,
+                    'error': None
+                }
+            else:
                 return {
                     'success': False,
                     'total': 0.0,
                     'count': 0,
-                    'error': f'Ошибка запроса: {str(e)}'
+                    'error': '; '.join(errors) if errors else 'Нет данных'
                 }
                 
         except requests.Timeout:
