@@ -90,14 +90,22 @@ class MarketplaceAPI:
                     order_date_str = order.get('date', '')
                     if order_date_str:
                         try:
-                            order_date = datetime.fromisoformat(order_date_str.replace('Z', '+00:00'))
-                            if today_start <= order_date <= today_end:
+                            # Парсим дату заказа (может быть без таймзоны)
+                            if 'Z' in order_date_str:
+                                order_date = datetime.fromisoformat(order_date_str.replace('Z', '+00:00'))
+                            else:
+                                order_date = datetime.fromisoformat(order_date_str)
+                            
+                            # Сравниваем только дату, без времени
+                            if order_date.date() == today_start.date():
                                 today_orders.append(order)
                         except:
                             continue
                 
-                # Подсчитываем сумму
-                total = sum(float(order.get('totalPrice', 0)) / 100 for order in today_orders)  # Цена в копейках
+                # Подсчитываем сумму по priceWithDisc (цена для покупателя со скидкой)
+                # Это реальная сумма заказов, которую платят покупатели
+                # Значение в копейках, поэтому делим на 100
+                total = sum(float(order.get('priceWithDisc', 0))  for order in today_orders)
                 
                 return {
                     'success': True,
@@ -206,7 +214,9 @@ class MarketplaceAPI:
                     products = financial_data.get('products', [])
                     
                     # Суммируем стоимость всех товаров в заказе
+                    # В Ozon API price уже в рублях (не в копейках)
                     for product in products:
+                        # Используем price - стоимость товара для покупателя
                         price = float(product.get('price', 0))
                         total += price
                 
