@@ -72,7 +72,8 @@ class TokenForm(FlaskForm):
     marketplace = SelectField('Маркетплейс', 
                              choices=[
                                  ('wildberries', 'Wildberries'),
-                                 ('ozon', 'Ozon')
+                                 ('ozon', 'Ozon'),
+                                 ('telegram', 'Telegram')
                              ],
                              validators=[DataRequired(message='Выберите маркетплейс')])
     token = TextAreaField('API Token', 
