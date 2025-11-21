@@ -21,6 +21,124 @@
             </div>
         </div>
         
+        {% if has_tokens %}
+        <!-- Статистика заказов на сегодня -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header bg-primary text-white">
+                        <h4 class="mb-0">
+                            <i class="bi bi-calendar-check"></i> Заказы на сегодня
+                        </h4>
+                    </div>
+                    <div class="card-body">
+                        <!-- Общая статистика -->
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <div class="card bg-success text-white">
+                                    <div class="card-body text-center">
+                                        <h5 class="card-title">
+                                            <i class="bi bi-cash-stack"></i> Общая сумма
+                                        </h5>
+                                        <h2 class="display-4">{{ "%.2f"|format(total_sum) }} ₽</h2>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="card bg-info text-white">
+                                    <div class="card-body text-center">
+                                        <h5 class="card-title">
+                                            <i class="bi bi-cart-check"></i> Количество заказов
+                                        </h5>
+                                        <h2 class="display-4">{{ total_count }}</h2>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Детальная информация по каждому токену -->
+                        <h5 class="mb-3">Детализация по токенам:</h5>
+                        <div class="table-responsive">
+                            <table class="table table-hover table-bordered">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Маркетплейс</th>
+                                        <th>Название токена</th>
+                                        <th>Количество заказов</th>
+                                        <th>Сумма заказов</th>
+                                        <th>Статус</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for order in orders_data %}
+                                    <tr>
+                                        <td>
+                                            {% if order.marketplace == 'Wildberries' %}
+                                                <span class="badge bg-purple">{{ order.marketplace }}</span>
+                                            {% elif order.marketplace == 'Ozon' %}
+                                                <span class="badge bg-primary">{{ order.marketplace }}</span>
+                                            {% elif order.marketplace == 'Telegram' %}
+                                                <span class="badge bg-info">{{ order.marketplace }}</span>
+                                            {% else %}
+                                                <span class="badge bg-secondary">{{ order.marketplace }}</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>{{ order.token_name }}</td>
+                                        <td class="text-center">
+                                            {% if order.success %}
+                                                <span class="badge bg-info">{{ order.count }}</span>
+                                            {% else %}
+                                                <span class="text-muted">-</span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="text-end">
+                                            {% if order.success %}
+                                                <strong>{{ "%.2f"|format(order.total) }} ₽</strong>
+                                            {% else %}
+                                                <span class="text-muted">-</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if order.success %}
+                                                <span class="badge bg-success">
+                                                    <i class="bi bi-check-circle"></i> Успешно
+                                                </span>
+                                            {% else %}
+                                                <span class="badge bg-danger" data-bs-toggle="tooltip" title="{{ order.error }}">
+                                                    <i class="bi bi-x-circle"></i> Ошибка
+                                                </span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        <div class="alert alert-info mt-3">
+                            <i class="bi bi-info-circle"></i> 
+                            Данные обновляются каждый раз при загрузке страницы. 
+                            <a href="{{ url_for('main.dashboard') }}" class="alert-link">Обновить данные</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <!-- Сообщение о том, что токены не добавлены -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="alert alert-warning">
+                    <h5><i class="bi bi-exclamation-triangle"></i> Токены не добавлены</h5>
+                    <p>Для отображения статистики заказов необходимо добавить хотя бы один токен маркетплейса.</p>
+                    <a href="{{ url_for('tokens.add') }}" class="btn btn-primary">
+                        <i class="bi bi-plus-circle"></i> Добавить токен
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+        
         <div class="row">
             {% if current_user.is_admin() %}
             <div class="col-md-4 mb-4">

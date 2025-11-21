@@ -185,6 +185,11 @@
             color: var(--primary-color);
             margin-bottom: 1rem;
         }
+        
+        /* Кастомные цвета для бейджей маркетплейсов */
+        .bg-purple {
+            background-color: #8b5cf6 !important;
+        }
     </style>
     
     {% block extra_css %}{% endblock %}
@@ -362,6 +367,12 @@
     <!-- Скрипт для открытия dropdown при наведении -->
     <script>
         document.addEventListener('DOMContentLoaded', function() {
+            // Инициализация tooltips Bootstrap
+            var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+            var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+                return new bootstrap.Tooltip(tooltipTriggerEl);
+            });
+            
             // Открытие dropdown при наведении на десктопе
             if (window.innerWidth > 992) {
                 const dropdowns = document.querySelectorAll('.navbar .dropdown');
