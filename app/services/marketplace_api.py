@@ -156,7 +156,7 @@ class MarketplaceAPI:
         Получить заказы Ozon на сегодня
         
         API документация: https://docs.ozon.ru/api/seller/
-        Endpoint: POST /v3/posting/fbs/list
+        Получает заказы из FBS (продавец отправляет) и FBO (Ozon отправляет)
         """
         try:
             if not token.client_id:
@@ -181,64 +181,75 @@ class MarketplaceAPI:
                 'Content-Type': 'application/json'
             }
             
-            # API endpoint для получения заказов
-            url = 'https://api-seller.ozon.ru/v3/posting/fbs/list'
+            total_sum = 0.0
+            total_count = 0
+            errors = []
             
-            payload = {
-                "dir": "ASC",
-                "filter": {
-                    "since": date_from,
-                    "to": date_to,
-                    "status": ""
-                },
-                "limit": 1000,
-                "offset": 0,
-                "with": {
-                    "analytics_data": True,
-                    "financial_data": True
+            # Получаем заказы из обоих типов: FBS и FBO
+            endpoints = [
+                ('https://api-seller.ozon.ru/v3/posting/fbs/list', 'FBS'),
+                ('https://api-seller.ozon.ru/v3/posting/fbo/list', 'FBO')
+            ]
+            
+            for url, scheme_type in endpoints:
+                payload = {
+                    "dir": "ASC",
+                    "filter": {
+                        "since": date_from,
+                        "to": date_to,
+                        "status": ""
+                    },
+                    "limit": 1000,
+                    "offset": 0,
+                    "with": {
+                        "analytics_data": True,
+                        "financial_data": True
+                    }
                 }
-            }
-            
-            response = requests.post(url, headers=headers, json=payload, timeout=10)
-            
-            if response.status_code == 200:
-                data = response.json()
-                result = data.get('result', {})
-                postings = result.get('postings', [])
                 
-                # Подсчитываем сумму
-                total = 0.0
-                for posting in postings:
-                    # Получаем финансовые данные
-                    financial_data = posting.get('financial_data', {})
-                    products = financial_data.get('products', [])
+                try:
+                    response = requests.post(url, headers=headers, json=payload, timeout=10)
                     
-                    # Суммируем стоимость всех товаров в заказе
-                    # В Ozon API price уже в рублях (не в копейках)
-                    for product in products:
-                        # Используем price - стоимость товара для покупателя
-                        price = float(product.get('price', 0))
-                        total += price
-                
+                    if response.status_code == 200:
+                        data = response.json()
+                        result = data.get('result', {})
+                        postings = result.get('postings', [])
+                        
+                        # Подсчитываем сумму
+                        for posting in postings:
+                            # Получаем финансовые данные
+                            financial_data = posting.get('financial_data', {})
+                            products = financial_data.get('products', [])
+                            
+                            # Суммируем стоимость всех товаров в заказе
+                            # В Ozon API price уже в рублях (не в копейках)
+                            for product in products:
+                                # Используем price - стоимость товара для покупателя
+                                price = float(product.get('price', 0))
+                                total_sum += price
+                        
+                        total_count += len(postings)
+                    elif response.status_code == 401:
+                        errors.append(f'{scheme_type}: Неверный API ключ или Client-Id')
+                    else:
+                        errors.append(f'{scheme_type}: Ошибка API {response.status_code}')
+                except Exception as e:
+                    errors.append(f'{scheme_type}: {str(e)}')
+            
+            # Если есть данные, считаем успешным
+            if total_count > 0 or not errors:
                 return {
                     'success': True,
-                    'total': total,
-                    'count': len(postings),
+                    'total': total_sum,
+                    'count': total_count,
                     'error': None
-                }
-            elif response.status_code == 401:
-                return {
-                    'success': False,
-                    'total': 0.0,
-                    'count': 0,
-                    'error': 'Неверный API ключ или Client-Id'
                 }
             else:
                 return {
                     'success': False,
                     'total': 0.0,
                     'count': 0,
-                    'error': f'Ошибка API: {response.status_code}'
+                    'error': '; '.join(errors) if errors else 'Нет данных'
                 }
                 
         except requests.Timeout:
