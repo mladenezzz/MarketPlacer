@@ -145,8 +145,19 @@
         
         footer {
             background: rgba(255, 255, 255, 0.95);
-            padding: 1.5rem 0;
+            padding: 2rem 0;
             margin-top: auto;
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            width: 100%;
+            z-index: 1000;
+        }
+        
+        /* Добавляем отступ снизу для body, чтобы контент не перекрывался футером */
+        body {
+            padding-bottom: 80px;
         }
         
         .hero-section {
@@ -353,11 +364,15 @@
     {% block content %}{% endblock %}
     
     <!-- Подвал -->
-    <footer class="mt-5">
-        <div class="container text-center">
-            <p class="mb-0 text-muted">
-                &copy; 2025 MarketPlacer. Все права защищены.
-            </p>
+    <footer>
+        <div class="container">
+            <div class="row">
+                <div class="col-12 text-center">
+                    <p class="mb-0 text-muted" style="display: inline-block; background: rgba(255, 255, 255, 0.98); padding: 0.75rem 3rem; border-radius: 25px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+                        &copy; 2025 MarketPlacer. Все права защищены.
+                    </p>
+                </div>
+            </div>
         </div>
     </footer>
     
