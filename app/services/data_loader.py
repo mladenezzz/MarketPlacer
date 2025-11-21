@@ -404,4 +404,175 @@ class DataLoader:
             token.data_loading_error = str(e)
             token.data_loading_completed_at = datetime.utcnow()
             db.session.commit()
-
+    
+    @staticmethod
+    def _save_wildberries_orders(token: Token, orders_data: List[Dict], period_start: datetime, period_end: datetime):
+        """Сохранить заказы Wildberries в базу данных"""
+        saved_count = 0
+        for order_data in orders_data:
+            try:
+                order_date_str = order_data.get('date', '')
+                if not order_date_str:
+                    continue
+                try:
+                    if 'Z' in order_date_str:
+                        order_date = datetime.fromisoformat(order_date_str.replace('Z', '+00:00'))
+                    else:
+                        order_date = datetime.fromisoformat(order_date_str)
+                except:
+                    continue
+                if order_date < period_start or order_date > period_end:
+                    continue
+                order_id = str(order_data.get('gNumber', '')) or str(order_data.get('srid', ''))
+                if not order_id:
+                    continue
+                existing = Order.query.filter_by(token_id=token.id, order_id=order_id, marketplace='wildberries').first()
+                if existing:
+                    continue
+                price = float(order_data.get('priceWithDisc', 0) or order_data.get('price', 0))
+                price_with_discount = float(order_data.get('priceWithDisc', 0)) if order_data.get('priceWithDisc') else None
+                finished_price = float(order_data.get('finishedPrice', 0)) if order_data.get('finishedPrice') else None
+                order = Order(token_id=token.id, marketplace='wildberries', order_type=None, order_id=order_id, order_date=order_date, price=price, price_with_discount=price_with_discount, finished_price=finished_price)
+                order.set_raw_data(order_data)
+                db.session.add(order)
+                saved_count += 1
+                if saved_count % 100 == 0:
+                    db.session.commit()
+            except Exception:
+                continue
+        if saved_count % 100 != 0:
+            db.session.commit()
+    
+    @staticmethod
+    def _save_wildberries_sales(token: Token, sales_data: List[Dict], period_start: datetime, period_end: datetime):
+        """Сохранить продажи Wildberries в базу данных"""
+        saved_count = 0
+        for sale_data in sales_data:
+            try:
+                sale_date_str = sale_data.get('date', '')
+                if not sale_date_str:
+                    continue
+                try:
+                    if 'Z' in sale_date_str:
+                        sale_date = datetime.fromisoformat(sale_date_str.replace('Z', '+00:00'))
+                    else:
+                        sale_date = datetime.fromisoformat(sale_date_str)
+                except:
+                    continue
+                if sale_date < period_start or sale_date > period_end:
+                    continue
+                sale_id = str(sale_data.get('gNumber', '')) or str(sale_data.get('srid', ''))
+                if not sale_id:
+                    continue
+                existing = Sale.query.filter_by(token_id=token.id, sale_id=sale_id, marketplace='wildberries').first()
+                if existing:
+                    continue
+                price = float(sale_data.get('finishedPrice', 0) or sale_data.get('priceWithDisc', 0) or sale_data.get('price', 0))
+                finished_price = float(sale_data.get('finishedPrice', 0)) if sale_data.get('finishedPrice') else None
+                sale = Sale(token_id=token.id, marketplace='wildberries', sale_type=None, sale_id=sale_id, sale_date=sale_date, price=price, finished_price=finished_price)
+                sale.set_raw_data(sale_data)
+                db.session.add(sale)
+                saved_count += 1
+                if saved_count % 100 == 0:
+                    db.session.commit()
+            except Exception:
+                continue
+        if saved_count % 100 != 0:
+            db.session.commit()
+    
+    @staticmethod
+    def _save_ozon_orders(token: Token, postings: List[Dict], order_type: str, period_start: datetime, period_end: datetime):
+        """Сохранить заказы Ozon в базу данных"""
+        saved_count = 0
+        for posting in postings:
+            try:
+                order_date_str = posting.get('in_process_at', '') or posting.get('created_at', '')
+                if not order_date_str:
+                    continue
+                try:
+                    if 'Z' in order_date_str:
+                        order_date = datetime.fromisoformat(order_date_str.replace('Z', '+00:00'))
+                    else:
+                        order_date = datetime.fromisoformat(order_date_str)
+                except:
+                    continue
+                if order_date < period_start or order_date > period_end:
+                    continue
+                posting_number = posting.get('posting_number', '')
+                order_id = posting.get('order_id', posting_number)
+                if not order_id:
+                    continue
+                existing = Order.query.filter_by(token_id=token.id, order_id=str(order_id), marketplace='ozon', order_type=order_type).first()
+                if existing:
+                    continue
+                financial_data = posting.get('financial_data', {})
+                products = financial_data.get('products', [])
+                total_price = 0.0
+                for product in products:
+                    total_price += float(product.get('price', 0))
+                if total_price == 0:
+                    products_direct = posting.get('products', [])
+                    for product in products_direct:
+                        price = float(product.get('price', 0))
+                        quantity = int(product.get('quantity', 1))
+                        total_price += price * quantity
+                order = Order(token_id=token.id, marketplace='ozon', order_type=order_type, order_id=str(order_id), posting_number=posting_number, order_date=order_date, price=total_price)
+                order.set_raw_data(posting)
+                db.session.add(order)
+                saved_count += 1
+                if saved_count % 100 == 0:
+                    db.session.commit()
+            except Exception:
+                continue
+        if saved_count % 100 != 0:
+            db.session.commit()
+    
+    @staticmethod
+    def _save_ozon_sales(token: Token, postings: List[Dict], sale_type: str, period_start: datetime, period_end: datetime):
+        """Сохранить продажи Ozon в базу данных"""
+        saved_count = 0
+        for posting in postings:
+            try:
+                status = posting.get('status', '')
+                if status not in ['delivering', 'delivered', 'sent']:
+                    continue
+                sale_date_str = posting.get('in_process_at', '') or posting.get('created_at', '')
+                if not sale_date_str:
+                    continue
+                try:
+                    if 'Z' in sale_date_str:
+                        sale_date = datetime.fromisoformat(sale_date_str.replace('Z', '+00:00'))
+                    else:
+                        sale_date = datetime.fromisoformat(sale_date_str)
+                except:
+                    continue
+                if sale_date < period_start or sale_date > period_end:
+                    continue
+                posting_number = posting.get('posting_number', '')
+                sale_id = posting.get('order_id', posting_number)
+                if not sale_id:
+                    continue
+                existing = Sale.query.filter_by(token_id=token.id, sale_id=str(sale_id), marketplace='ozon', sale_type=sale_type).first()
+                if existing:
+                    continue
+                financial_data = posting.get('financial_data', {})
+                products = financial_data.get('products', [])
+                total_price = 0.0
+                for product in products:
+                    total_price += float(product.get('price', 0))
+                if total_price == 0:
+                    products_direct = posting.get('products', [])
+                    for product in products_direct:
+                        price = float(product.get('price', 0))
+                        quantity = int(product.get('quantity', 1))
+                        total_price += price * quantity
+                sale = Sale(token_id=token.id, marketplace='ozon', sale_type=sale_type, sale_id=str(sale_id), posting_number=posting_number, sale_date=sale_date, price=total_price)
+                sale.set_raw_data(posting)
+                db.session.add(sale)
+                saved_count += 1
+                if saved_count % 100 == 0:
+                    db.session.commit()
+            except Exception:
+                continue
+        if saved_count % 100 != 0:
+            db.session.commit()
