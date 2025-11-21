@@ -451,7 +451,8 @@ class DataLoader:
                 price = float(order_data.get('priceWithDisc', 0) or order_data.get('price', 0))
                 price_with_discount = float(order_data.get('priceWithDisc', 0)) if order_data.get('priceWithDisc') else None
                 finished_price = float(order_data.get('finishedPrice', 0)) if order_data.get('finishedPrice') else None
-                order = Order(token_id=token.id, marketplace='wildberries', order_type=None, order_id=order_id, order_date=order_date, price=price, price_with_discount=price_with_discount, finished_price=finished_price)
+                supplier_article = str(order_data.get('supplierArticle', '')) if order_data.get('supplierArticle') else None
+                order = Order(token_id=token.id, marketplace='wildberries', order_type=None, order_id=order_id, order_date=order_date, price=price, price_with_discount=price_with_discount, finished_price=finished_price, supplier_article=supplier_article)
                 order.set_raw_data(order_data)
                 db.session.add(order)
                 saved_count += 1
@@ -491,7 +492,8 @@ class DataLoader:
                     continue
                 price = float(sale_data.get('finishedPrice', 0) or sale_data.get('priceWithDisc', 0) or sale_data.get('price', 0))
                 finished_price = float(sale_data.get('finishedPrice', 0)) if sale_data.get('finishedPrice') else None
-                sale = Sale(token_id=token.id, marketplace='wildberries', sale_type=None, sale_id=sale_id, sale_date=sale_date, price=price, finished_price=finished_price)
+                supplier_article = str(sale_data.get('supplierArticle', '')) if sale_data.get('supplierArticle') else None
+                sale = Sale(token_id=token.id, marketplace='wildberries', sale_type=None, sale_id=sale_id, sale_date=sale_date, price=price, finished_price=finished_price, supplier_article=supplier_article)
                 sale.set_raw_data(sale_data)
                 db.session.add(sale)
                 saved_count += 1
@@ -541,7 +543,12 @@ class DataLoader:
                         price = float(product.get('price', 0))
                         quantity = int(product.get('quantity', 1))
                         total_price += price * quantity
-                order = Order(token_id=token.id, marketplace='ozon', order_type=order_type, order_id=str(order_id), posting_number=posting_number, order_date=order_date, price=total_price)
+                # Извлекаем артикул продавца (offer_id) из первого товара
+                supplier_article = None
+                products_list = posting.get('products', [])
+                if products_list and len(products_list) > 0:
+                    supplier_article = str(products_list[0].get('offer_id', '')) if products_list[0].get('offer_id') else None
+                order = Order(token_id=token.id, marketplace='ozon', order_type=order_type, order_id=str(order_id), posting_number=posting_number, order_date=order_date, price=total_price, supplier_article=supplier_article)
                 order.set_raw_data(posting)
                 db.session.add(order)
                 saved_count += 1
@@ -594,7 +601,12 @@ class DataLoader:
                         price = float(product.get('price', 0))
                         quantity = int(product.get('quantity', 1))
                         total_price += price * quantity
-                sale = Sale(token_id=token.id, marketplace='ozon', sale_type=sale_type, sale_id=str(sale_id), posting_number=posting_number, sale_date=sale_date, price=total_price)
+                # Извлекаем артикул продавца (offer_id) из первого товара
+                supplier_article = None
+                products_list = posting.get('products', [])
+                if products_list and len(products_list) > 0:
+                    supplier_article = str(products_list[0].get('offer_id', '')) if products_list[0].get('offer_id') else None
+                sale = Sale(token_id=token.id, marketplace='ozon', sale_type=sale_type, sale_id=str(sale_id), posting_number=posting_number, sale_date=sale_date, price=total_price, supplier_article=supplier_article)
                 sale.set_raw_data(posting)
                 db.session.add(sale)
                 saved_count += 1

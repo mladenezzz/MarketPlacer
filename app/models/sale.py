@@ -16,6 +16,9 @@ class Sale(db.Model):
     sale_id = db.Column(db.String(200), nullable=False, index=True)  # Уникальный ID продажи на маркетплейсе
     posting_number = db.Column(db.String(200), nullable=True)  # Для Ozon
     
+    # Информация о товаре
+    supplier_article = db.Column(db.String(200), nullable=True, index=True)  # Артикул продавца (SKU)
+    
     # Даты
     sale_date = db.Column(db.DateTime, nullable=False, index=True)  # Дата продажи
     created_at = db.Column(db.DateTime, default=datetime.utcnow)  # Когда запись создана в БД
