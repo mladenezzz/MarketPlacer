@@ -51,6 +51,22 @@ def get_token_orders(token_id):
     return jsonify(order_info)
 
 
+@main_bp.route('/api/sales/<int:token_id>')
+@login_required
+def get_token_sales(token_id):
+    """API endpoint для получения данных о продажах по токену"""
+    # Проверяем, что токен принадлежит текущему пользователю
+    token = Token.query.filter_by(id=token_id, user_id=current_user.id).first()
+    
+    if not token:
+        return jsonify({'success': False, 'error': 'Токен не найден'}), 404
+    
+    # Получаем данные о продажах
+    sales_info = MarketplaceAPI.get_today_sales_total(token)
+    
+    return jsonify(sales_info)
+
+
 @main_bp.route('/dashboard')
 @login_required
 def dashboard():
