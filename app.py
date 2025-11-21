@@ -1,7 +1,7 @@
 from flask import Flask, render_template, redirect, url_for, flash, request, abort
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
-from models import db, User
-from forms import RegistrationForm, LoginForm, ChangeRoleForm
+from models import db, User, Token
+from forms import RegistrationForm, LoginForm, ChangeRoleForm, TokenForm
 from config import Config
 from functools import wraps
 import os
@@ -198,6 +198,101 @@ def unblock_user(user_id):
         flash(f'Пользователь {user.username} успешно разблокирован.', 'success')
     
     return redirect(url_for('admin_users'))
+
+
+# ===== Управление токенами маркетплейсов =====
+
+@app.route('/settings/tokens')
+@login_required
+def tokens():
+    """Страница управления токенами маркетплейсов"""
+    user_tokens = Token.query.filter_by(user_id=current_user.id).order_by(Token.created_at.desc()).all()
+    return render_template('tokens.html', tokens=user_tokens)
+
+
+@app.route('/settings/tokens/add', methods=['GET', 'POST'])
+@login_required
+def add_token():
+    """Добавление нового токена"""
+    form = TokenForm()
+    
+    if form.validate_on_submit():
+        # Проверка, что для Ozon указан Client ID
+        if form.marketplace.data == 'ozon' and not form.client_id.data:
+            flash('Для Ozon необходимо указать Client ID.', 'warning')
+            return render_template('add_token.html', form=form)
+        
+        token = Token(
+            user_id=current_user.id,
+            marketplace=form.marketplace.data,
+            token=form.token.data,
+            client_id=form.client_id.data if form.marketplace.data == 'ozon' else None
+        )
+        
+        db.session.add(token)
+        db.session.commit()
+        
+        flash(f'Токен {token.get_marketplace_display()} успешно добавлен.', 'success')
+        return redirect(url_for('tokens'))
+    
+    return render_template('add_token.html', form=form)
+
+
+@app.route('/settings/tokens/<int:token_id>/edit', methods=['GET', 'POST'])
+@login_required
+def edit_token(token_id):
+    """Редактирование токена"""
+    token = Token.query.get_or_404(token_id)
+    
+    # Проверка, что токен принадлежит текущему пользователю
+    if token.user_id != current_user.id:
+        flash('У вас нет прав для редактирования этого токена.', 'danger')
+        return redirect(url_for('tokens'))
+    
+    form = TokenForm()
+    
+    if form.validate_on_submit():
+        # Проверка, что для Ozon указан Client ID
+        if form.marketplace.data == 'ozon' and not form.client_id.data:
+            flash('Для Ozon необходимо указать Client ID.', 'warning')
+            return render_template('edit_token.html', form=form, token=token)
+        
+        token.marketplace = form.marketplace.data
+        token.token = form.token.data
+        token.client_id = form.client_id.data if form.marketplace.data == 'ozon' else None
+        
+        db.session.commit()
+        
+        flash(f'Токен {token.get_marketplace_display()} успешно обновлен.', 'success')
+        return redirect(url_for('tokens'))
+    
+    # Заполнение формы текущими данными токена
+    if request.method == 'GET':
+        form.marketplace.data = token.marketplace
+        form.token.data = token.token
+        form.client_id.data = token.client_id
+    
+    return render_template('edit_token.html', form=form, token=token)
+
+
+@app.route('/settings/tokens/<int:token_id>/delete', methods=['POST'])
+@login_required
+def delete_token(token_id):
+    """Удаление токена"""
+    token = Token.query.get_or_404(token_id)
+    
+    # Проверка, что токен принадлежит текущему пользователю
+    if token.user_id != current_user.id:
+        flash('У вас нет прав для удаления этого токена.', 'danger')
+        return redirect(url_for('tokens'))
+    
+    marketplace_name = token.get_marketplace_display()
+    db.session.delete(token)
+    db.session.commit()
+    
+    flash(f'Токен {marketplace_name} успешно удален.', 'success')
+    return redirect(url_for('tokens'))
+
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)

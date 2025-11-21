@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+
+{% block title %}Добавить токен - MarketPlacer{% endblock %}
+
+{% block content %}
+<div class="content-wrapper">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="mb-0">
+                            <i class="bi bi-plus-circle"></i> Добавить токен API
+                        </h3>
+                    </div>
+                    <div class="card-body">
+                        <form method="POST" action="{{ url_for('add_token') }}">
+                            {{ form.hidden_tag() }}
+                            
+                            <div class="mb-3">
+                                {{ form.marketplace.label(class="form-label fw-bold") }}
+                                {{ form.marketplace(class="form-select" + (" is-invalid" if form.marketplace.errors else ""), id="marketplace-select") }}
+                                {% if form.marketplace.errors %}
+                                    <div class="invalid-feedback">
+                                        {% for error in form.marketplace.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                                <small class="form-text text-muted">
+                                    Выберите маркетплейс для которого добавляете токен
+                                </small>
+                            </div>
+                            
+                            <div class="mb-3">
+                                {{ form.token.label(class="form-label fw-bold") }}
+                                {{ form.token(class="form-control" + (" is-invalid" if form.token.errors else "")) }}
+                                {% if form.token.errors %}
+                                    <div class="invalid-feedback">
+                                        {% for error in form.token.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                                <small class="form-text text-muted">
+                                    <i class="bi bi-info-circle"></i> API токен можно найти в личном кабинете маркетплейса в разделе настроек
+                                </small>
+                            </div>
+                            
+                            <div class="mb-3" id="client-id-group">
+                                {{ form.client_id.label(class="form-label fw-bold") }}
+                                {{ form.client_id(class="form-control" + (" is-invalid" if form.client_id.errors else "")) }}
+                                {% if form.client_id.errors %}
+                                    <div class="invalid-feedback">
+                                        {% for error in form.client_id.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                                <small class="form-text text-muted">
+                                    <i class="bi bi-info-circle"></i> Обязательно для Ozon. Находится в настройках API в личном кабинете продавца
+                                </small>
+                            </div>
+                            
+                            <div class="alert alert-info" id="marketplace-info">
+                                <h6 class="alert-heading"><i class="bi bi-lightbulb"></i> Где найти токены:</h6>
+                                <div id="wb-info" style="display: none;">
+                                    <p class="mb-1"><strong>Wildberries:</strong></p>
+                                    <ol class="mb-0 small">
+                                        <li>Войдите в личный кабинет продавца</li>
+                                        <li>Перейдите в Настройки → Доступ к API</li>
+                                        <li>Создайте новый токен с нужными правами</li>
+                                        <li>Скопируйте токен (он показывается только один раз!)</li>
+                                    </ol>
+                                </div>
+                                <div id="ozon-info" style="display: none;">
+                                    <p class="mb-1"><strong>Ozon:</strong></p>
+                                    <ol class="mb-0 small">
+                                        <li>Войдите в личный кабинет продавца</li>
+                                        <li>Перейдите в Настройки → Seller API</li>
+                                        <li>Скопируйте Client ID</li>
+                                        <li>Создайте API-ключ и скопируйте его</li>
+                                    </ol>
+                                </div>
+                            </div>
+                            
+                            <div class="d-grid gap-2">
+                                {{ form.submit(class="btn btn-primary btn-lg") }}
+                                <a href="{{ url_for('tokens') }}" class="btn btn-outline-secondary">
+                                    <i class="bi bi-x-circle"></i> Отмена
+                                </a>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const marketplaceSelect = document.getElementById('marketplace-select');
+        const clientIdGroup = document.getElementById('client-id-group');
+        const wbInfo = document.getElementById('wb-info');
+        const ozonInfo = document.getElementById('ozon-info');
+        
+        function updateForm() {
+            const marketplace = marketplaceSelect.value;
+            
+            if (marketplace === 'ozon') {
+                clientIdGroup.style.display = 'block';
+                wbInfo.style.display = 'none';
+                ozonInfo.style.display = 'block';
+            } else if (marketplace === 'wildberries') {
+                clientIdGroup.style.display = 'none';
+                wbInfo.style.display = 'block';
+                ozonInfo.style.display = 'none';
+            } else {
+                clientIdGroup.style.display = 'none';
+                wbInfo.style.display = 'none';
+                ozonInfo.style.display = 'none';
+            }
+        }
+        
+        marketplaceSelect.addEventListener('change', updateForm);
+        updateForm(); // Запуск при загрузке
+    });
+</script>
+{% endblock %}
+{% endblock %}
+
