@@ -52,7 +52,7 @@ pip install -r requirements.txt
 ### 4. Запуск приложения
 
 ```bash
-python app.py
+python run.py
 ```
 
 Приложение будет доступно по адресу: **http://localhost:5000**
@@ -62,31 +62,54 @@ python app.py
 ```
 MarketPlacer/
 │
-├── app.py                     # Главный файл приложения
+├── run.py                     # Точка входа в приложение
 ├── config.py                  # Конфигурация приложения
-├── models.py                  # Модели базы данных (User, Token)
-├── forms.py                   # Формы регистрации, входа, ролей и токенов
-├── migrate_add_roles.py       # Скрипт миграции для добавления ролей
-├── migrate_add_tokens.py      # Скрипт миграции для добавления токенов
-├── migrate_add_blocked.py     # Скрипт миграции для блокировки пользователей
-├── make_admin.py              # Скрипт назначения администратора
 ├── requirements.txt           # Зависимости проекта
 ├── README.md                  # Документация
+├── app.db                     # База данных SQLite (создается автоматически)
 │
-├── templates/                 # HTML шаблоны
-│   ├── base.html              # Базовый шаблон
-│   ├── index.html             # Главная страница
-│   ├── register.html          # Страница регистрации
-│   ├── login.html             # Страница входа
-│   ├── dashboard.html         # Панель управления
-│   ├── profile.html           # Профиль пользователя
-│   ├── admin_users.html       # Управление пользователями (админ)
-│   ├── change_role.html       # Изменение роли пользователя (админ)
-│   ├── tokens.html            # Управление токенами API
-│   ├── add_token.html         # Добавление токена
-│   └── edit_token.html        # Редактирование токена
+├── app/                       # Основной пакет приложения
+│   ├── __init__.py            # Фабрика приложения
+│   │
+│   ├── models/                # Модели базы данных
+│   │   ├── __init__.py
+│   │   ├── user.py            # Модель пользователя
+│   │   └── token.py           # Модель токена
+│   │
+│   ├── forms/                 # Формы приложения
+│   │   ├── __init__.py
+│   │   ├── auth.py            # Формы регистрации и входа
+│   │   ├── admin.py           # Форма изменения роли
+│   │   └── token.py           # Форма управления токенами
+│   │
+│   ├── routes/                # Маршруты (blueprints)
+│   │   ├── __init__.py
+│   │   ├── main.py            # Основные маршруты
+│   │   ├── auth.py            # Аутентификация
+│   │   ├── admin.py           # Панель администратора
+│   │   └── tokens.py          # Управление токенами
+│   │
+│   ├── templates/             # HTML шаблоны
+│   │   ├── base.html          # Базовый шаблон
+│   │   ├── index.html         # Главная страница
+│   │   ├── register.html      # Страница регистрации
+│   │   ├── login.html         # Страница входа
+│   │   ├── dashboard.html     # Панель управления
+│   │   ├── profile.html       # Профиль пользователя
+│   │   ├── admin_users.html   # Управление пользователями
+│   │   ├── change_role.html   # Изменение роли
+│   │   ├── tokens.html        # Управление токенами API
+│   │   ├── add_token.html     # Добавление токена
+│   │   └── edit_token.html    # Редактирование токена
+│   │
+│   └── static/                # Статические файлы (css, js, images)
 │
-└── app.db                     # База данных SQLite (создается автоматически)
+└── migrations/                # Скрипты миграций
+    ├── make_admin.py          # Назначение администратора
+    ├── migrate_add_roles.py   # Добавление ролей
+    ├── migrate_add_tokens.py  # Добавление токенов
+    ├── migrate_add_token_name.py  # Добавление названий токенов
+    └── migrate_add_blocked.py # Блокировка пользователей
 ```
 
 ## 🎯 Использование
@@ -148,7 +171,7 @@ MarketPlacer/
 Если у вас уже есть существующая база данных, выполните миграцию:
 
 ```bash
-python migrate_add_roles.py
+python migrations/migrate_add_roles.py
 ```
 
 Этот скрипт:
@@ -186,7 +209,7 @@ python migrate_add_roles.py
 Если у вас уже есть существующая база данных, выполните миграцию:
 
 ```bash
-python migrate_add_tokens.py
+python migrations/migrate_add_tokens.py
 ```
 
 Этот скрипт:
@@ -237,7 +260,7 @@ export DATABASE_URL='postgresql://user:password@localhost/dbname'
 
 ### Режим отладки
 
-По умолчанию приложение запускается в режиме отладки (`debug=True`). Для продакшена установите `debug=False` в файле `app.py`.
+По умолчанию приложение запускается в режиме отладки (`debug=True`). Для продакшена установите `debug=False` в файле `run.py`.
 
 ### База данных
 
