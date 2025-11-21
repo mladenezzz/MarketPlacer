@@ -224,6 +224,7 @@ def add_token():
         
         token = Token(
             user_id=current_user.id,
+            name=form.name.data if form.name.data else None,
             marketplace=form.marketplace.data,
             token=form.token.data,
             client_id=form.client_id.data if form.marketplace.data == 'ozon' else None
@@ -232,7 +233,8 @@ def add_token():
         db.session.add(token)
         db.session.commit()
         
-        flash(f'Токен {token.get_marketplace_display()} успешно добавлен.', 'success')
+        token_display = f'"{token.name}"' if token.name else token.get_marketplace_display()
+        flash(f'Токен {token_display} успешно добавлен.', 'success')
         return redirect(url_for('tokens'))
     
     return render_template('add_token.html', form=form)
@@ -257,17 +259,20 @@ def edit_token(token_id):
             flash('Для Ozon необходимо указать Client ID.', 'warning')
             return render_template('edit_token.html', form=form, token=token)
         
+        token.name = form.name.data if form.name.data else None
         token.marketplace = form.marketplace.data
         token.token = form.token.data
         token.client_id = form.client_id.data if form.marketplace.data == 'ozon' else None
         
         db.session.commit()
         
-        flash(f'Токен {token.get_marketplace_display()} успешно обновлен.', 'success')
+        token_display = f'"{token.name}"' if token.name else token.get_marketplace_display()
+        flash(f'Токен {token_display} успешно обновлен.', 'success')
         return redirect(url_for('tokens'))
     
     # Заполнение формы текущими данными токена
     if request.method == 'GET':
+        form.name.data = token.name
         form.marketplace.data = token.marketplace
         form.token.data = token.token
         form.client_id.data = token.client_id
@@ -286,11 +291,11 @@ def delete_token(token_id):
         flash('У вас нет прав для удаления этого токена.', 'danger')
         return redirect(url_for('tokens'))
     
-    marketplace_name = token.get_marketplace_display()
+    token_display = f'"{token.name}"' if token.name else token.get_marketplace_display()
     db.session.delete(token)
     db.session.commit()
     
-    flash(f'Токен {marketplace_name} успешно удален.', 'success')
+    flash(f'Токен {token_display} успешно удален.', 'success')
     return redirect(url_for('tokens'))
 
 

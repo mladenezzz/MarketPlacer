@@ -23,6 +23,21 @@
                             {{ form.hidden_tag() }}
                             
                             <div class="mb-3">
+                                {{ form.name.label(class="form-label fw-bold") }}
+                                {{ form.name(class="form-control" + (" is-invalid" if form.name.errors else "")) }}
+                                {% if form.name.errors %}
+                                    <div class="invalid-feedback">
+                                        {% for error in form.name.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                                <small class="form-text text-muted">
+                                    <i class="bi bi-info-circle"></i> Необязательно. Удобно, если у вас несколько токенов для одного маркетплейса
+                                </small>
+                            </div>
+                            
+                            <div class="mb-3">
                                 {{ form.marketplace.label(class="form-label fw-bold") }}
                                 {{ form.marketplace(class="form-select" + (" is-invalid" if form.marketplace.errors else ""), id="marketplace-select") }}
                                 {% if form.marketplace.errors %}
