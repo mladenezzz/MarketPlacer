@@ -104,8 +104,7 @@ class MarketplaceAPI:
                 
                 # Подсчитываем сумму по priceWithDisc (цена для покупателя со скидкой)
                 # Это реальная сумма заказов, которую платят покупатели
-                # Значение в копейках, поэтому делим на 100
-                total = sum(float(order.get('priceWithDisc', 0)) / 100.0 for order in today_orders)
+                total = sum(float(order.get('priceWithDisc', 0)) for order in today_orders)
                 
                 return {
                     'success': True,
@@ -369,8 +368,7 @@ class MarketplaceAPI:
                             continue
                 
                 # Подсчитываем сумму по finishedPrice (итоговая цена продажи для продавца)
-                # Значение в копейках, поэтому делим на 100
-                total = sum(float(sale.get('finishedPrice', 0)) / 100.0 for sale in today_sales)
+                total = sum(float(sale.get('finishedPrice', 0)) for sale in today_sales)
                 
                 return {
                     'success': True,
