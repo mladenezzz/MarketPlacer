@@ -237,6 +237,20 @@
                     </li>
                     
                     {% if current_user.is_authenticated %}
+                        <!-- Настройки с выпадающим меню -->
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="bi bi-gear"></i> Настройки
+                            </a>
+                            <ul class="dropdown-menu">
+                                <li><a class="dropdown-item" href="{{ url_for('tokens') }}"><i class="bi bi-key"></i> Токены API</a></li>
+                                <li><a class="dropdown-item" href="#"><i class="bi bi-bell"></i> Уведомления</a></li>
+                                <li><a class="dropdown-item" href="#"><i class="bi bi-palette"></i> Внешний вид</a></li>
+                            </ul>
+                        </li>
+                    {% endif %}
+                    
+                    {% if current_user.is_authenticated %}
                         <!-- Аналитика (для аналитиков и админов) -->
                         {% if current_user.is_analyst() or current_user.is_admin() %}
                         <li class="nav-item dropdown">
@@ -287,10 +301,6 @@
                             </a>
                             <ul class="dropdown-menu dropdown-menu-end">
                                 <li><a class="dropdown-item" href="{{ url_for('profile') }}"><i class="bi bi-person"></i> Мой профиль</a></li>
-                                <li><a class="dropdown-item" href="#"><i class="bi bi-bell"></i> Уведомления</a></li>
-                                <li><hr class="dropdown-divider"></li>
-                                <li><h6 class="dropdown-header"><i class="bi bi-gear"></i> Настройки</h6></li>
-                                <li><a class="dropdown-item" href="{{ url_for('tokens') }}"><i class="bi bi-key"></i> Токены API</a></li>
                                 {% if current_user.is_admin() %}
                                     <li><hr class="dropdown-divider"></li>
                                     <li><a class="dropdown-item text-danger" href="{{ url_for('admin_users') }}">
