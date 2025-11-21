@@ -63,6 +63,12 @@ class ChangeRoleForm(FlaskForm):
 
 class TokenForm(FlaskForm):
     """Форма добавления/редактирования токена маркетплейса"""
+    name = StringField('Название токена', 
+                      validators=[
+                          Optional(),
+                          Length(max=100, message='Название не должно превышать 100 символов')
+                      ],
+                      render_kw={'placeholder': 'Например: Основной магазин, Тестовый аккаунт'})
     marketplace = SelectField('Маркетплейс', 
                              choices=[
                                  ('wildberries', 'Wildberries'),
