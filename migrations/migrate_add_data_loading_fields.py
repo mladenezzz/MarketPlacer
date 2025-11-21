@@ -57,27 +57,27 @@ def migrate():
                     try:
                         cursor.execute(f"ALTER TABLE tokens ADD COLUMN {field_name} {field_type}")
                         added_fields.append(field_name)
-                        print(f"  ✓ Добавлено поле: {field_name}")
+                        print(f"  [+] Добавлено поле: {field_name}")
                     except sqlite3.Error as e:
-                        print(f"  ✗ Ошибка при добавлении поля {field_name}: {e}")
+                        print(f"  [-] Ошибка при добавлении поля {field_name}: {e}")
                 else:
-                    print(f"  - Поле {field_name} уже существует")
+                    print(f"  [-] Поле {field_name} уже существует")
             
             if added_fields:
                 conn.commit()
                 print("\n" + "=" * 60)
-                print("✅ Миграция успешно завершена!")
+                print("[OK] Миграция успешно завершена!")
                 print(f"   Добавлено полей: {len(added_fields)}")
             else:
                 print("\n" + "=" * 60)
-                print("ℹ️  Все поля уже существуют. Миграция не требуется.")
+                print("[INFO] Все поля уже существуют. Миграция не требуется.")
             
             conn.close()
             
         except sqlite3.Error as e:
-            print(f"\n❌ Ошибка SQLite: {e}")
+            print(f"\n[ERROR] Ошибка SQLite: {e}")
         except Exception as e:
-            print(f"\n❌ Ошибка: {e}")
+            print(f"\n[ERROR] Ошибка: {e}")
 
 if __name__ == '__main__':
     print("=" * 60)
