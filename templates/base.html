@@ -35,6 +35,65 @@
             font-size: 1.5rem;
         }
         
+        .nav-link {
+            font-weight: 500;
+            transition: color 0.3s ease;
+            padding: 0.5rem 1rem !important;
+        }
+        
+        .nav-link:hover {
+            color: var(--primary-color) !important;
+        }
+        
+        .dropdown-menu {
+            border: none;
+            border-radius: 12px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+            padding: 0.5rem;
+            margin-top: 0.5rem;
+            animation: fadeInDown 0.3s ease;
+        }
+        
+        @keyframes fadeInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .dropdown-item {
+            border-radius: 8px;
+            padding: 0.6rem 1rem;
+            margin: 0.2rem 0;
+            transition: all 0.2s ease;
+            font-weight: 500;
+        }
+        
+        .dropdown-item:hover {
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+            color: white !important;
+            transform: translateX(5px);
+        }
+        
+        .dropdown-item i {
+            margin-right: 0.5rem;
+            width: 20px;
+            text-align: center;
+        }
+        
+        .dropdown-divider {
+            margin: 0.5rem 0;
+            opacity: 0.2;
+        }
+        
+        .navbar-nav .nav-item {
+            margin: 0 0.2rem;
+        }
+        
         .content-wrapper {
             flex: 1;
             display: flex;
@@ -138,32 +197,106 @@
                 <span class="navbar-toggler-icon"></span>
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav ms-auto">
+                <ul class="navbar-nav me-auto">
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('index') }}">Главная</a>
+                        <a class="nav-link" href="{{ url_for('index') }}">
+                            <i class="bi bi-house"></i> Главная
+                        </a>
                     </li>
+                    
+                    <!-- Каталог с выпадающим меню -->
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="bi bi-grid"></i> Каталог
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="#"><i class="bi bi-laptop"></i> Электроника</a></li>
+                            <li><a class="dropdown-item" href="#"><i class="bi bi-bag"></i> Одежда и обувь</a></li>
+                            <li><a class="dropdown-item" href="#"><i class="bi bi-house-door"></i> Дом и сад</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="#"><i class="bi bi-star"></i> Популярные товары</a></li>
+                            <li><a class="dropdown-item" href="#"><i class="bi bi-percent"></i> Акции и скидки</a></li>
+                        </ul>
+                    </li>
+                    
+                    <!-- Услуги с выпадающим меню -->
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="bi bi-briefcase"></i> Услуги
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="#"><i class="bi bi-truck"></i> Доставка</a></li>
+                            <li><a class="dropdown-item" href="#"><i class="bi bi-tools"></i> Установка и настройка</a></li>
+                            <li><a class="dropdown-item" href="#"><i class="bi bi-shield-check"></i> Гарантия</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="#"><i class="bi bi-headset"></i> Поддержка</a></li>
+                        </ul>
+                    </li>
+                    
+                    {% if current_user.is_authenticated %}
+                        <!-- Аналитика (для аналитиков и админов) -->
+                        {% if current_user.is_analyst() or current_user.is_admin() %}
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="bi bi-graph-up"></i> Аналитика
+                            </a>
+                            <ul class="dropdown-menu">
+                                <li><a class="dropdown-item" href="#"><i class="bi bi-bar-chart"></i> Статистика продаж</a></li>
+                                <li><a class="dropdown-item" href="#"><i class="bi bi-people"></i> Активность пользователей</a></li>
+                                <li><a class="dropdown-item" href="#"><i class="bi bi-chart-line"></i> Отчеты</a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item" href="#"><i class="bi bi-file-earmark-text"></i> Экспорт данных</a></li>
+                            </ul>
+                        </li>
+                        {% endif %}
+                        
+                        <!-- Финансы (для бухгалтеров и админов) -->
+                        {% if current_user.is_accountant() or current_user.is_admin() %}
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="bi bi-calculator"></i> Финансы
+                            </a>
+                            <ul class="dropdown-menu">
+                                <li><a class="dropdown-item" href="#"><i class="bi bi-cash-stack"></i> Транзакции</a></li>
+                                <li><a class="dropdown-item" href="#"><i class="bi bi-receipt"></i> Счета и накладные</a></li>
+                                <li><a class="dropdown-item" href="#"><i class="bi bi-wallet2"></i> Бюджет</a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item" href="#"><i class="bi bi-file-pdf"></i> Финансовые отчеты</a></li>
+                            </ul>
+                        </li>
+                        {% endif %}
+                    {% endif %}
+                </ul>
+                
+                <!-- Правая часть меню -->
+                <ul class="navbar-nav ms-auto">
                     {% if current_user.is_authenticated %}
                         <li class="nav-item">
                             <a class="nav-link" href="{{ url_for('dashboard') }}">
                                 <i class="bi bi-speedometer2"></i> Панель управления
                             </a>
                         </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('profile') }}">
-                                <i class="bi bi-person-circle"></i> Профиль
+                        
+                        <!-- Меню пользователя -->
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="bi bi-person-circle"></i> {{ current_user.username }}
                             </a>
-                        </li>
-                        {% if current_user.is_admin() %}
-                        <li class="nav-item">
-                            <a class="nav-link text-danger fw-bold" href="{{ url_for('admin_users') }}">
-                                <i class="bi bi-shield-fill-check"></i> Управление пользователями
-                            </a>
-                        </li>
-                        {% endif %}
-                        <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('logout') }}">
-                                <i class="bi bi-box-arrow-right"></i> Выход
-                            </a>
+                            <ul class="dropdown-menu dropdown-menu-end">
+                                <li><a class="dropdown-item" href="{{ url_for('profile') }}"><i class="bi bi-person"></i> Мой профиль</a></li>
+                                <li><a class="dropdown-item" href="#"><i class="bi bi-gear"></i> Настройки</a></li>
+                                <li><a class="dropdown-item" href="#"><i class="bi bi-bell"></i> Уведомления</a></li>
+                                {% if current_user.is_admin() %}
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li><a class="dropdown-item text-danger" href="{{ url_for('admin_users') }}">
+                                        <i class="bi bi-shield-fill-check"></i> Управление пользователями
+                                    </a></li>
+                                {% endif %}
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item" href="{{ url_for('logout') }}">
+                                    <i class="bi bi-box-arrow-right"></i> Выход
+                                </a></li>
+                            </ul>
                         </li>
                     {% else %}
                         <li class="nav-item">
@@ -172,7 +305,7 @@
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" href="{{ url_for('register') }}">
+                            <a class="nav-link btn btn-primary text-white ms-2" href="{{ url_for('register') }}">
                                 <i class="bi bi-person-plus"></i> Регистрация
                             </a>
                         </li>
@@ -210,6 +343,44 @@
     
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Скрипт для открытия dropdown при наведении -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Открытие dropdown при наведении на десктопе
+            if (window.innerWidth > 992) {
+                const dropdowns = document.querySelectorAll('.navbar .dropdown');
+                
+                dropdowns.forEach(dropdown => {
+                    let timeout;
+                    
+                    dropdown.addEventListener('mouseenter', function() {
+                        clearTimeout(timeout);
+                        const dropdownToggle = this.querySelector('.dropdown-toggle');
+                        const dropdownMenu = this.querySelector('.dropdown-menu');
+                        
+                        if (dropdownToggle && dropdownMenu) {
+                            dropdownToggle.classList.add('show');
+                            dropdownMenu.classList.add('show');
+                        }
+                    });
+                    
+                    dropdown.addEventListener('mouseleave', function() {
+                        const dropdownToggle = this.querySelector('.dropdown-toggle');
+                        const dropdownMenu = this.querySelector('.dropdown-menu');
+                        
+                        timeout = setTimeout(() => {
+                            if (dropdownToggle && dropdownMenu) {
+                                dropdownToggle.classList.remove('show');
+                                dropdownMenu.classList.remove('show');
+                            }
+                        }, 200);
+                    });
+                });
+            }
+        });
+    </script>
+    
     {% block extra_js %}{% endblock %}
 </body>
 </html>
