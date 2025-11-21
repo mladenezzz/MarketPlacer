@@ -460,7 +460,7 @@ class MarketplaceAPI:
                     "filter": {
                         "since": date_from,
                         "to": date_to,
-                        "status": "delivered"  # Только доставленные = продажи
+                        "status": ""  # Все заказы за период
                     },
                     "limit": 1000,
                     "offset": 0,
@@ -487,30 +487,31 @@ class MarketplaceAPI:
                         
                         # Подсчитываем сумму продаж
                         for posting in postings:
-                            # Получаем финансовые данные
-                            financial_data = posting.get('financial_data', {})
-                            
-                            # Пробуем получить товары из разных источников
-                            products_financial = financial_data.get('products', [])
-                            products_main = posting.get('products', [])
-                            
-                            # Суммируем стоимость всех товаров в заказе
                             posting_total = 0.0
                             
-                            # Сначала пробуем получить из financial_data
+                            # Получаем финансовые данные
+                            financial_data = posting.get('financial_data', {})
+                            products_financial = financial_data.get('products', [])
+                            
+                            # Пробуем получить из financial_data
                             if products_financial:
                                 for product in products_financial:
-                                    price = float(product.get('price', 0))
-                                    if price > 0:
-                                        posting_total += price
+                                    try:
+                                        price = float(product.get('price', 0))
+                                        posting_total += abs(price)
+                                    except (ValueError, TypeError):
+                                        pass
                             
-                            # Если financial_data пустой, берем из основных products
-                            if posting_total == 0 and products_main:
+                            # Если не получилось, берем из основных products
+                            if posting_total == 0:
+                                products_main = posting.get('products', [])
                                 for product in products_main:
-                                    # Пробуем разные поля
-                                    price = float(product.get('price', 0))
-                                    quantity = int(product.get('quantity', 1))
-                                    posting_total += price * quantity
+                                    try:
+                                        price = float(product.get('price', 0))
+                                        quantity = int(product.get('quantity', 1))
+                                        posting_total += abs(price * quantity)
+                                    except (ValueError, TypeError):
+                                        pass
                             
                             total_sum += posting_total
                         
