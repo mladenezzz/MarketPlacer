@@ -213,7 +213,14 @@ class MarketplaceAPI:
                     if response.status_code == 200:
                         data = response.json()
                         result = data.get('result', {})
-                        postings = result.get('postings', [])
+                        
+                        # FBO v2 может возвращать result как список, а FBS v3 как dict с postings
+                        if isinstance(result, list):
+                            postings = result
+                        elif isinstance(result, dict):
+                            postings = result.get('postings', [])
+                        else:
+                            postings = []
                         
                         # Подсчитываем сумму
                         for posting in postings:
