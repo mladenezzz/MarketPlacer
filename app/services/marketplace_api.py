@@ -1,6 +1,7 @@
 """Сервис для работы с API маркетплейсов"""
 from typing import Dict, Optional, TYPE_CHECKING
 from datetime import datetime, timedelta
+import time
 
 try:
     import requests
@@ -13,6 +14,102 @@ if TYPE_CHECKING:
 
 class MarketplaceAPI:
     """Класс для работы с API различных маркетплейсов"""
+    
+    # Минимальная задержка между запросами (в секундах) для rate limiting
+    MIN_REQUEST_DELAY = 0.5
+    # Максимальное количество попыток при ошибке 429
+    MAX_RETRIES = 3
+    # Базовая задержка для экспоненциального backoff (в секундах)
+    BASE_RETRY_DELAY = 2
+    
+    @staticmethod
+    def _make_request_with_retry(url: str, headers: Dict, params: Optional[Dict] = None, 
+                                  method: str = 'GET', json_data: Optional[Dict] = None,
+                                  timeout: int = 10) -> requests.Response:
+        """
+        Выполнить HTTP запрос с обработкой ошибки 429 и retry логикой
+        
+        Args:
+            url: URL для запроса
+            headers: Заголовки запроса
+            params: Параметры запроса (для GET)
+            method: HTTP метод ('GET' или 'POST')
+            json_data: JSON данные для POST запроса
+            timeout: Таймаут запроса в секундах
+            
+        Returns:
+            Response объект requests
+            
+        Raises:
+            requests.RequestException: При превышении количества попыток
+        """
+        last_request_time = [0]  # Используем список для изменения в замыкании
+        
+        def _wait_for_rate_limit():
+            """Ожидание для соблюдения rate limit"""
+            current_time = time.time()
+            time_since_last_request = current_time - last_request_time[0]
+            if time_since_last_request < MarketplaceAPI.MIN_REQUEST_DELAY:
+                sleep_time = MarketplaceAPI.MIN_REQUEST_DELAY - time_since_last_request
+                time.sleep(sleep_time)
+            last_request_time[0] = time.time()
+        
+        response = None
+        for attempt in range(MarketplaceAPI.MAX_RETRIES + 1):
+            # Соблюдаем rate limiting
+            _wait_for_rate_limit()
+            
+            try:
+                if method.upper() == 'GET':
+                    response = requests.get(url, headers=headers, params=params, timeout=timeout)
+                elif method.upper() == 'POST':
+                    response = requests.post(url, headers=headers, json=json_data, timeout=timeout)
+                else:
+                    raise ValueError(f"Неподдерживаемый HTTP метод: {method}")
+                
+                # Если успешный ответ или ошибка не 429, возвращаем сразу
+                if response.status_code != 429:
+                    return response
+                
+                # Обработка ошибки 429 (Too Many Requests)
+                if attempt < MarketplaceAPI.MAX_RETRIES:
+                    # Пытаемся получить Retry-After из заголовков
+                    retry_after = response.headers.get('Retry-After')
+                    if retry_after:
+                        try:
+                            wait_time = int(retry_after)
+                        except ValueError:
+                            # Если Retry-After не число, используем экспоненциальный backoff
+                            wait_time = MarketplaceAPI.BASE_RETRY_DELAY * (2 ** attempt)
+                    else:
+                        # Экспоненциальный backoff: 2, 4, 8 секунд
+                        wait_time = MarketplaceAPI.BASE_RETRY_DELAY * (2 ** attempt)
+                    
+                    # Ждем перед следующей попыткой
+                    time.sleep(wait_time)
+                    continue
+                else:
+                    # Превышено количество попыток
+                    return response
+                    
+            except requests.Timeout:
+                if attempt < MarketplaceAPI.MAX_RETRIES:
+                    # При таймауте также используем экспоненциальный backoff
+                    wait_time = MarketplaceAPI.BASE_RETRY_DELAY * (2 ** attempt)
+                    time.sleep(wait_time)
+                    continue
+                else:
+                    raise
+        
+        # Если дошли сюда, значит все попытки исчерпаны
+        # Возвращаем последний response (должен быть 429) или создаем фиктивный
+        if response is None:
+            # Создаем фиктивный response объект для случая, когда все попытки провалились
+            class FakeResponse:
+                status_code = 429
+                headers = {}
+            response = FakeResponse()
+        return response
     
     @staticmethod
     def get_today_orders_total(token: 'Token') -> Dict:
@@ -79,7 +176,9 @@ class MarketplaceAPI:
                 'flag': 0  # 0 - все заказы
             }
             
-            response = requests.get(url, headers=headers, params=params, timeout=10)
+            response = MarketplaceAPI._make_request_with_retry(
+                url, headers, params=params, method='GET', timeout=10
+            )
             
             if response.status_code == 200:
                 orders = response.json()
@@ -118,6 +217,13 @@ class MarketplaceAPI:
                     'total': 0.0,
                     'count': 0,
                     'error': 'Неверный токен авторизации'
+                }
+            elif response.status_code == 429:
+                return {
+                    'success': False,
+                    'total': 0.0,
+                    'count': 0,
+                    'error': 'Превышен лимит запросов к API. Попробуйте позже.'
                 }
             else:
                 return {
@@ -344,7 +450,9 @@ class MarketplaceAPI:
                 'flag': 0  # 0 - все продажи
             }
             
-            response = requests.get(url, headers=headers, params=params, timeout=10)
+            response = MarketplaceAPI._make_request_with_retry(
+                url, headers, params=params, method='GET', timeout=10
+            )
             
             if response.status_code == 200:
                 sales = response.json()
@@ -382,6 +490,13 @@ class MarketplaceAPI:
                     'total': 0.0,
                     'count': 0,
                     'error': 'Неверный токен авторизации'
+                }
+            elif response.status_code == 429:
+                return {
+                    'success': False,
+                    'total': 0.0,
+                    'count': 0,
+                    'error': 'Превышен лимит запросов к API. Попробуйте позже.'
                 }
             else:
                 return {
