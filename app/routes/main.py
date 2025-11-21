@@ -25,6 +25,10 @@ def dashboard():
     total_count = 0
     
     for token in user_tokens:
+        # Фильтруем только Wildberries и Ozon
+        if token.marketplace not in ['wildberries', 'ozon']:
+            continue
+            
         # Получаем данные о заказах
         order_info = MarketplaceAPI.get_today_orders_total(token)
         
