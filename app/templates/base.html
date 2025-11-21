@@ -427,24 +427,21 @@
             
             // Управление видимостью футера при скролле
             const footer = document.querySelector('footer');
-            let lastScrollTop = 0;
             let scrollTimeout;
             
             function handleScroll() {
                 const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
                 const windowHeight = window.innerHeight;
                 const documentHeight = document.documentElement.scrollHeight;
-                const isAtBottom = scrollTop + windowHeight >= documentHeight - 10; // 10px допуск
+                const isAtBottom = scrollTop + windowHeight >= documentHeight - 50; // 50px допуск для определения низа страницы
                 
-                // Показываем футер если внизу страницы или скроллим вниз
-                if (isAtBottom || scrollTop < lastScrollTop) {
+                // Показываем футер ТОЛЬКО когда внизу страницы
+                if (isAtBottom) {
                     footer.classList.remove('hidden');
                 } else {
-                    // Скрываем футер при скролле вверх
+                    // Скрываем футер во всех остальных случаях
                     footer.classList.add('hidden');
                 }
-                
-                lastScrollTop = scrollTop <= 0 ? 0 : scrollTop;
             }
             
             // Обработчик скролла с debounce
@@ -453,8 +450,13 @@
                 scrollTimeout = setTimeout(handleScroll, 10);
             }, { passive: true });
             
-            // Проверяем начальное состояние
+            // Проверяем начальное состояние при загрузке
             handleScroll();
+            
+            // Также проверяем при изменении размера окна
+            window.addEventListener('resize', function() {
+                handleScroll();
+            }, { passive: true });
         });
     </script>
     
