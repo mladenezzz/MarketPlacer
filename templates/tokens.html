@@ -18,20 +18,22 @@
                     </div>
                     <div class="card-body">
                         <p class="text-muted mb-4">
-                            Управляйте токенами API для интеграции с маркетплейсами Wildberries и Ozon.
+                            Управляйте токенами API для интеграции с маркетплейсами Wildberries, Ozon и Telegram.
                         </p>
                         
                         {% if tokens %}
                         <div class="row">
                             {% for token in tokens %}
                             <div class="col-md-6 mb-4">
-                                <div class="card token-card h-100 {% if token.marketplace == 'wildberries' %}border-primary{% else %}border-info{% endif %}">
+                                <div class="card token-card h-100 {% if token.marketplace == 'wildberries' %}border-primary{% elif token.marketplace == 'telegram' %}border-success{% else %}border-info{% endif %}">
                                     <div class="card-body">
                                         <div class="d-flex justify-content-between align-items-start mb-3">
                                             <div>
                                                 <h5 class="card-title mb-1">
                                                     {% if token.marketplace == 'wildberries' %}
                                                         <i class="bi bi-shop text-primary"></i>
+                                                    {% elif token.marketplace == 'telegram' %}
+                                                        <i class="bi bi-telegram text-success"></i>
                                                     {% else %}
                                                         <i class="bi bi-cart text-info"></i>
                                                     {% endif %}
