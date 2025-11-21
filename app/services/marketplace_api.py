@@ -455,20 +455,40 @@ class MarketplaceAPI:
             ]
             
             for url, scheme_type in endpoints:
-                payload = {
-                    "dir": "ASC",
-                    "filter": {
-                        "since": date_from,
-                        "to": date_to,
-                        "status": ""  # Все заказы за период
-                    },
-                    "limit": 1000,
-                    "offset": 0,
-                    "with": {
-                        "analytics_data": True,
-                        "financial_data": True
+                # Для FBS используем v3, для FBO - v2
+                if scheme_type == 'FBS':
+                    payload = {
+                        "dir": "ASC",
+                        "filter": {
+                            "delivery_method_id": [],
+                            "provider_id": [],
+                            "warehouse_id": [],
+                            "since": date_from,
+                            "to": date_to,
+                            "status": "delivered"  # Только доставленные
+                        },
+                        "limit": 1000,
+                        "offset": 0,
+                        "with": {
+                            "analytics_data": True,
+                            "financial_data": True
+                        }
                     }
-                }
+                else:  # FBO
+                    payload = {
+                        "dir": "ASC",
+                        "filter": {
+                            "since": date_from,
+                            "to": date_to,
+                            "status": "delivered"  # Только доставленные
+                        },
+                        "limit": 1000,
+                        "offset": 0,
+                        "with": {
+                            "analytics_data": True,
+                            "financial_data": True
+                        }
+                    }
                 
                 try:
                     response = requests.post(url, headers=headers, json=payload, timeout=10)
@@ -485,8 +505,13 @@ class MarketplaceAPI:
                         else:
                             postings = []
                         
-                        # Подсчитываем сумму продаж
+                        # Подсчитываем сумму продаж - только для доставленных заказов
                         for posting in postings:
+                            # Проверяем статус еще раз
+                            status = posting.get('status', '')
+                            if status != 'delivered':
+                                continue
+                            
                             posting_total = 0.0
                             
                             # Получаем финансовые данные
