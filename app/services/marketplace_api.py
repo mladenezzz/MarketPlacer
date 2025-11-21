@@ -419,7 +419,7 @@ class MarketplaceAPI:
         Получить продажи (реализацию) Ozon на сегодня
         
         API документация: https://docs.ozon.ru/api/seller/
-        Использует endpoint: POST /v1/finance/realization/by-day
+        Использует те же данные что и для заказов - отправленные сегодня заказы = продажи
         """
         try:
             if not token.client_id:
@@ -430,9 +430,13 @@ class MarketplaceAPI:
                     'error': 'Не указан Client-Id для Ozon'
                 }
             
-            # Получаем сегодняшнюю дату в формате YYYY-MM-DD
-            today = datetime.now()
-            date_str = today.strftime('%Y-%m-%d')
+            # Получаем начало и конец сегодняшнего дня
+            today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+            today_end = datetime.now().replace(hour=23, minute=59, second=59, microsecond=999999)
+            
+            # Форматируем даты для API Ozon (ISO 8601)
+            date_from = today_start.isoformat() + 'Z'
+            date_to = today_end.isoformat() + 'Z'
             
             headers = {
                 'Client-Id': token.client_id,
@@ -440,81 +444,105 @@ class MarketplaceAPI:
                 'Content-Type': 'application/json'
             }
             
-            # API endpoint для получения отчёта о реализации за день
-            url = 'https://api-seller.ozon.ru/v1/finance/realization'
-            payload = {
-                "date": date_str,
-                "page": 1,
-                "page_size": 1000
-            }
+            total_sum = 0.0
+            total_count = 0
+            errors = []
             
-            try:
-                response = requests.post(url, headers=headers, json=payload, timeout=10)
+            # Получаем отправленные заказы (продажи) из обоих типов: FBS и FBO
+            # Используем статус "delivering" - товар в пути к покупателю = продажа состоялась
+            endpoints = [
+                ('https://api-seller.ozon.ru/v3/posting/fbs/list', 'FBS'),
+                ('https://api-seller.ozon.ru/v2/posting/fbo/list', 'FBO')
+            ]
+            
+            for url, scheme_type in endpoints:
+                payload = {
+                    "dir": "ASC",
+                    "filter": {
+                        "since": date_from,
+                        "to": date_to,
+                        "status": ""
+                    },
+                    "limit": 1000,
+                    "offset": 0,
+                    "with": {
+                        "analytics_data": True,
+                        "financial_data": True
+                    }
+                }
                 
-                if response.status_code == 200:
-                    data = response.json()
-                    result = data.get('result', {})
+                try:
+                    response = requests.post(url, headers=headers, json=payload, timeout=10)
                     
-                    # Получаем список реализаций
-                    rows = result.get('rows', [])
-                    
-                    if not rows:
-                        # Если нет данных, возвращаем 0
-                        return {
-                            'success': True,
-                            'total': 0.0,
-                            'count': 0,
-                            'error': None
-                        }
-                    
-                    # Подсчитываем сумму и количество продаж
-                    total_sum = 0.0
-                    total_count = 0
-                    
-                    for row in rows:
-                        # Получаем продажную цену (sale_price) - это цена, по которой товар был продан
-                        sale_price = float(row.get('sale_price', 0))
-                        quantity = int(row.get('quantity', 0))
+                    if response.status_code == 200:
+                        data = response.json()
+                        result = data.get('result', {})
                         
-                        # Считаем только положительные количества (продажи, не возвраты)
-                        if quantity > 0:
-                            total_sum += abs(sale_price * quantity)
-                            total_count += quantity
-                    
-                    return {
-                        'success': True,
-                        'total': total_sum,
-                        'count': total_count,
-                        'error': None
-                    }
-                elif response.status_code == 401:
-                    return {
-                        'success': False,
-                        'total': 0.0,
-                        'count': 0,
-                        'error': 'Неверный API ключ или Client-Id'
-                    }
-                elif response.status_code == 404:
-                    # Если нет данных за сегодня, это не ошибка
-                    return {
-                        'success': True,
-                        'total': 0.0,
-                        'count': 0,
-                        'error': None
-                    }
-                else:
-                    return {
-                        'success': False,
-                        'total': 0.0,
-                        'count': 0,
-                        'error': f'Ошибка API: {response.status_code}'
-                    }
-            except Exception as e:
+                        # FBO v2 может возвращать result как список, а FBS v3 как dict с postings
+                        if isinstance(result, list):
+                            postings = result
+                        elif isinstance(result, dict):
+                            postings = result.get('postings', [])
+                        else:
+                            postings = []
+                        
+                        # Подсчитываем сумму продаж
+                        # Считаем продажами: delivering (в доставке) и delivered (доставлен)
+                        for posting in postings:
+                            status = posting.get('status', '')
+                            
+                            # Пропускаем заказы в обработке, отмененные и т.д.
+                            if status not in ['delivering', 'delivered', 'sent']:
+                                continue
+                            
+                            # Получаем финансовые данные
+                            financial_data = posting.get('financial_data', {})
+                            products = financial_data.get('products', [])
+                            
+                            if products:
+                                for product in products:
+                                    try:
+                                        price = float(product.get('price', 0))
+                                        if price > 0:
+                                            total_sum += price
+                                    except (ValueError, TypeError):
+                                        pass
+                            else:
+                                # Если нет financial_data, берем из products
+                                products = posting.get('products', [])
+                                for product in products:
+                                    try:
+                                        price = float(product.get('price', 0))
+                                        quantity = int(product.get('quantity', 1))
+                                        if price > 0:
+                                            total_sum += price * quantity
+                                    except (ValueError, TypeError):
+                                        pass
+                        
+                        # Считаем количество постингов со статусами продаж
+                        total_count += len([p for p in postings if p.get('status', '') in ['delivering', 'delivered', 'sent']])
+                        
+                    elif response.status_code == 401:
+                        errors.append(f'{scheme_type}: Неверный API ключ или Client-Id')
+                    else:
+                        errors.append(f'{scheme_type}: Ошибка API {response.status_code}')
+                except Exception as e:
+                    errors.append(f'{scheme_type}: {str(e)}')
+            
+            # Если есть хоть какие-то данные или нет ошибок, считаем успешным
+            if total_count > 0 or total_sum > 0 or not errors:
+                return {
+                    'success': True,
+                    'total': total_sum,
+                    'count': total_count,
+                    'error': None
+                }
+            else:
                 return {
                     'success': False,
                     'total': 0.0,
                     'count': 0,
-                    'error': f'Ошибка запроса: {str(e)}'
+                    'error': '; '.join(errors) if errors else 'Нет данных'
                 }
                 
         except requests.Timeout:
