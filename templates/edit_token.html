@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+
+{% block title %}Редактировать токен - MarketPlacer{% endblock %}
+
+{% block content %}
+<div class="content-wrapper">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="mb-0">
+                            <i class="bi bi-pencil"></i> Редактировать токен API
+                        </h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="alert alert-warning">
+                            <i class="bi bi-exclamation-triangle"></i> 
+                            <strong>Внимание!</strong> Изменение токена может повлиять на работу интеграций с маркетплейсом.
+                        </div>
+                        
+                        <form method="POST" action="{{ url_for('edit_token', token_id=token.id) }}">
+                            {{ form.hidden_tag() }}
+                            
+                            <div class="mb-3">
+                                {{ form.marketplace.label(class="form-label fw-bold") }}
+                                {{ form.marketplace(class="form-select" + (" is-invalid" if form.marketplace.errors else ""), id="marketplace-select") }}
+                                {% if form.marketplace.errors %}
+                                    <div class="invalid-feedback">
+                                        {% for error in form.marketplace.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="mb-3">
+                                {{ form.token.label(class="form-label fw-bold") }}
+                                {{ form.token(class="form-control" + (" is-invalid" if form.token.errors else "")) }}
+                                {% if form.token.errors %}
+                                    <div class="invalid-feedback">
+                                        {% for error in form.token.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                                <small class="form-text text-muted">
+                                    <i class="bi bi-info-circle"></i> API токен можно найти в личном кабинете маркетплейса
+                                </small>
+                            </div>
+                            
+                            <div class="mb-3" id="client-id-group">
+                                {{ form.client_id.label(class="form-label fw-bold") }}
+                                {{ form.client_id(class="form-control" + (" is-invalid" if form.client_id.errors else "")) }}
+                                {% if form.client_id.errors %}
+                                    <div class="invalid-feedback">
+                                        {% for error in form.client_id.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                                <small class="form-text text-muted">
+                                    <i class="bi bi-info-circle"></i> Обязательно для Ozon
+                                </small>
+                            </div>
+                            
+                            <div class="d-grid gap-2">
+                                {{ form.submit(class="btn btn-primary btn-lg") }}
+                                <a href="{{ url_for('tokens') }}" class="btn btn-outline-secondary">
+                                    <i class="bi bi-x-circle"></i> Отмена
+                                </a>
+                            </div>
+                        </form>
+                        
+                        <hr class="my-4">
+                        
+                        <div class="text-center">
+                            <p class="text-muted mb-2">Или удалить этот токен:</p>
+                            <form method="POST" action="{{ url_for('delete_token', token_id=token.id) }}" style="display: inline;">
+                                <button type="submit" class="btn btn-danger"
+                                        onclick="return confirm('Вы уверены, что хотите удалить этот токен? Это действие нельзя отменить.')">
+                                    <i class="bi bi-trash"></i> Удалить токен
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const marketplaceSelect = document.getElementById('marketplace-select');
+        const clientIdGroup = document.getElementById('client-id-group');
+        
+        function updateForm() {
+            const marketplace = marketplaceSelect.value;
+            
+            if (marketplace === 'ozon') {
+                clientIdGroup.style.display = 'block';
+            } else {
+                clientIdGroup.style.display = 'none';
+            }
+        }
+        
+        marketplaceSelect.addEventListener('change', updateForm);
+        updateForm(); // Запуск при загрузке
+    });
+</script>
+{% endblock %}
+{% endblock %}
+
