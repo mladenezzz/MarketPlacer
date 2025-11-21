@@ -236,7 +236,11 @@ class DataLoader:
                         "dir": "ASC",
                         "filter": {"since": date_from, "to": date_to, "status": ""},
                         "limit": 1000,
-                        "offset": 0
+                        "offset": 0,
+                        "with": {
+                            "analytics_data": True,
+                            "financial_data": True
+                        }
                     }
                     
                     response = MarketplaceAPI._make_request_with_retry(
@@ -278,7 +282,11 @@ class DataLoader:
                         "dir": "ASC",
                         "filter": {"since": date_from, "to": date_to, "status": ""},
                         "limit": 1000,
-                        "offset": 0
+                        "offset": 0,
+                        "with": {
+                            "analytics_data": True,
+                            "financial_data": True
+                        }
                     }
                     
                     response = MarketplaceAPI._make_request_with_retry(
@@ -320,7 +328,11 @@ class DataLoader:
                         "dir": "ASC",
                         "filter": {"since": date_from, "to": date_to, "status": ""},
                         "limit": 1000,
-                        "offset": 0
+                        "offset": 0,
+                        "with": {
+                            "analytics_data": True,
+                            "financial_data": True
+                        }
                     }
                     
                     response = MarketplaceAPI._make_request_with_retry(
@@ -362,7 +374,11 @@ class DataLoader:
                         "dir": "ASC",
                         "filter": {"since": date_from, "to": date_to, "status": ""},
                         "limit": 1000,
-                        "offset": 0
+                        "offset": 0,
+                        "with": {
+                            "analytics_data": True,
+                            "financial_data": True
+                        }
                     }
                     
                     response = MarketplaceAPI._make_request_with_retry(
