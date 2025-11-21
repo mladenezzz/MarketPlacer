@@ -128,3 +128,26 @@ def loading_status(token_id):
         'error': token.data_loading_error
     })
 
+
+@tokens_bp.route('/<int:token_id>/reload-data', methods=['POST'])
+@login_required
+def reload_data(token_id):
+    """Перезагрузить исторические данные для токена"""
+    token = Token.query.get_or_404(token_id)
+    
+    # Проверка, что токен принадлежит текущему пользователю
+    if token.user_id != current_user.id:
+        flash('У вас нет прав для выполнения этого действия.', 'danger')
+        return redirect(url_for('tokens.list_tokens'))
+    
+    # Проверка, что токен поддерживает загрузку данных
+    if token.marketplace not in ['wildberries', 'ozon']:
+        flash('Загрузка исторических данных не поддерживается для этого типа токена.', 'warning')
+        return redirect(url_for('tokens.list_tokens'))
+    
+    # Запускаем фоновую загрузку исторических данных
+    DataLoader.start_background_loading(token.id)
+    
+    token_display = f'"{token.name}"' if token.name else token.get_marketplace_display()
+    flash(f'Загрузка исторических данных для токена {token_display} запущена.', 'success')
+    return redirect(url_for('tokens.list_tokens'))

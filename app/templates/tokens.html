@@ -64,6 +64,16 @@
                                                             <i class="bi bi-pencil"></i> Редактировать
                                                         </a>
                                                     </li>
+                                                    {% if token.marketplace in ['wildberries', 'ozon'] %}
+                                                    <li>
+                                                        <form method="POST" action="{{ url_for('tokens.reload_data', token_id=token.id) }}" style="display: inline;">
+                                                            <button type="submit" class="dropdown-item"
+                                                                    onclick="return confirm('Перезагрузить исторические данные для этого токена? Это может занять некоторое время.')">
+                                                                <i class="bi bi-arrow-clockwise"></i> Перезагрузить данные
+                                                            </button>
+                                                        </form>
+                                                    </li>
+                                                    {% endif %}
                                                     <li><hr class="dropdown-divider"></li>
                                                     <li>
                                                         <form method="POST" action="{{ url_for('tokens.delete', token_id=token.id) }}" style="display: inline;">
