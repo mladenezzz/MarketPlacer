@@ -1,9 +1,9 @@
 """Сервис для фоновой загрузки исторических данных"""
 import threading
 from datetime import datetime, timedelta
-from typing import Dict
+from typing import Dict, List
 from app import create_app
-from app.models import db, Token
+from app.models import db, Token, Order, Sale
 from app.services.marketplace_api import MarketplaceAPI
 
 
@@ -125,9 +125,9 @@ class DataLoader:
                     )
                     
                     if response.status_code == 200:
-                        # Здесь можно сохранить данные в базу, если нужно
-                        # Пока просто считаем как загруженное
-                        pass
+                        orders_data = response.json()
+                        if orders_data:
+                            DataLoader._save_wildberries_orders(token, orders_data, period_start, period_end)
                     
                     loaded += 1
                     token.data_loading_loaded_periods = loaded
@@ -159,8 +159,9 @@ class DataLoader:
                     )
                     
                     if response.status_code == 200:
-                        # Здесь можно сохранить данные в базу, если нужно
-                        pass
+                        sales_data = response.json()
+                        if sales_data:
+                            DataLoader._save_wildberries_sales(token, sales_data, period_start, period_end)
                     
                     loaded += 1
                     token.data_loading_loaded_periods = loaded
@@ -243,14 +244,23 @@ class DataLoader:
                     )
                     
                     if response.status_code == 200:
-                        # Здесь можно сохранить данные в базу, если нужно
-                        pass
+                        data = response.json()
+                        result = data.get('result', {})
+                        if isinstance(result, list):
+                            postings = result
+                        elif isinstance(result, dict):
+                            postings = result.get('postings', [])
+                        else:
+                            postings = []
+                        
+                        if postings:
+                            DataLoader._save_ozon_orders(token, postings, 'FBS', period_start, period_end)
                     
                     loaded += 1
                     token.data_loading_loaded_periods = loaded
                     token.data_loading_progress = int((loaded / token.data_loading_total_periods) * 100)
                     db.session.commit()
-                    
+                
                 except Exception as e:
                     loaded += 1
                     token.data_loading_loaded_periods = loaded
@@ -276,14 +286,23 @@ class DataLoader:
                     )
                     
                     if response.status_code == 200:
-                        # Здесь можно сохранить данные в базу, если нужно
-                        pass
+                        data = response.json()
+                        result = data.get('result', {})
+                        if isinstance(result, list):
+                            postings = result
+                        elif isinstance(result, dict):
+                            postings = result.get('postings', [])
+                        else:
+                            postings = []
+                        
+                        if postings:
+                            DataLoader._save_ozon_orders(token, postings, 'FBO', period_start, period_end)
                     
                     loaded += 1
                     token.data_loading_loaded_periods = loaded
                     token.data_loading_progress = int((loaded / token.data_loading_total_periods) * 100)
                     db.session.commit()
-                    
+                
                 except Exception as e:
                     loaded += 1
                     token.data_loading_loaded_periods = loaded
@@ -309,14 +328,23 @@ class DataLoader:
                     )
                     
                     if response.status_code == 200:
-                        # Здесь можно сохранить данные в базу, если нужно
-                        pass
+                        data = response.json()
+                        result = data.get('result', {})
+                        if isinstance(result, list):
+                            postings = result
+                        elif isinstance(result, dict):
+                            postings = result.get('postings', [])
+                        else:
+                            postings = []
+                        
+                        if postings:
+                            DataLoader._save_ozon_sales(token, postings, 'FBS', period_start, period_end)
                     
                     loaded += 1
                     token.data_loading_loaded_periods = loaded
                     token.data_loading_progress = int((loaded / token.data_loading_total_periods) * 100)
                     db.session.commit()
-                    
+                
                 except Exception as e:
                     loaded += 1
                     token.data_loading_loaded_periods = loaded
@@ -342,14 +370,23 @@ class DataLoader:
                     )
                     
                     if response.status_code == 200:
-                        # Здесь можно сохранить данные в базу, если нужно
-                        pass
+                        data = response.json()
+                        result = data.get('result', {})
+                        if isinstance(result, list):
+                            postings = result
+                        elif isinstance(result, dict):
+                            postings = result.get('postings', [])
+                        else:
+                            postings = []
+                        
+                        if postings:
+                            DataLoader._save_ozon_sales(token, postings, 'FBO', period_start, period_end)
                     
                     loaded += 1
                     token.data_loading_loaded_periods = loaded
                     token.data_loading_progress = int((loaded / token.data_loading_total_periods) * 100)
                     db.session.commit()
-                    
+                
                 except Exception as e:
                     loaded += 1
                     token.data_loading_loaded_periods = loaded
