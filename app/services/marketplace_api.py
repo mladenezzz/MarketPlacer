@@ -280,4 +280,254 @@ class MarketplaceAPI:
                 'count': 0,
                 'error': f'Непредвиденная ошибка: {str(e)}'
             }
+    
+    @staticmethod
+    def get_today_sales_total(token: 'Token') -> Dict:
+        """
+        Получить сумму продаж на сегодня для токена
+        
+        Args:
+            token: объект токена из базы данных
+            
+        Returns:
+            Dict с информацией о продажах:
+            {
+                'success': bool,
+                'total': float,  # сумма продаж
+                'count': int,    # количество продаж
+                'error': str     # сообщение об ошибке (если success=False)
+            }
+        """
+        if token.marketplace == 'wildberries':
+            return MarketplaceAPI._get_wildberries_sales(token)
+        elif token.marketplace == 'ozon':
+            return MarketplaceAPI._get_ozon_sales(token)
+        elif token.marketplace == 'telegram':
+            return {
+                'success': True,
+                'total': 0.0,
+                'count': 0,
+                'error': 'Telegram не поддерживает получение продаж'
+            }
+        else:
+            return {
+                'success': False,
+                'total': 0.0,
+                'count': 0,
+                'error': 'Неизвестный маркетплейс'
+            }
+    
+    @staticmethod
+    def _get_wildberries_sales(token: 'Token') -> Dict:
+        """
+        Получить продажи Wildberries на сегодня
+        
+        API документация: https://openapi.wildberries.ru/
+        Endpoint: GET /api/v1/supplier/sales
+        """
+        try:
+            # Получаем начало и конец сегодняшнего дня
+            today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+            today_end = datetime.now().replace(hour=23, minute=59, second=59, microsecond=999999)
+            
+            # Форматируем даты для API WB (RFC3339)
+            date_from = today_start.strftime('%Y-%m-%dT%H:%M:%S.000Z')
+            
+            headers = {
+                'Authorization': token.token,
+                'Content-Type': 'application/json'
+            }
+            
+            # API endpoint для получения продаж
+            url = 'https://statistics-api.wildberries.ru/api/v1/supplier/sales'
+            params = {
+                'dateFrom': date_from,
+                'flag': 0  # 0 - все продажи
+            }
+            
+            response = requests.get(url, headers=headers, params=params, timeout=10)
+            
+            if response.status_code == 200:
+                sales = response.json()
+                
+                # Фильтруем продажи по дате (только сегодняшние)
+                today_sales = []
+                for sale in sales:
+                    sale_date_str = sale.get('date', '')
+                    if sale_date_str:
+                        try:
+                            # Парсим дату продажи
+                            if 'Z' in sale_date_str:
+                                sale_date = datetime.fromisoformat(sale_date_str.replace('Z', '+00:00'))
+                            else:
+                                sale_date = datetime.fromisoformat(sale_date_str)
+                            
+                            # Сравниваем только дату, без времени
+                            if sale_date.date() == today_start.date():
+                                today_sales.append(sale)
+                        except:
+                            continue
+                
+                # Подсчитываем сумму по finishedPrice (итоговая цена продажи)
+                # Значение в копейках, поэтому делим на 100
+                total = sum(float(sale.get('finishedPrice', 0)) for sale in today_sales)
+                
+                return {
+                    'success': True,
+                    'total': total,
+                    'count': len(today_sales),
+                    'error': None
+                }
+            elif response.status_code == 401:
+                return {
+                    'success': False,
+                    'total': 0.0,
+                    'count': 0,
+                    'error': 'Неверный токен авторизации'
+                }
+            else:
+                return {
+                    'success': False,
+                    'total': 0.0,
+                    'count': 0,
+                    'error': f'Ошибка API: {response.status_code}'
+                }
+                
+        except requests.Timeout:
+            return {
+                'success': False,
+                'total': 0.0,
+                'count': 0,
+                'error': 'Превышено время ожидания ответа'
+            }
+        except requests.RequestException as e:
+            return {
+                'success': False,
+                'total': 0.0,
+                'count': 0,
+                'error': f'Ошибка соединения: {str(e)}'
+            }
+        except Exception as e:
+            return {
+                'success': False,
+                'total': 0.0,
+                'count': 0,
+                'error': f'Непредвиденная ошибка: {str(e)}'
+            }
+    
+    @staticmethod
+    def _get_ozon_sales(token: 'Token') -> Dict:
+        """
+        Получить продажи Ozon на сегодня
+        
+        API документация: https://docs.ozon.ru/api/seller/
+        Использует метод /v3/finance/transaction/list для получения финансовых операций
+        """
+        try:
+            if not token.client_id:
+                return {
+                    'success': False,
+                    'total': 0.0,
+                    'count': 0,
+                    'error': 'Не указан Client-Id для Ozon'
+                }
+            
+            # Получаем начало и конец сегодняшнего дня
+            today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+            today_end = datetime.now().replace(hour=23, minute=59, second=59, microsecond=999999)
+            
+            # Форматируем даты для API Ozon (ISO 8601)
+            date_from = today_start.isoformat() + 'Z'
+            date_to = today_end.isoformat() + 'Z'
+            
+            headers = {
+                'Client-Id': token.client_id,
+                'Api-Key': token.token,
+                'Content-Type': 'application/json'
+            }
+            
+            # API endpoint для получения финансовых транзакций
+            url = 'https://api-seller.ozon.ru/v3/finance/transaction/list'
+            payload = {
+                "filter": {
+                    "date": {
+                        "from": date_from,
+                        "to": date_to
+                    },
+                    "operation_type": ["OperationAgentDeliveredToCustomer"],  # Продажи
+                    "transaction_type": "orders"
+                },
+                "page": 1,
+                "page_size": 1000
+            }
+            
+            try:
+                response = requests.post(url, headers=headers, json=payload, timeout=10)
+                
+                if response.status_code == 200:
+                    data = response.json()
+                    result = data.get('result', {})
+                    operations = result.get('operations', [])
+                    
+                    # Подсчитываем сумму продаж
+                    total_sum = 0.0
+                    total_count = len(operations)
+                    
+                    for operation in operations:
+                        # Получаем сумму продажи из поля sale_commission или accruals_for_sale
+                        items = operation.get('items', [])
+                        for item in items:
+                            # Используем поле amount - итоговая сумма
+                            amount = float(item.get('amount', 0))
+                            total_sum += abs(amount)  # Используем abs, т.к. может быть отрицательным
+                    
+                    return {
+                        'success': True,
+                        'total': total_sum,
+                        'count': total_count,
+                        'error': None
+                    }
+                elif response.status_code == 401:
+                    return {
+                        'success': False,
+                        'total': 0.0,
+                        'count': 0,
+                        'error': 'Неверный API ключ или Client-Id'
+                    }
+                else:
+                    return {
+                        'success': False,
+                        'total': 0.0,
+                        'count': 0,
+                        'error': f'Ошибка API: {response.status_code}'
+                    }
+            except Exception as e:
+                return {
+                    'success': False,
+                    'total': 0.0,
+                    'count': 0,
+                    'error': f'Ошибка запроса: {str(e)}'
+                }
+                
+        except requests.Timeout:
+            return {
+                'success': False,
+                'total': 0.0,
+                'count': 0,
+                'error': 'Превышено время ожидания ответа'
+            }
+        except requests.RequestException as e:
+            return {
+                'success': False,
+                'total': 0.0,
+                'count': 0,
+                'error': f'Ошибка соединения: {str(e)}'
+            }
+        except Exception as e:
+            return {
+                'success': False,
+                'total': 0.0,
+                'count': 0,
+                'error': f'Непредвиденная ошибка: {str(e)}'
+            }
 
