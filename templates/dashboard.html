@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+
+{% block title %}Панель управления - MarketPlacer{% endblock %}
+
+{% block content %}
+<div class="content-wrapper">
+    <div class="container">
+        <div class="row">
+            <div class="col-12">
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h3 class="mb-0">
+                            <i class="bi bi-speedometer2"></i> Панель управления
+                        </h3>
+                    </div>
+                    <div class="card-body">
+                        <h4>Добро пожаловать, {{ current_user.username }}!</h4>
+                        <p class="text-muted">Это ваша персональная панель управления.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row">
+            {% if current_user.is_admin() %}
+            <div class="col-md-4 mb-4">
+                <div class="card text-center h-100 border-danger">
+                    <div class="card-body">
+                        <div class="feature-icon text-danger">
+                            <i class="bi bi-shield-fill-check"></i>
+                        </div>
+                        <h5 class="card-title">Управление пользователями</h5>
+                        <p class="card-text text-muted">Управляйте ролями и доступом пользователей</p>
+                        <a href="{{ url_for('admin_users') }}" class="btn btn-danger">
+                            Управление
+                        </a>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+            
+            <div class="col-md-4 mb-4">
+                <div class="card text-center h-100">
+                    <div class="card-body">
+                        <div class="feature-icon">
+                            <i class="bi bi-person-circle"></i>
+                        </div>
+                        <h5 class="card-title">Профиль</h5>
+                        <p class="card-text text-muted">Управляйте своими персональными данными</p>
+                        <a href="{{ url_for('profile') }}" class="btn btn-primary">
+                            Перейти к профилю
+                        </a>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-4 mb-4">
+                <div class="card text-center h-100">
+                    <div class="card-body">
+                        <div class="feature-icon">
+                            <i class="bi bi-gear"></i>
+                        </div>
+                        <h5 class="card-title">Настройки</h5>
+                        <p class="card-text text-muted">Настройте приложение под себя</p>
+                        <button class="btn btn-outline-secondary" disabled>
+                            Скоро доступно
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-4 mb-4">
+                <div class="card text-center h-100">
+                    <div class="card-body">
+                        <div class="feature-icon">
+                            <i class="bi bi-graph-up"></i>
+                        </div>
+                        <h5 class="card-title">Статистика</h5>
+                        <p class="card-text text-muted">Просматривайте вашу активность</p>
+                        <button class="btn btn-outline-secondary" disabled>
+                            Скоро доступно
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

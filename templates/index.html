@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+
+{% block title %}Главная - MarketPlacer{% endblock %}
+
+{% block content %}
+<div class="hero-section">
+    <div class="container">
+        <h1><i class="bi bi-shop"></i> MarketPlacer</h1>
+        <p>Современная платформа для вашего бизнеса</p>
+        
+        {% if not current_user.is_authenticated %}
+        <div class="mb-4">
+            <a href="{{ url_for('register') }}" class="btn btn-light btn-lg me-3">
+                <i class="bi bi-person-plus"></i> Зарегистрироваться
+            </a>
+            <a href="{{ url_for('login') }}" class="btn btn-outline-light btn-lg">
+                <i class="bi bi-box-arrow-in-right"></i> Войти
+            </a>
+        </div>
+        {% else %}
+        <div class="mb-4">
+            <a href="{{ url_for('dashboard') }}" class="btn btn-light btn-lg">
+                <i class="bi bi-speedometer2"></i> Перейти в панель управления
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<div class="container mb-5">
+    <div class="row">
+        <div class="col-md-4">
+            <div class="feature-card text-center">
+                <div class="feature-icon">
+                    <i class="bi bi-shield-check"></i>
+                </div>
+                <h3>Безопасность</h3>
+                <p class="text-muted">Надежная защита ваших данных с использованием современных технологий шифрования</p>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="feature-card text-center">
+                <div class="feature-icon">
+                    <i class="bi bi-lightning-charge"></i>
+                </div>
+                <h3>Быстрота</h3>
+                <p class="text-muted">Молниеносная скорость работы и отзывчивый интерфейс для максимального комфорта</p>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="feature-card text-center">
+                <div class="feature-icon">
+                    <i class="bi bi-palette"></i>
+                </div>
+                <h3>Удобство</h3>
+                <p class="text-muted">Интуитивно понятный интерфейс, созданный с учетом лучших практик UX/UI дизайна</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
