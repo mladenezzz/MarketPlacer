@@ -2,9 +2,11 @@ import logging
 import time
 import signal
 import sys
-from datetime import datetime
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
 from datacollector.config import DataCollectorConfig
 from datacollector.collectors.wildberries import WildberriesCollector
+from app.models import Token
 
 logging.basicConfig(
     level=logging.INFO,
@@ -17,6 +19,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 running = True
+collectors = {}
 
 
 def signal_handler(sig, frame):
@@ -25,36 +28,69 @@ def signal_handler(sig, frame):
     running = False
 
 
+def initialize_collectors():
+    """Initialize collectors for all tokens"""
+    logger.info("Initializing collectors for all tokens...")
+
+    engine = create_engine(DataCollectorConfig.DATABASE_URI)
+    Session = sessionmaker(bind=engine)
+    session = Session()
+
+    try:
+        tokens = session.query(Token).filter_by(marketplace='wildberries').all()
+        logger.info(f"Found {len(tokens)} Wildberries tokens")
+
+        for token in tokens:
+            logger.info(f"Creating collector for token {token.id} ({token.name})")
+            collector = WildberriesCollector(
+                token_id=token.id,
+                token=token.token,
+                database_uri=DataCollectorConfig.DATABASE_URI
+            )
+            collectors[token.id] = collector
+
+            logger.info(f"Starting initial collection for token {token.id}")
+            collector.collect_all()
+
+    except Exception as e:
+        logger.error(f"Error initializing collectors: {e}")
+    finally:
+        session.close()
+
+    logger.info("Initialization complete")
+
+
+def update_all_collectors():
+    """Update data for all collectors"""
+    logger.info(f"Updating data for {len(collectors)} collectors...")
+
+    for token_id, collector in collectors.items():
+        try:
+            collector.update_data()
+        except Exception as e:
+            logger.error(f"Error updating token {token_id}: {e}")
+
+    logger.info("Update complete")
+
+
 def main():
     logger.info("Starting MarketPlacer DataCollector...")
 
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
 
-    # TODO: Load tokens from database
-    wb_token = "test_token"
+    initialize_collectors()
 
-    wb_collector = WildberriesCollector(
-        token=wb_token,
-        database_uri=DataCollectorConfig.DATABASE_URI
-    )
-
-    last_collection = {}
+    last_update = time.time()
+    update_interval = 600
 
     while running:
         try:
             current_time = time.time()
 
-            # Collect Wildberries data
-            if current_time - last_collection.get('wildberries', 0) >= DataCollectorConfig.WILDBERRIES_INTERVAL:
-                logger.info("Collecting Wildberries data...")
-                sales = wb_collector.collect_sales(days=1)
-                orders = wb_collector.collect_orders(days=1)
-
-                wb_collector.save_to_database(sales, 'wb_sales')
-                wb_collector.save_to_database(orders, 'wb_orders')
-
-                last_collection['wildberries'] = current_time
+            if current_time - last_update >= update_interval:
+                update_all_collectors()
+                last_update = current_time
 
             time.sleep(60)
 
