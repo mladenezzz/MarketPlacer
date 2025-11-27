@@ -10,7 +10,7 @@ class Config:
     # Конфигурация базы данных
     basedir = os.path.abspath(os.path.dirname(__file__))
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or \
-        'sqlite:///' + os.path.join(basedir, 'app.db')
+        'postgresql://marketplacer_user:MarketPlacer2024!Secure@192.168.0.44:5432/marketplacer'
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     
     # Настройки сессии
