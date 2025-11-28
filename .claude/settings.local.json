@@ -1,27 +1,9 @@
 {
   "permissions": {
     "allow": [
-      "Bash(python:*)",
-      "Bash(pip install:*)",
-      "Bash(venvScriptspython.exe -m pip install wb-api-sdk)",
-      "Bash(.venvScriptspython.exe -m pip install wb-api-sdk)",
-      "Bash(\"./venv/Scripts/python.exe\" -m pip install wb-api-sdk)",
-      "Bash(\"./venv/Scripts/python.exe\" test_wb_sales.py)",
-      "Bash(\"./venv/Scripts/pip.exe\" show wb-api-sdk)",
-      "Bash(\"./venv/Scripts/python.exe\" -c \"import wb_api_sdk; print(wb_api_sdk.__file__)\")",
-      "Bash(\"./venv/Scripts/python.exe\" -c \"import sys; print(sys.executable); print(sys.path)\")",
-      "Bash(dir:*)",
-      "Bash(findstr:*)",
-      "Bash(\"./venv/Scripts/python.exe\" -c \"from wb_api import WBApi; import inspect; api = WBApi(''test''); print([m for m in dir(api) if not m.startswith(''_'')])\")",
-      "Bash(\"./venv/Scripts/python.exe\":*)",
-      "Bash(\"./venv/Scripts/python.exe\" -c \"from wb_api import WBApi; import inspect; print(inspect.signature(WBApi(''test'').statistics.get_sales))\")",
-      "Bash(\"./venv/Scripts/python.exe\" test_postgres_connection.py)",
-      "Bash(\"./venv/Scripts/python.exe\" -m pip install psycopg2-binary)",
-      "Bash(\"./venv/Scripts/python.exe\" -m flask db upgrade)",
-      "Bash(\"./venv/Scripts/python.exe\" create_admin.py)",
-      "Bash(git add:*)",
-      "Bash(git commit:*)",
-      "Bash(git push:*)"
+      "Bash(\"./venv/Scripts/python.exe\" test_wb_incomes.py)",
+      "Bash(\"./venv/Scripts/python.exe\" test_wb_full_export.py)",
+      "Bash(\"./venv/Scripts/python.exe\" add_stocks_sync_time.py)"
     ],
     "deny": [],
     "ask": []

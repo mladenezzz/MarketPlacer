@@ -3,7 +3,7 @@ import time
 from datetime import datetime
 from wb_api import WBApi
 from datacollector.collectors.base import BaseCollector
-from app.models import WBSale, WBOrder, WBIncome, WBIncomeItem
+from app.models import WBSale, WBOrder, WBIncome, WBIncomeItem, WBStock
 
 logger = logging.getLogger(__name__)
 
@@ -238,6 +238,62 @@ class WildberriesCollector(BaseCollector):
             session.rollback()
             self.log_collection(session, self.token_id, self.marketplace, 'orders', 'error', 0, str(e), started_at)
             logger.error(f"Error collecting orders: {e}")
+
+    def collect_stocks(self, session):
+        """Collect stocks data"""
+        started_at = datetime.utcnow()
+        try:
+            logger.info(f"Collecting stocks for token {self.token_id}")
+
+            time.sleep(60)
+            stocks_data = self.api.warehouse.get_stocks()
+
+            today = datetime.utcnow().date()
+            saved_count = 0
+
+            for stock_data in stocks_data:
+                product = self.get_or_create_product(session, self.token_id, self.marketplace, stock_data)
+                warehouse = self.get_or_create_warehouse(session, self.marketplace, stock_data.get('warehouseName'))
+
+                # Check if stock for today already exists
+                existing = session.query(WBStock).filter_by(
+                    token_id=self.token_id,
+                    product_id=product.id,
+                    warehouse_id=warehouse.id if warehouse else None,
+                    date=today
+                ).first()
+
+                if existing:
+                    # Update existing stock
+                    existing.quantity = stock_data.get('quantity', 0)
+                    existing.quantity_full = stock_data.get('quantityFull', 0)
+                    existing.in_way_to_client = stock_data.get('inWayToClient', 0)
+                    existing.in_way_from_client = stock_data.get('inWayFromClient', 0)
+                else:
+                    # Create new stock record
+                    stock = WBStock(
+                        token_id=self.token_id,
+                        product_id=product.id,
+                        warehouse_id=warehouse.id if warehouse else None,
+                        date=today,
+                        quantity=stock_data.get('quantity', 0),
+                        quantity_full=stock_data.get('quantityFull', 0),
+                        in_way_to_client=stock_data.get('inWayToClient', 0),
+                        in_way_from_client=stock_data.get('inWayFromClient', 0)
+                    )
+                    session.add(stock)
+                    saved_count += 1
+
+            session.commit()
+            self.update_sync_state(session, self.token_id, 'stocks', success=True)
+            self.log_collection(session, self.token_id, self.marketplace, 'stocks', 'success', saved_count, started_at=started_at)
+            logger.info(f"Saved {saved_count} stock records")
+
+        except Exception as e:
+            session.rollback()
+            self.log_collection(session, self.token_id, self.marketplace, 'stocks', 'error', 0, str(e), started_at)
+            logger.error(f"Error collecting stocks: {e}")
+            raise
 
     def update_data(self):
         """Update data (called every 10 minutes)"""
