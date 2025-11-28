@@ -1,5 +1,5 @@
 from app.models import db
-from datetime import datetime
+from datetime import datetime, time
 
 
 class Token(db.Model):
@@ -12,6 +12,7 @@ class Token(db.Model):
     marketplace = db.Column(db.String(50), nullable=False)  # 'wildberries', 'ozon' или 'telegram'
     token = db.Column(db.String(500), nullable=False)
     client_id = db.Column(db.String(200), nullable=True)  # Только для Ozon
+    stocks_sync_time = db.Column(db.Time, default=lambda: time(3, 0))  # Время синхронизации остатков (по умолчанию 3:00)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
