@@ -1,6 +1,6 @@
 import logging
 import time
-from datetime import datetime, UTC, timedelta
+from datetime import datetime, timezone, timedelta
 from wb_api import WBApi
 from datacollector.collectors.base import BaseCollector
 from app.models import WBSale, WBOrder, WBIncome, WBIncomeItem, WBStock
@@ -41,17 +41,17 @@ class WildberriesCollector(BaseCollector):
 
     def collect_incomes(self, session, initial: bool = False):
         """Collect incomes data - only NEW incomes that don't exist in database"""
-        started_at = datetime.now(UTC)
+        started_at = datetime.now(timezone.utc)
         try:
             sync_state = self.get_sync_state(session, self.token_id, 'incomes')
 
             if initial or not sync_state.last_successful_sync:
-                start_date = datetime(2019, 1, 1, tzinfo=UTC)
+                start_date = datetime(2019, 1, 1, tzinfo=timezone.utc)
             else:
                 start_date = sync_state.last_successful_sync
                 # Ensure timezone awareness
                 if start_date.tzinfo is None:
-                    start_date = start_date.replace(tzinfo=UTC)
+                    start_date = start_date.replace(tzinfo=timezone.utc)
 
             logger.info(f"Collecting incomes from {start_date.strftime('%Y-%m-%d')}")
 
@@ -139,30 +139,30 @@ class WildberriesCollector(BaseCollector):
 
     def collect_sales(self, session, initial: bool = False):
         """Collect sales data with pagination using flag=1 (daily iteration)"""
-        started_at = datetime.now(UTC)
+        started_at = datetime.now(timezone.utc)
         try:
             sync_state = self.get_sync_state(session, self.token_id, 'sales')
 
             if initial or not sync_state.last_successful_sync:
                 time.sleep(60)
-                incomes = self.api.statistics.get_data(endpoint="incomes", date_from=datetime(2019, 1, 1, tzinfo=UTC).strftime('%Y-%m-%d'))
+                incomes = self.api.statistics.get_data(endpoint="incomes", date_from=datetime(2019, 1, 1, tzinfo=timezone.utc).strftime('%Y-%m-%d'))
                 if incomes:
                     first_income = min(datetime.fromisoformat(inc['date'].replace('Z', '+00:00')) for inc in incomes)
                     start_date = first_income.replace(hour=0, minute=0, second=0, microsecond=0)
                 else:
-                    start_date = datetime(2019, 1, 1, tzinfo=UTC)
+                    start_date = datetime(2019, 1, 1, tzinfo=timezone.utc)
             else:
                 start_date = sync_state.last_successful_sync
                 # Ensure timezone awareness
                 if start_date.tzinfo is None:
-                    start_date = start_date.replace(tzinfo=UTC)
+                    start_date = start_date.replace(tzinfo=timezone.utc)
 
             logger.info(f"Collecting sales from {start_date.strftime('%Y-%m-%d')}")
 
             # Use flag=1 to get all data for each date
             saved_count = 0
             current_date = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
-            end_date = datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0)
+            end_date = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
 
             while current_date <= end_date:
                 logger.info(f"  Fetching sales for date: {current_date.strftime('%Y-%m-%d')}")
@@ -229,30 +229,30 @@ class WildberriesCollector(BaseCollector):
 
     def collect_orders(self, session, initial: bool = False):
         """Collect orders data with pagination using flag=1 (daily iteration)"""
-        started_at = datetime.now(UTC)
+        started_at = datetime.now(timezone.utc)
         try:
             sync_state = self.get_sync_state(session, self.token_id, 'orders')
 
             if initial or not sync_state.last_successful_sync:
                 time.sleep(60)
-                incomes = self.api.statistics.get_data(endpoint="incomes", date_from=datetime(2019, 1, 1, tzinfo=UTC).strftime('%Y-%m-%d'))
+                incomes = self.api.statistics.get_data(endpoint="incomes", date_from=datetime(2019, 1, 1, tzinfo=timezone.utc).strftime('%Y-%m-%d'))
                 if incomes:
                     first_income = min(datetime.fromisoformat(inc['date'].replace('Z', '+00:00')) for inc in incomes)
                     start_date = first_income.replace(hour=0, minute=0, second=0, microsecond=0)
                 else:
-                    start_date = datetime(2019, 1, 1, tzinfo=UTC)
+                    start_date = datetime(2019, 1, 1, tzinfo=timezone.utc)
             else:
                 start_date = sync_state.last_successful_sync
                 # Ensure timezone awareness
                 if start_date.tzinfo is None:
-                    start_date = start_date.replace(tzinfo=UTC)
+                    start_date = start_date.replace(tzinfo=timezone.utc)
 
             logger.info(f"Collecting orders from {start_date.strftime('%Y-%m-%d')}")
 
             # Use flag=1 to get all data for each date
             saved_count = 0
             current_date = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
-            end_date = datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0)
+            end_date = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
 
             while current_date <= end_date:
                 logger.info(f"  Fetching orders for date: {current_date.strftime('%Y-%m-%d')}")
@@ -316,14 +316,14 @@ class WildberriesCollector(BaseCollector):
 
     def collect_stocks(self, session):
         """Collect stocks data"""
-        started_at = datetime.now(UTC)
+        started_at = datetime.now(timezone.utc)
         try:
             logger.info(f"Collecting stocks for token {self.token_id}")
 
             time.sleep(60)
             stocks_data = self.api.statistics.get_stocks(date_from="2019-01-01")
 
-            today = datetime.now(UTC).date()
+            today = datetime.now(timezone.utc).date()
             saved_count = 0
 
             for stock_obj in stocks_data:

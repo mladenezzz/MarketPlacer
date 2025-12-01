@@ -2,7 +2,7 @@ import json
 import logging
 import time
 import requests
-from datetime import datetime, timedelta, UTC
+from datetime import datetime, timedelta, timezone
 from datacollector.collectors.base import BaseCollector
 from app.models import OzonStock, OzonSale, OzonSupplyOrder, OzonSupplyItem
 
@@ -89,7 +89,7 @@ class OzonCollector(BaseCollector):
 
     def collect_stocks(self, session, initial: bool = False):
         """Collect stocks/warehouse data using /v1/report/products/create (includes FBO and FBS)"""
-        started_at = datetime.now(UTC)
+        started_at = datetime.now(timezone.utc)
         try:
             sync_state = self.get_sync_state(session, self.token_id, 'ozon_stocks')
 
@@ -177,7 +177,7 @@ class OzonCollector(BaseCollector):
 
             # Save to database
             saved_count = 0
-            current_date = datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0)
+            current_date = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
 
             for row in data_rows:
                 if len(row) <= fbo_stock_col_idx:
@@ -259,13 +259,13 @@ class OzonCollector(BaseCollector):
 
     def collect_sales(self, session, initial: bool = False):
         """Collect sales data (FBS and FBO orders) using /v3/posting/fbs/list and /v2/posting/fbo/list"""
-        started_at = datetime.now(UTC)
+        started_at = datetime.now(timezone.utc)
         try:
             sync_state = self.get_sync_state(session, self.token_id, 'ozon_sales')
 
             # Determine date range (Ozon API allows max 90 days)
             if initial or not sync_state.last_successful_sync:
-                start_date = datetime.now(UTC) - timedelta(days=90)
+                start_date = datetime.now(timezone.utc) - timedelta(days=90)
             else:
                 start_date = sync_state.last_successful_sync
 
@@ -302,7 +302,7 @@ class OzonCollector(BaseCollector):
                 "dir": "ASC",
                 "filter": {
                     "since": start_date.strftime('%Y-%m-%dT%H:%M:%S.000Z'),
-                    "to": datetime.now(UTC).strftime('%Y-%m-%dT%H:%M:%S.000Z'),
+                    "to": datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%S.000Z'),
                     "status": ""
                 },
                 "limit": limit,
@@ -352,7 +352,7 @@ class OzonCollector(BaseCollector):
                 "dir": "ASC",
                 "filter": {
                     "since": start_date.strftime('%Y-%m-%dT%H:%M:%S.000Z'),
-                    "to": datetime.now(UTC).strftime('%Y-%m-%dT%H:%M:%S.000Z'),
+                    "to": datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%S.000Z'),
                     "status": ""
                 },
                 "limit": limit,
@@ -453,7 +453,7 @@ class OzonCollector(BaseCollector):
 
     def collect_supply_orders(self, session, initial: bool = False):
         """Collect supply orders (поставки FBO) using /v3/supply-order/list, /v3/supply-order/get, and /v1/supply-order/bundle"""
-        started_at = datetime.now(UTC)
+        started_at = datetime.now(timezone.utc)
         try:
             sync_state = self.get_sync_state(session, self.token_id, 'ozon_supply_orders')
 
