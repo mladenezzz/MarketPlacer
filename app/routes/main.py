@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, jsonify
 from flask_login import login_required, current_user
 from app.models import Token
-from app.services.marketplace_api import MarketplaceAPI
+from app.services.sales_service import SalesService
 
 main_bp = Blueprint('main', __name__)
 
@@ -38,32 +38,33 @@ def index():
 @main_bp.route('/api/orders/<int:token_id>')
 @login_required
 def get_token_orders(token_id):
-    """API endpoint для получения данных о заказах по токену"""
+    """API endpoint для получения данных о заказах по токену из базы данных"""
     # Проверяем, что токен принадлежит текущему пользователю
     token = Token.query.filter_by(id=token_id, user_id=current_user.id).first()
-    
+
     if not token:
         return jsonify({'success': False, 'error': 'Токен не найден'}), 404
-    
-    # Получаем данные о заказах
-    order_info = MarketplaceAPI.get_today_orders_total(token)
-    
-    return jsonify(order_info)
+
+    # Получаем данные о заказах из базы данных
+    # Для WB берем из wb_orders, для Ozon - из ozon_sales
+    orders_info = SalesService.get_today_orders_by_token(token_id)
+
+    return jsonify(orders_info)
 
 
 @main_bp.route('/api/sales/<int:token_id>')
 @login_required
 def get_token_sales(token_id):
-    """API endpoint для получения данных о продажах по токену"""
+    """API endpoint для получения данных о продажах по токену из базы данных"""
     # Проверяем, что токен принадлежит текущему пользователю
     token = Token.query.filter_by(id=token_id, user_id=current_user.id).first()
-    
+
     if not token:
         return jsonify({'success': False, 'error': 'Токен не найден'}), 404
-    
-    # Получаем данные о продажах
-    sales_info = MarketplaceAPI.get_today_sales_total(token)
-    
+
+    # Получаем данные о продажах из базы данных
+    sales_info = SalesService.get_today_sales_by_token(token_id)
+
     return jsonify(sales_info)
 
 
