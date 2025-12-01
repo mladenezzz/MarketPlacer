@@ -208,6 +208,18 @@
         .bg-purple {
             background-color: #8b5cf6 !important;
         }
+
+        /* Стили для Flatpickr - будущие даты */
+        .flatpickr-day.flatpickr-disabled {
+            color: #9ca3af !important;
+            opacity: 0.6 !important;
+            background-color: #f3f4f6 !important;
+            cursor: not-allowed !important;
+        }
+
+        .flatpickr-day.flatpickr-disabled:hover {
+            background-color: #e5e7eb !important;
+        }
     </style>
     
     {% block extra_css %}{% endblock %}
