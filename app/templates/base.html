@@ -9,8 +9,8 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Bootstrap Icons -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
-    <!-- Flatpickr CSS -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <!-- Air Datepicker CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/air-datepicker@3.5.0/air-datepicker.css">
     
     <style>
         :root {
@@ -208,18 +208,6 @@
         .bg-purple {
             background-color: #8b5cf6 !important;
         }
-
-        /* Стили для Flatpickr - будущие даты */
-        .flatpickr-day.flatpickr-disabled {
-            color: #9ca3af !important;
-            opacity: 0.6 !important;
-            background-color: #f3f4f6 !important;
-            cursor: not-allowed !important;
-        }
-
-        .flatpickr-day.flatpickr-disabled:hover {
-            background-color: #e5e7eb !important;
-        }
     </style>
     
     {% block extra_css %}{% endblock %}
@@ -397,9 +385,8 @@
     
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <!-- Flatpickr JS -->
-    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-    <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/ru.js"></script>
+    <!-- Air Datepicker JS -->
+    <script src="https://cdn.jsdelivr.net/npm/air-datepicker@3.5.0/air-datepicker.js"></script>
     
     <!-- Скрипт для открытия dropdown при наведении -->
     <script>
