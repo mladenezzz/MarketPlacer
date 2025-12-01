@@ -70,7 +70,7 @@
                                 </div>
                             </div>
                         </div>
-                        
+
                         <!-- Детальная информация по каждому токену -->
                         <h5 class="mb-3">Детализация по токенам:</h5>
                         <div class="table-responsive">
@@ -119,7 +119,7 @@
                 </div>
             </div>
         </div>
-        
+
         <!-- Статистика продаж на сегодня -->
         <div class="row mb-4">
             <div class="col-12">
@@ -231,11 +231,11 @@
 {% if current_user.is_authenticated and has_tokens %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Хранилище данных для каждого токена (заказы и продажи отдельно)
+    // Хранилище данных для заказов и продаж
     const tokenOrdersData = {};
     const tokenSalesData = {};
     let updateInterval;
-    
+
     // Функция для форматирования даты
     function formatDate(date) {
         const day = String(date.getDate()).padStart(2, '0');
@@ -243,7 +243,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const year = date.getFullYear();
         return `${day}.${month}.${year}`;
     }
-    
+
     // Функция для форматирования времени
     function formatTime(date) {
         const hours = String(date.getHours()).padStart(2, '0');
@@ -251,32 +251,35 @@ document.addEventListener('DOMContentLoaded', function() {
         const seconds = String(date.getSeconds()).padStart(2, '0');
         return `${hours}:${minutes}:${seconds}`;
     }
-    
-    // Обновляем текущую дату для обеих секций
+
+    // Обновляем текущую дату
     function updateCurrentDate() {
         const now = new Date();
         const dateStr = `(${formatDate(now)})`;
-        document.getElementById('current-date').textContent = dateStr;
-        document.getElementById('current-date-sales').textContent = dateStr;
+        const currentDateElem = document.getElementById('current-date');
+        const currentDateSalesElem = document.getElementById('current-date-sales');
+        if (currentDateElem) currentDateElem.textContent = dateStr;
+        if (currentDateSalesElem) currentDateSalesElem.textContent = dateStr;
     }
-    
+
     // Обновляем время последнего обновления для заказов
     function updateLastUpdateTime() {
         const now = new Date();
-        document.getElementById('last-update-time').textContent = formatTime(now);
+        const lastUpdateElem = document.getElementById('last-update-time');
+        if (lastUpdateElem) lastUpdateElem.textContent = formatTime(now);
     }
-    
+
     // Обновляем время последнего обновления для продаж
     function updateLastUpdateTimeSales() {
         const now = new Date();
         document.getElementById('last-update-time-sales').textContent = formatTime(now);
     }
-    
+
     // Функция для обновления общей статистики заказов
     function updateTotalStats() {
         let totalSum = 0;
         let totalCount = 0;
-        
+
         // Суммируем только успешно загруженные данные
         for (const tokenId in tokenOrdersData) {
             if (tokenOrdersData[tokenId].success) {
@@ -284,16 +287,18 @@ document.addEventListener('DOMContentLoaded', function() {
                 totalCount += tokenOrdersData[tokenId].count;
             }
         }
-        
-        document.getElementById('total-sum').textContent = totalSum.toFixed(2) + ' ₽';
-        document.getElementById('total-count').textContent = totalCount;
+
+        const totalSumElem = document.getElementById('total-sum');
+        const totalCountElem = document.getElementById('total-count');
+        if (totalSumElem) totalSumElem.textContent = totalSum.toFixed(2) + ' ₽';
+        if (totalCountElem) totalCountElem.textContent = totalCount;
     }
-    
+
     // Функция для обновления общей статистики продаж
     function updateTotalSalesStats() {
         let totalSum = 0;
         let totalCount = 0;
-        
+
         // Суммируем только успешно загруженные данные
         for (const tokenId in tokenSalesData) {
             if (tokenSalesData[tokenId].success) {
@@ -301,17 +306,17 @@ document.addEventListener('DOMContentLoaded', function() {
                 totalCount += tokenSalesData[tokenId].count;
             }
         }
-        
+
         document.getElementById('total-sales-sum').textContent = totalSum.toFixed(2) + ' ₽';
         document.getElementById('total-sales-count').textContent = totalCount;
     }
-    
+
     // Функция для загрузки данных о заказах по токену
     async function loadTokenOrdersData(tokenId, row, isUpdate = false) {
         const countCell = row.querySelector('.order-count');
         const totalCell = row.querySelector('.order-total');
         const statusCell = row.querySelector('.order-status');
-        
+
         // Если это обновление, показываем индикатор обновления
         if (isUpdate && tokenOrdersData[tokenId] && tokenOrdersData[tokenId].success) {
             statusCell.innerHTML = `
@@ -320,11 +325,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 </span>
             `;
         }
-        
+
         try {
             const response = await fetch(`{{ url_for('main.get_token_orders', token_id=0) }}`.replace('0', tokenId));
             const data = await response.json();
-            
+
             if (data.success) {
                 // Сохраняем успешные данные
                 tokenOrdersData[tokenId] = {
@@ -332,7 +337,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     count: data.count,
                     total: data.total
                 };
-                
+
                 // Обновляем ячейки таблицы
                 countCell.innerHTML = `<span class="badge bg-info">${data.count}</span>`;
                 totalCell.innerHTML = `<strong>${data.total.toFixed(2)} ₽</strong>`;
@@ -352,14 +357,14 @@ document.addEventListener('DOMContentLoaded', function() {
                     countCell.innerHTML = '<span class="text-muted">-</span>';
                     totalCell.innerHTML = '<span class="text-muted">-</span>';
                 }
-                
+
                 // Обновляем только статус
                 statusCell.innerHTML = `
                     <span class="badge bg-danger" data-bs-toggle="tooltip" title="${data.error}">
                         <i class="bi bi-x-circle"></i> Ошибка
                     </span>
                 `;
-                
+
                 // Инициализируем tooltips для новых элементов
                 const tooltip = new bootstrap.Tooltip(statusCell.querySelector('[data-bs-toggle="tooltip"]'));
             }
@@ -374,19 +379,19 @@ document.addEventListener('DOMContentLoaded', function() {
                 countCell.innerHTML = '<span class="text-muted">-</span>';
                 totalCell.innerHTML = '<span class="text-muted">-</span>';
             }
-            
+
             // Обновляем только статус
             statusCell.innerHTML = `
                 <span class="badge bg-danger" data-bs-toggle="tooltip" title="Ошибка сети">
                     <i class="bi bi-x-circle"></i> Ошибка
                 </span>
             `;
-            
+
             // Инициализируем tooltips для новых элементов
             const tooltip = new bootstrap.Tooltip(statusCell.querySelector('[data-bs-toggle="tooltip"]'));
         }
     }
-    
+
     // Функция для загрузки данных о продажах по токену
     async function loadTokenSalesData(tokenId, row, isUpdate = false) {
         const countCell = row.querySelector('.sales-count');
@@ -472,50 +477,50 @@ document.addEventListener('DOMContentLoaded', function() {
     async function loadAllOrdersData(isUpdate = false) {
         const rows = document.querySelectorAll('#orders-table-body tr');
         const promises = [];
-        
+
         rows.forEach(row => {
             const tokenId = row.getAttribute('data-token-id');
             promises.push(loadTokenOrdersData(tokenId, row, isUpdate));
         });
-        
+
         // Ждем завершения всех запросов
         await Promise.all(promises);
-        
+
         // Обновляем общую статистику и время
         updateTotalStats();
         updateLastUpdateTime();
     }
-    
+
     // Функция для загрузки данных о продажах для всех токенов
     async function loadAllSalesData(isUpdate = false) {
         const rows = document.querySelectorAll('#sales-table-body tr');
         const promises = [];
-        
+
         rows.forEach(row => {
             const tokenId = row.getAttribute('data-token-id');
             promises.push(loadTokenSalesData(tokenId, row, isUpdate));
         });
-        
+
         // Ждем завершения всех запросов
         await Promise.all(promises);
-        
+
         // Обновляем общую статистику и время
         updateTotalSalesStats();
         updateLastUpdateTimeSales();
     }
-    
-    // Функция для загрузки всех данных (заказы и продажи)
+
+    // Функция для загрузки всех данных (заказы + продажи)
     async function loadAllData(isUpdate = false) {
         await Promise.all([
             loadAllOrdersData(isUpdate),
             loadAllSalesData(isUpdate)
         ]);
     }
-    
+
     // Инициализация: обновляем дату и загружаем данные
     updateCurrentDate();
     loadAllData(false);
-    
+
     // Устанавливаем автоматическое обновление каждую минуту (60000 мс)
     updateInterval = setInterval(function() {
         loadAllData(true);
