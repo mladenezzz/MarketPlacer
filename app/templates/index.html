@@ -22,7 +22,7 @@
                                 <label for="date-range-picker" class="form-label">Выберите дату или период:</label>
                                 <input type="text" class="form-control" id="date-range-picker" placeholder="Выберите даты..." style="background-color: white; cursor: pointer;">
                             </div>
-                            <div class="col-md-7">
+                            <div class="col-md-4">
                                 <div class="btn-group w-100" role="group">
                                     <button type="button" class="btn btn-outline-secondary" id="reset-to-today">
                                         <i class="bi bi-calendar-day"></i> Сегодня
@@ -33,10 +33,12 @@
                                     <button type="button" class="btn btn-outline-secondary" id="reset-to-month">
                                         <i class="bi bi-calendar-month"></i> Месяц
                                     </button>
-                                    <button type="button" class="btn btn-outline-danger" id="clear-dates">
-                                        <i class="bi bi-x-circle"></i> Очистить
-                                    </button>
                                 </div>
+                            </div>
+                            <div class="col-md-3">
+                                <button type="button" class="btn btn-primary w-100" id="apply-dates">
+                                    <i class="bi bi-check-circle"></i> Сохранить
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -239,6 +241,8 @@ document.addEventListener('DOMContentLoaded', function() {
     let updateInterval;
     let currentDateFrom = null;
     let currentDateTo = null;
+    let tempDateFrom = null;  // Временная переменная для выбранных дат
+    let tempDateTo = null;    // Временная переменная для выбранных дат
 
     // Функция для форматирования даты для отображения (DD.MM.YYYY)
     function formatDate(date) {
@@ -507,17 +511,15 @@ document.addEventListener('DOMContentLoaded', function() {
         defaultDate: [new Date(), new Date()],
         maxDate: "today",
         onChange: function(selectedDates, dateStr, instance) {
+            // Сохраняем выбранные даты только во временные переменные
+            // Данные будут загружены только после нажатия кнопки "Сохранить"
             if (selectedDates.length === 2) {
-                currentDateFrom = selectedDates[0];
-                currentDateTo = selectedDates[1];
-                updateCurrentDate();
-                loadAllData(false);
+                tempDateFrom = selectedDates[0];
+                tempDateTo = selectedDates[1];
             } else if (selectedDates.length === 1) {
                 // Если выбрана только одна дата, используем её как начало и конец
-                currentDateFrom = selectedDates[0];
-                currentDateTo = selectedDates[0];
-                updateCurrentDate();
-                loadAllData(false);
+                tempDateFrom = selectedDates[0];
+                tempDateTo = selectedDates[0];
             }
         }
     });
@@ -530,19 +532,22 @@ document.addEventListener('DOMContentLoaded', function() {
         picker.setDate([today, today]);
     }
 
-    // Обработчик кнопки "Очистить"
-    document.getElementById('clear-dates').addEventListener('click', function() {
-        const today = new Date();
-        currentDateFrom = today;
-        currentDateTo = today;
-        picker.setDate([today, today]);
-        updateCurrentDate();
-        loadAllData(false);
+    // Обработчик кнопки "Сохранить"
+    document.getElementById('apply-dates').addEventListener('click', function() {
+        // Применяем временные даты к текущим
+        if (tempDateFrom && tempDateTo) {
+            currentDateFrom = tempDateFrom;
+            currentDateTo = tempDateTo;
+            updateCurrentDate();
+            loadAllData(false);
+        }
     });
 
     // Обработчик кнопки "Сегодня"
     document.getElementById('reset-to-today').addEventListener('click', function() {
         const today = new Date();
+        tempDateFrom = today;
+        tempDateTo = today;
         currentDateFrom = today;
         currentDateTo = today;
         picker.setDate([today, today]);
@@ -556,6 +561,8 @@ document.addEventListener('DOMContentLoaded', function() {
         const weekAgo = new Date();
         weekAgo.setDate(today.getDate() - 6);
 
+        tempDateFrom = weekAgo;
+        tempDateTo = today;
         currentDateFrom = weekAgo;
         currentDateTo = today;
         picker.setDate([weekAgo, today]);
@@ -569,6 +576,8 @@ document.addEventListener('DOMContentLoaded', function() {
         const monthAgo = new Date();
         monthAgo.setMonth(today.getMonth() - 1);
 
+        tempDateFrom = monthAgo;
+        tempDateTo = today;
         currentDateFrom = monthAgo;
         currentDateTo = today;
         picker.setDate([monthAgo, today]);
