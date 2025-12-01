@@ -2,7 +2,7 @@
 from typing import Dict
 from datetime import datetime
 from sqlalchemy import func
-from app.models import db, WBSale, WBOrder, OzonSale, Token
+from app.models import db, WBSale, WBOrder, OzonSale, OzonOrder, Token
 
 
 class SalesService:
@@ -93,13 +93,14 @@ class SalesService:
 
     @staticmethod
     def _get_ozon_sales_today(token_id: int, today_start: datetime) -> Dict:
-        """Получить продажи Ozon на сегодня из базы данных"""
+        """Получить продажи Ozon на сегодня из базы данных (из таблицы ozon_sales с данными finance API)"""
         try:
-            # Запрос к таблице ozon_sales
-            # Используем shipment_date - дата отгрузки (когда товар реально отправлен)
+            # Запрос к таблице ozon_sales (финансовые транзакции)
+            # Используем shipment_date - дата операции из finance API
+            # price - это accruals_for_sale (начисления за продажу)
             sales_query = db.session.query(
                 func.count(OzonSale.id).label('count'),
-                func.sum(OzonSale.price * OzonSale.quantity).label('total')
+                func.sum(OzonSale.price).label('total')
             ).filter(
                 OzonSale.token_id == token_id,
                 OzonSale.shipment_date >= today_start
@@ -230,7 +231,7 @@ class SalesService:
             if token.marketplace == 'wildberries':
                 return SalesService._get_wb_orders_today(token_id, today_start)
             elif token.marketplace == 'ozon':
-                return SalesService._get_ozon_sales_today(token_id, today_start)
+                return SalesService._get_ozon_orders_today(token_id, today_start)
             else:
                 return {
                     'success': True,
@@ -245,6 +246,38 @@ class SalesService:
                 'total': 0.0,
                 'count': 0,
                 'error': f'Ошибка при получении данных: {str(e)}'
+            }
+
+    @staticmethod
+    def _get_ozon_orders_today(token_id: int, today_start: datetime) -> Dict:
+        """Получить заказы Ozon на сегодня из таблицы ozon_orders"""
+        try:
+            # Запрос к таблице ozon_orders (постинги FBS/FBO)
+            # Используем shipment_date - дата отгрузки
+            orders_query = db.session.query(
+                func.count(OzonOrder.id).label('count'),
+                func.sum(OzonOrder.price).label('total')
+            ).filter(
+                OzonOrder.token_id == token_id,
+                OzonOrder.shipment_date >= today_start
+            ).first()
+
+            count = orders_query.count or 0
+            total = float(orders_query.total or 0.0)
+
+            return {
+                'success': True,
+                'total': total,
+                'count': count,
+                'error': None
+            }
+
+        except Exception as e:
+            return {
+                'success': False,
+                'total': 0.0,
+                'count': 0,
+                'error': f'Ошибка БД Ozon: {str(e)}'
             }
 
     @staticmethod
@@ -309,7 +342,7 @@ class SalesService:
             if token.marketplace == 'wildberries':
                 return SalesService._get_wb_orders_by_range(token_id, date_from_start, date_to_end)
             elif token.marketplace == 'ozon':
-                return SalesService._get_ozon_sales_by_range(token_id, date_from_start, date_to_end)
+                return SalesService._get_ozon_orders_by_range(token_id, date_from_start, date_to_end)
             else:
                 return {
                     'success': True,
@@ -436,12 +469,43 @@ class SalesService:
             }
 
     @staticmethod
+    def _get_ozon_orders_by_range(token_id: int, date_from: datetime, date_to: datetime) -> Dict:
+        """Получить заказы Ozon за период из таблицы ozon_orders"""
+        try:
+            orders_query = db.session.query(
+                func.count(OzonOrder.id).label('count'),
+                func.sum(OzonOrder.price).label('total')
+            ).filter(
+                OzonOrder.token_id == token_id,
+                OzonOrder.shipment_date >= date_from,
+                OzonOrder.shipment_date <= date_to
+            ).first()
+
+            count = orders_query.count or 0
+            total = float(orders_query.total or 0.0)
+
+            return {
+                'success': True,
+                'total': total,
+                'count': count,
+                'error': None
+            }
+
+        except Exception as e:
+            return {
+                'success': False,
+                'total': 0.0,
+                'count': 0,
+                'error': f'Ошибка БД Ozon: {str(e)}'
+            }
+
+    @staticmethod
     def _get_ozon_sales_by_range(token_id: int, date_from: datetime, date_to: datetime) -> Dict:
-        """Получить продажи Ozon за период из таблицы ozon_sales"""
+        """Получить продажи Ozon за период из таблицы ozon_sales (finance API)"""
         try:
             sales_query = db.session.query(
                 func.count(OzonSale.id).label('count'),
-                func.sum(OzonSale.price * OzonSale.quantity).label('total')
+                func.sum(OzonSale.price).label('total')
             ).filter(
                 OzonSale.token_id == token_id,
                 OzonSale.shipment_date >= date_from,

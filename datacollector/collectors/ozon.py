@@ -3,8 +3,9 @@ import logging
 import time
 import requests
 from datetime import datetime, timedelta, timezone
+from dateutil.relativedelta import relativedelta
 from datacollector.collectors.base import BaseCollector
-from app.models import OzonStock, OzonSale, OzonSupplyOrder, OzonSupplyItem
+from app.models import OzonStock, OzonSale, OzonOrder, OzonSupplyOrder, OzonSupplyItem
 
 logger = logging.getLogger(__name__)
 
@@ -75,8 +76,10 @@ class OzonCollector(BaseCollector):
 
             logger.info(f"Token {self.token_id}: Initial data collection for Ozon")
 
-            # Collect in order: stocks, sales, supply orders
+            # Collect in order: stocks, orders, sales, supply orders
             self.collect_stocks(session, initial=True)
+            time.sleep(1)
+            self.collect_orders(session, initial=True)
             time.sleep(1)
             self.collect_sales(session, initial=True)
             time.sleep(1)
@@ -257,19 +260,47 @@ class OzonCollector(BaseCollector):
             self.log_collection(session, self.token_id, self.marketplace, 'ozon_stocks', 'error', 0, str(e), started_at)
             logger.error(f"Error collecting Ozon stocks: {e}")
 
-    def collect_sales(self, session, initial: bool = False):
-        """Collect sales data (FBS and FBO orders) using /v3/posting/fbs/list and /v2/posting/fbo/list"""
+    def collect_orders(self, session, initial: bool = False):
+        """Collect orders data (FBS and FBO orders) using /v3/posting/fbs/list and /v2/posting/fbo/list"""
         started_at = datetime.now(timezone.utc)
         try:
-            sync_state = self.get_sync_state(session, self.token_id, 'ozon_sales')
+            sync_state = self.get_sync_state(session, self.token_id, 'ozon_orders')
 
-            # Determine date range (Ozon API allows max 90 days)
+            # Определяем начальную дату для сбора
             if initial or not sync_state.last_successful_sync:
-                start_date = datetime.now(timezone.utc) - timedelta(days=90)
+                # Находим дату первой поставки (из supply_orders)
+                from app.models import OzonSupplyOrder
+                first_supply = session.query(OzonSupplyOrder).filter_by(
+                    token_id=self.token_id
+                ).order_by(OzonSupplyOrder.timeslot_from.asc()).first()
+
+                if first_supply and first_supply.timeslot_from:
+                    # Сначала пробуем 180 дней, если не получится - 90 дней
+                    start_date_180 = max(first_supply.timeslot_from, datetime.now(timezone.utc) - timedelta(days=180))
+                    start_date_90 = max(first_supply.timeslot_from, datetime.now(timezone.utc) - timedelta(days=90))
+
+                    logger.info(f"First supply found at {first_supply.timeslot_from.strftime('%Y-%m-%d')}, trying to collect orders from {start_date_180.strftime('%Y-%m-%d')} (180 days)")
+
+                    # Пробуем собрать с 180 дней
+                    start_date = start_date_180
+                    test_saved = self._test_orders_date_range(start_date)
+
+                    if test_saved == -1:  # API error, fallback to 90 days
+                        logger.warning(f"180-day range failed, falling back to 90 days from {start_date_90.strftime('%Y-%m-%d')}")
+                        start_date = start_date_90
+                else:
+                    # Если поставок нет, пробуем 180 дней, если не получится - 90
+                    logger.info(f"No supplies found, trying 180 days")
+                    start_date = datetime.now(timezone.utc) - timedelta(days=180)
+                    test_saved = self._test_orders_date_range(start_date)
+
+                    if test_saved == -1:  # API error, fallback to 90 days
+                        logger.warning(f"180-day range failed, falling back to 90 days")
+                        start_date = datetime.now(timezone.utc) - timedelta(days=90)
             else:
                 start_date = sync_state.last_successful_sync
 
-            logger.info(f"Collecting Ozon sales from {start_date.strftime('%Y-%m-%d')}")
+            logger.info(f"Collecting Ozon orders from {start_date.strftime('%Y-%m-%d')}")
 
             saved_count = 0
 
@@ -281,6 +312,45 @@ class OzonCollector(BaseCollector):
             saved_count += self._collect_fbo_orders(session, start_date)
 
             session.commit()
+            self.update_sync_state(session, self.token_id, 'ozon_orders', success=True)
+            self.log_collection(session, self.token_id, self.marketplace, 'ozon_orders', 'success', saved_count, started_at=started_at)
+            logger.info(f"Saved {saved_count} Ozon orders")
+
+        except Exception as e:
+            session.rollback()
+            self.log_collection(session, self.token_id, self.marketplace, 'ozon_orders', 'error', 0, str(e), started_at)
+            logger.error(f"Error collecting Ozon orders: {e}")
+
+    def collect_sales(self, session, initial: bool = False):
+        """Collect sales data using /v3/finance/transaction/list with OperationAgentDeliveredToCustomer"""
+        started_at = datetime.now(timezone.utc)
+        try:
+            sync_state = self.get_sync_state(session, self.token_id, 'ozon_sales')
+
+            # Определяем начальную дату для сбора
+            # Если первая синхронизация, собираем помесячно с даты первой поставки
+            if initial or not sync_state.last_successful_sync:
+                # Находим дату первой поставки (из supply_orders)
+                from app.models import OzonSupplyOrder
+                first_supply = session.query(OzonSupplyOrder).filter_by(
+                    token_id=self.token_id
+                ).order_by(OzonSupplyOrder.timeslot_from.asc()).first()
+
+                if first_supply and first_supply.timeslot_from:
+                    start_date = first_supply.timeslot_from
+                    logger.info(f"First supply found at {start_date.strftime('%Y-%m-%d')}, collecting sales from that date")
+                else:
+                    # Если поставок нет, берем последние 12 месяцев
+                    start_date = datetime.now(timezone.utc) - relativedelta(months=12)
+                    logger.info(f"No supplies found, collecting sales for last 12 months")
+            else:
+                start_date = sync_state.last_successful_sync
+
+            logger.info(f"Collecting Ozon sales from {start_date.strftime('%Y-%m-%d')}")
+
+            saved_count = self._collect_finance_transactions(session, start_date)
+
+            session.commit()
             self.update_sync_state(session, self.token_id, 'ozon_sales', success=True)
             self.log_collection(session, self.token_id, self.marketplace, 'ozon_sales', 'success', saved_count, started_at=started_at)
             logger.info(f"Saved {saved_count} Ozon sales")
@@ -289,6 +359,37 @@ class OzonCollector(BaseCollector):
             session.rollback()
             self.log_collection(session, self.token_id, self.marketplace, 'ozon_sales', 'error', 0, str(e), started_at)
             logger.error(f"Error collecting Ozon sales: {e}")
+
+    def _test_orders_date_range(self, start_date: datetime) -> int:
+        """Test if date range is acceptable by API (returns -1 on error, 0+ on success)"""
+        url = f"{self.base_url}/v3/posting/fbs/list"
+
+        payload = {
+            "dir": "ASC",
+            "filter": {
+                "since": start_date.strftime('%Y-%m-%dT%H:%M:%S.000Z'),
+                "to": datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%S.000Z'),
+                "status": ""
+            },
+            "limit": 1,  # Only test with 1 record
+            "offset": 0,
+            "with": {
+                "analytics_data": False,
+                "financial_data": False
+            }
+        }
+
+        try:
+            response = requests.post(url, headers=self.headers, json=payload, timeout=30)
+
+            if response.status_code == 200:
+                return 0  # Success
+            else:
+                logger.warning(f"Date range test failed with status {response.status_code}")
+                return -1  # Error
+        except Exception as e:
+            logger.warning(f"Date range test exception: {e}")
+            return -1
 
     def _collect_fbs_orders(self, session, start_date: datetime) -> int:
         """Collect FBS orders with pagination"""
@@ -390,7 +491,7 @@ class OzonCollector(BaseCollector):
         return saved_count
 
     def _save_posting(self, session, posting: dict, delivery_schema: str) -> int:
-        """Save single posting (order) to database"""
+        """Save single posting (order) to ozon_orders database"""
         posting_number = posting.get('posting_number')
         saved_count = 0
         products = posting.get('products', [])
@@ -412,7 +513,7 @@ class OzonCollector(BaseCollector):
 
             # Check if this specific product in posting already exists
             sku = product_data.get('sku')
-            existing = session.query(OzonSale).filter_by(
+            existing = session.query(OzonOrder).filter_by(
                 posting_number=posting_number,
                 sku=sku
             ).first()
@@ -423,7 +524,7 @@ class OzonCollector(BaseCollector):
             shipment_date = posting.get('shipment_date')
             in_process_at = posting.get('in_process_at')
 
-            sale = OzonSale(
+            order = OzonOrder(
                 token_id=self.token_id,
                 product_id=product.id,
                 posting_number=posting_number,
@@ -442,14 +543,171 @@ class OzonCollector(BaseCollector):
             # Add financial data if available
             financial_data = posting.get('financial_data', {})
             if financial_data:
-                sale.commission_amount = financial_data.get('commission_amount')
-                sale.commission_percent = financial_data.get('commission_percent')
-                sale.payout = financial_data.get('payout')
+                order.commission_amount = financial_data.get('commission_amount')
+                order.commission_percent = financial_data.get('commission_percent')
+                order.payout = financial_data.get('payout')
 
-            session.add(sale)
+            session.add(order)
             saved_count += 1
 
         return saved_count
+
+    def _collect_finance_transactions(self, session, start_date: datetime) -> int:
+        """Collect sales from /v3/finance/transaction/list with monthly pagination"""
+        url = f"{self.base_url}/v3/finance/transaction/list"
+        saved_count = 0
+        today = datetime.now(timezone.utc)
+
+        # Iterate through each month from start_date to today
+        current_date = start_date.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+
+        while current_date <= today:
+            # Define start and end of current month
+            month_start = current_date
+            month_end = (current_date + relativedelta(months=1)) - timedelta(seconds=1)
+
+            # If month end is after today, use today
+            if month_end > today:
+                month_end = today
+
+            # Format dates for API
+            date_from_str = month_start.strftime('%Y-%m-%dT%H:%M:%S.000Z')
+            date_to_str = month_end.strftime('%Y-%m-%dT%H:%M:%S.999Z')
+
+            logger.info(f"  Collecting sales for {month_start.strftime('%B %Y')}")
+
+            # Pagination - get all pages for current month
+            page = 1
+            has_next = True
+            month_saved = 0
+
+            while has_next:
+                params = {
+                    "filter": {
+                        "date": {
+                            "from": date_from_str,
+                            "to": date_to_str
+                        },
+                        "operation_type": ["OperationAgentDeliveredToCustomer"],
+                        "posting_number": "",
+                        "transaction_type": "all"
+                    },
+                    "page": page,
+                    "page_size": 1000
+                }
+
+                # Retry loop for 429 errors
+                max_retries = 5
+                retry_count = 0
+                request_successful = False
+
+                while retry_count < max_retries and not request_successful:
+                    response = requests.post(url, headers=self.headers, json=params, timeout=30)
+
+                    if response.status_code == 200:
+                        request_successful = True
+                        data = response.json()
+                        result = data.get('result', {})
+                        operations = result.get('operations', [])
+
+                        # If no operations - exit loop
+                        if not operations:
+                            has_next = False
+                            break
+
+                        # Process operations from current page
+                        for operation in operations:
+                            if operation.get('operation_type') == 'OperationAgentDeliveredToCustomer':
+                                if self._save_finance_transaction(session, operation):
+                                    month_saved += 1
+
+                        # Check if there are more pages
+                        # If we got less than 1000 records - this is the last page
+                        if len(operations) < 1000:
+                            has_next = False
+                        else:
+                            page += 1
+
+                    elif response.status_code == 429:
+                        retry_count += 1
+                        if retry_count < max_retries:
+                            logger.warning(f"    Error 429 for page {page} in {month_start.strftime('%B %Y')}. Retry {retry_count}/{max_retries}. Waiting 20 seconds...")
+                            time.sleep(20)
+                        else:
+                            logger.error(f"    Max retries exceeded for page {page} in {month_start.strftime('%B %Y')}. Skipping.")
+                            has_next = False
+                    else:
+                        logger.error(f"    Ozon finance API error {response.status_code} for page {page}: {response.text}")
+                        has_next = False
+                        break
+
+            logger.info(f"    Saved {month_saved} sales for {month_start.strftime('%B %Y')}")
+            saved_count += month_saved
+
+            # Move to next month
+            current_date = current_date + relativedelta(months=1)
+            time.sleep(1)  # Rate limiting between months
+
+        return saved_count
+
+    def _save_finance_transaction(self, session, operation: dict) -> bool:
+        """Save single finance transaction (sale) to ozon_sales database"""
+        try:
+            posting_number = operation.get('posting', {}).get('posting_number')
+            if not posting_number:
+                return False
+
+            # Get operation_id as unique identifier
+            operation_id = operation.get('operation_id')
+            if not operation_id:
+                return False
+
+            # Check if this transaction already exists
+            existing = session.query(OzonSale).filter_by(
+                token_id=self.token_id,
+                posting_number=posting_number
+            ).first()
+            if existing:
+                return False
+
+            # Parse operation date
+            operation_date_str = operation.get('operation_date')
+            operation_date = datetime.fromisoformat(operation_date_str.replace('Z', '+00:00')) if operation_date_str else None
+
+            # Extract posting info
+            posting_info = operation.get('posting', {})
+            delivery_schema = posting_info.get('delivery_schema', '')
+
+            # Get product info from items (if available)
+            items = operation.get('items', [])
+            sku = items[0].get('sku') if items else None
+
+            # Create sale record
+            sale = OzonSale(
+                token_id=self.token_id,
+                product_id=None,  # Will be linked later if needed
+                posting_number=posting_number,
+                order_id=None,
+                order_number=None,
+                offer_id='',
+                sku=sku,
+                quantity=1,  # Finance API doesn't provide quantity directly
+                shipment_date=operation_date,
+                in_process_at=None,
+                delivery_schema=delivery_schema,
+                price=operation.get('accruals_for_sale', 0),  # Using accruals_for_sale as price
+                commission_amount=None,
+                commission_percent=None,
+                payout=operation.get('amount', 0),
+                status='delivered'  # OperationAgentDeliveredToCustomer means delivered
+            )
+
+            session.add(sale)
+            return True
+
+        except Exception as e:
+            logger.debug(f"    Error saving finance transaction: {e}")
+            return False
 
     def collect_supply_orders(self, session, initial: bool = False):
         """Collect supply orders (поставки FBO) using /v3/supply-order/list, /v3/supply-order/get, and /v1/supply-order/bundle"""

@@ -87,6 +87,57 @@ class OzonSale(db.Model):
         return f'<OzonSale {self.posting_number}>'
 
 
+class OzonOrder(db.Model):
+    """Модель заказов Ozon (FBS и FBO) - постинги"""
+    __tablename__ = 'ozon_orders'
+
+    id = db.Column(db.Integer, primary_key=True)
+    token_id = db.Column(db.Integer, db.ForeignKey('tokens.id'), nullable=False)
+    product_id = db.Column(db.Integer, db.ForeignKey('products.id'), nullable=True)
+    warehouse_id = db.Column(db.Integer, db.ForeignKey('warehouses.id'), nullable=True)
+
+    # Unique identifier (posting can have multiple products, so unique by posting+sku)
+    posting_number = db.Column(db.String(200), nullable=False)
+    order_id = db.Column(db.BigInteger, nullable=True)
+    order_number = db.Column(db.String(200), nullable=True)
+
+    # Product info
+    offer_id = db.Column(db.String(200), nullable=False)
+    sku = db.Column(db.BigInteger, nullable=True)
+    quantity = db.Column(db.Integer, nullable=False)
+
+    # Dates
+    shipment_date = db.Column(db.DateTime, nullable=True)
+    in_process_at = db.Column(db.DateTime, nullable=True)
+
+    # Delivery type
+    delivery_schema = db.Column(db.String(50), nullable=True)  # FBS or FBO
+
+    # Financial
+    price = db.Column(db.Numeric(10, 2), nullable=True)
+    commission_amount = db.Column(db.Numeric(10, 2), nullable=True)
+    commission_percent = db.Column(db.Integer, nullable=True)
+    payout = db.Column(db.Numeric(10, 2), nullable=True)
+
+    # Status
+    status = db.Column(db.String(100), nullable=True)
+
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    token = db.relationship('Token', backref=db.backref('ozon_orders', lazy=True))
+    product = db.relationship('Product', backref=db.backref('ozon_orders', lazy=True))
+    warehouse = db.relationship('Warehouse', backref=db.backref('ozon_orders', lazy=True))
+
+    __table_args__ = (
+        db.Index('idx_ozon_orders_token_date', 'token_id', 'shipment_date'),
+        db.Index('idx_ozon_orders_product', 'product_id'),
+        db.Index('idx_ozon_orders_posting', 'posting_number'),
+    )
+
+    def __repr__(self):
+        return f'<OzonOrder {self.posting_number}>'
+
+
 class OzonSupplyOrder(db.Model):
     """Модель заявок на поставку Ozon FBO"""
     __tablename__ = 'ozon_supply_orders'
