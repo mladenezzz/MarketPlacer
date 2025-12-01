@@ -18,24 +18,28 @@
                     </div>
                     <div class="card-body">
                         <div class="row align-items-end">
-                            <div class="col-md-3">
-                                <label for="date-from" class="form-label">С:</label>
-                                <input type="date" class="form-control" id="date-from" value="">
+                            <div class="col-md-4">
+                                <label for="date-picker" class="form-label">Выберите дату или период:</label>
+                                <input type="text" class="form-control" id="date-picker" readonly placeholder="Выберите даты..." style="background-color: white; cursor: pointer;">
+                                <input type="date" class="form-control mt-2" id="date-selector" value="">
+                                <small class="text-muted">Кликните дату дважды для одного дня, или выберите разные даты для периода</small>
                             </div>
-                            <div class="col-md-3">
-                                <label for="date-to" class="form-label">По:</label>
-                                <input type="date" class="form-control" id="date-to" value="">
+                            <div class="col-md-2 d-flex align-items-start flex-column">
+                                <label class="form-label invisible">.</label>
+                                <button type="button" class="btn btn-outline-danger btn-sm mb-2 w-100" id="clear-dates">
+                                    <i class="bi bi-x-circle"></i> Очистить
+                                </button>
                             </div>
                             <div class="col-md-6">
                                 <div class="btn-group w-100" role="group">
-                                    <button type="button" class="btn btn-primary" id="apply-date-filter">
-                                        <i class="bi bi-search"></i> Применить
-                                    </button>
                                     <button type="button" class="btn btn-outline-secondary" id="reset-to-today">
                                         <i class="bi bi-calendar-day"></i> Сегодня
                                     </button>
                                     <button type="button" class="btn btn-outline-secondary" id="reset-to-week">
                                         <i class="bi bi-calendar-week"></i> Неделя
+                                    </button>
+                                    <button type="button" class="btn btn-outline-secondary" id="reset-to-month">
+                                        <i class="bi bi-calendar-month"></i> Месяц
                                     </button>
                                 </div>
                             </div>
@@ -582,71 +586,119 @@ document.addEventListener('DOMContentLoaded', function() {
         ]);
     }
 
+    // Переменная для отслеживания первой выбранной даты
+    let firstSelectedDate = null;
+
+    // Обновление текстового поля с выбранным диапазоном
+    function updateDatePickerDisplay() {
+        const displayField = document.getElementById('date-picker');
+        if (currentDateFrom && currentDateTo) {
+            if (formatDateForAPI(currentDateFrom) === formatDateForAPI(currentDateTo)) {
+                displayField.value = formatDate(currentDateFrom);
+            } else {
+                displayField.value = `${formatDate(currentDateFrom)} - ${formatDate(currentDateTo)}`;
+            }
+        } else {
+            displayField.value = '';
+        }
+    }
+
     // Инициализация дат на сегодня
     function initializeDates() {
         const today = new Date();
         currentDateFrom = today;
         currentDateTo = today;
 
-        // Устанавливаем значения в input поля
-        document.getElementById('date-from').value = formatDateForInput(today);
-        document.getElementById('date-to').value = formatDateForInput(today);
+        // Устанавливаем значение в date selector
+        document.getElementById('date-selector').value = formatDateForInput(today);
+        updateDatePickerDisplay();
     }
 
-    // Обработчик кнопки "Применить"
-    document.getElementById('apply-date-filter').addEventListener('click', function() {
-        const dateFromInput = document.getElementById('date-from').value;
-        const dateToInput = document.getElementById('date-to').value;
+    // Обработчик изменения даты в селекторе
+    document.getElementById('date-selector').addEventListener('change', function() {
+        const selectedDate = new Date(this.value);
 
-        if (!dateFromInput || !dateToInput) {
-            alert('Пожалуйста, выберите обе даты');
-            return;
+        if (!firstSelectedDate) {
+            // Первый клик - устанавливаем начальную дату
+            firstSelectedDate = selectedDate;
+            currentDateFrom = selectedDate;
+            currentDateTo = selectedDate;
+        } else {
+            // Второй клик - устанавливаем конечную дату
+            if (selectedDate < firstSelectedDate) {
+                // Если вторая дата раньше первой, меняем их местами
+                currentDateFrom = selectedDate;
+                currentDateTo = firstSelectedDate;
+            } else if (formatDateForAPI(selectedDate) === formatDateForAPI(firstSelectedDate)) {
+                // Если выбрана та же дата - это один день
+                currentDateFrom = selectedDate;
+                currentDateTo = selectedDate;
+            } else {
+                // Нормальный диапазон
+                currentDateFrom = firstSelectedDate;
+                currentDateTo = selectedDate;
+            }
+            firstSelectedDate = null; // Сбрасываем для следующего выбора
         }
 
-        // Парсим даты из input полей
-        currentDateFrom = new Date(dateFromInput);
-        currentDateTo = new Date(dateToInput);
+        updateDatePickerDisplay();
+        updateCurrentDate();
+        loadAllData(false);
+    });
 
-        // Проверяем корректность дат
-        if (currentDateFrom > currentDateTo) {
-            alert('Дата начала не может быть позже даты окончания');
-            return;
-        }
-
-        // Перезагружаем данные с новыми датами
+    // Обработчик кнопки "Очистить"
+    document.getElementById('clear-dates').addEventListener('click', function() {
+        firstSelectedDate = null;
+        const today = new Date();
+        currentDateFrom = today;
+        currentDateTo = today;
+        document.getElementById('date-selector').value = formatDateForInput(today);
+        updateDatePickerDisplay();
         updateCurrentDate();
         loadAllData(false);
     });
 
     // Обработчик кнопки "Сегодня"
     document.getElementById('reset-to-today').addEventListener('click', function() {
+        firstSelectedDate = null;
         const today = new Date();
         currentDateFrom = today;
         currentDateTo = today;
 
-        // Обновляем значения в input полях
-        document.getElementById('date-from').value = formatDateForInput(today);
-        document.getElementById('date-to').value = formatDateForInput(today);
-
-        // Перезагружаем данные
+        document.getElementById('date-selector').value = formatDateForInput(today);
+        updateDatePickerDisplay();
         updateCurrentDate();
         loadAllData(false);
     });
 
     // Обработчик кнопки "Неделя"
     document.getElementById('reset-to-week').addEventListener('click', function() {
+        firstSelectedDate = null;
         const today = new Date();
         const weekAgo = new Date();
-        weekAgo.setDate(today.getDate() - 6); // 7 дней включая сегодня
+        weekAgo.setDate(today.getDate() - 6);
 
         currentDateFrom = weekAgo;
         currentDateTo = today;
 
-        // Обновляем значения в input полях
-        document.getElementById('date-from').value = formatDateForInput(weekAgo);
-        document.getElementById('date-to').value = formatDateForInput(today);
+        document.getElementById('date-selector').value = formatDateForInput(today);
+        updateDatePickerDisplay();
+        updateCurrentDate();
+        loadAllData(false);
+    });
 
-        // Перезагружаем данные
+    // Обработчик кнопки "Месяц"
+    document.getElementById('reset-to-month').addEventListener('click', function() {
+        firstSelectedDate = null;
+        const today = new Date();
+        const monthAgo = new Date();
+        monthAgo.setMonth(today.getMonth() - 1);
+
+        currentDateFrom = monthAgo;
+        currentDateTo = today;
+
+        document.getElementById('date-selector').value = formatDateForInput(today);
+        updateDatePickerDisplay();
         updateCurrentDate();
         loadAllData(false);
     });
