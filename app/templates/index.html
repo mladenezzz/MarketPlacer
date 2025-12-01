@@ -95,7 +95,6 @@
                                         <th>Название токена</th>
                                         <th>Количество заказов</th>
                                         <th>Сумма заказов</th>
-                                        <th>Статус</th>
                                     </tr>
                                 </thead>
                                 <tbody id="orders-table-body">
@@ -118,11 +117,6 @@
                                         </td>
                                         <td class="text-end order-total">
                                             <span class="text-muted">-</span>
-                                        </td>
-                                        <td class="order-status">
-                                            <span class="badge bg-warning">
-                                                <i class="bi bi-hourglass-split"></i> Получение данных
-                                            </span>
                                         </td>
                                     </tr>
                                     {% endfor %}
@@ -185,7 +179,6 @@
                                         <th>Название токена</th>
                                         <th>Количество продаж</th>
                                         <th>Сумма продаж</th>
-                                        <th>Статус</th>
                                     </tr>
                                 </thead>
                                 <tbody id="sales-table-body">
@@ -208,11 +201,6 @@
                                         </td>
                                         <td class="text-end sales-total">
                                             <span class="text-muted">-</span>
-                                        </td>
-                                        <td class="sales-status">
-                                            <span class="badge bg-warning">
-                                                <i class="bi bi-hourglass-split"></i> Получение данных
-                                            </span>
                                         </td>
                                     </tr>
                                     {% endfor %}
@@ -357,16 +345,6 @@ document.addEventListener('DOMContentLoaded', function() {
     async function loadTokenOrdersData(tokenId, row, isUpdate = false) {
         const countCell = row.querySelector('.order-count');
         const totalCell = row.querySelector('.order-total');
-        const statusCell = row.querySelector('.order-status');
-
-        // Если это обновление, показываем индикатор обновления
-        if (isUpdate && tokenOrdersData[tokenId] && tokenOrdersData[tokenId].success) {
-            statusCell.innerHTML = `
-                <span class="badge bg-warning">
-                    <i class="bi bi-arrow-repeat"></i> Обновление...
-                </span>
-            `;
-        }
 
         try {
             // Выбираем URL в зависимости от того, выбран ли диапазон дат
@@ -394,11 +372,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Обновляем ячейки таблицы
                 countCell.innerHTML = `<span class="badge bg-info">${data.count}</span>`;
                 totalCell.innerHTML = `<strong>${data.total.toFixed(2)} ₽</strong>`;
-                statusCell.innerHTML = `
-                    <span class="badge bg-success">
-                        <i class="bi bi-check-circle"></i> Успешно
-                    </span>
-                `;
             } else {
                 // При ошибке сохраняем статус ошибки, но не заменяем данные
                 if (!tokenOrdersData[tokenId] || !tokenOrdersData[tokenId].success) {
@@ -410,16 +383,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     countCell.innerHTML = '<span class="text-muted">-</span>';
                     totalCell.innerHTML = '<span class="text-muted">-</span>';
                 }
-
-                // Обновляем только статус
-                statusCell.innerHTML = `
-                    <span class="badge bg-danger" data-bs-toggle="tooltip" title="${data.error}">
-                        <i class="bi bi-x-circle"></i> Ошибка
-                    </span>
-                `;
-
-                // Инициализируем tooltips для новых элементов
-                const tooltip = new bootstrap.Tooltip(statusCell.querySelector('[data-bs-toggle="tooltip"]'));
             }
         } catch (error) {
             // При ошибке сети сохраняем предыдущие данные
@@ -432,16 +395,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 countCell.innerHTML = '<span class="text-muted">-</span>';
                 totalCell.innerHTML = '<span class="text-muted">-</span>';
             }
-
-            // Обновляем только статус
-            statusCell.innerHTML = `
-                <span class="badge bg-danger" data-bs-toggle="tooltip" title="Ошибка сети">
-                    <i class="bi bi-x-circle"></i> Ошибка
-                </span>
-            `;
-
-            // Инициализируем tooltips для новых элементов
-            const tooltip = new bootstrap.Tooltip(statusCell.querySelector('[data-bs-toggle="tooltip"]'));
         }
     }
 
@@ -449,16 +402,6 @@ document.addEventListener('DOMContentLoaded', function() {
     async function loadTokenSalesData(tokenId, row, isUpdate = false) {
         const countCell = row.querySelector('.sales-count');
         const totalCell = row.querySelector('.sales-total');
-        const statusCell = row.querySelector('.sales-status');
-
-        // Если это обновление, показываем индикатор обновления
-        if (isUpdate && tokenSalesData[tokenId] && tokenSalesData[tokenId].success) {
-            statusCell.innerHTML = `
-                <span class="badge bg-warning">
-                    <i class="bi bi-arrow-repeat"></i> Обновление...
-                </span>
-            `;
-        }
 
         try {
             // Выбираем URL в зависимости от того, выбран ли диапазон дат
@@ -482,15 +425,10 @@ document.addEventListener('DOMContentLoaded', function() {
                     count: data.count,
                     total: data.total
                 };
-                
+
                 // Обновляем ячейки таблицы
                 countCell.innerHTML = `<span class="badge bg-info">${data.count}</span>`;
                 totalCell.innerHTML = `<strong>${data.total.toFixed(2)} ₽</strong>`;
-                statusCell.innerHTML = `
-                    <span class="badge bg-success">
-                        <i class="bi bi-check-circle"></i> Успешно
-                    </span>
-                `;
             } else {
                 // При ошибке сохраняем статус ошибки, но не заменяем данные
                 if (!tokenSalesData[tokenId] || !tokenSalesData[tokenId].success) {
@@ -502,16 +440,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     countCell.innerHTML = '<span class="text-muted">-</span>';
                     totalCell.innerHTML = '<span class="text-muted">-</span>';
                 }
-                
-                // Обновляем только статус
-                statusCell.innerHTML = `
-                    <span class="badge bg-danger" data-bs-toggle="tooltip" title="${data.error}">
-                        <i class="bi bi-x-circle"></i> Ошибка
-                    </span>
-                `;
-                
-                // Инициализируем tooltips для новых элементов
-                const tooltip = new bootstrap.Tooltip(statusCell.querySelector('[data-bs-toggle="tooltip"]'));
             }
         } catch (error) {
             // При ошибке сети сохраняем предыдущие данные
@@ -524,16 +452,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 countCell.innerHTML = '<span class="text-muted">-</span>';
                 totalCell.innerHTML = '<span class="text-muted">-</span>';
             }
-            
-            // Обновляем только статус
-            statusCell.innerHTML = `
-                <span class="badge bg-danger" data-bs-toggle="tooltip" title="Ошибка сети">
-                    <i class="bi bi-x-circle"></i> Ошибка
-                </span>
-            `;
-            
-            // Инициализируем tooltips для новых элементов
-            const tooltip = new bootstrap.Tooltip(statusCell.querySelector('[data-bs-toggle="tooltip"]'));
         }
     }
     
