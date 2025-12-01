@@ -4,6 +4,7 @@ import time
 from datetime import datetime
 from datacollector.queue_manager import Task, TaskQueue
 from datacollector.collectors.wildberries import WildberriesCollector
+from datacollector.collectors.ozon import OzonCollector
 from datacollector.config import DataCollectorConfig
 
 logger = logging.getLogger(__name__)
@@ -59,6 +60,7 @@ class Worker(threading.Thread):
             session = Session()
 
             try:
+                # Wildberries endpoints
                 if task.endpoint == 'incomes':
                     collector.collect_incomes(session)
                 elif task.endpoint == 'sales':
@@ -67,6 +69,13 @@ class Worker(threading.Thread):
                     collector.collect_orders(session)
                 elif task.endpoint == 'stocks':
                     collector.collect_stocks(session)
+                # Ozon endpoints
+                elif task.endpoint == 'ozon_stocks':
+                    collector.collect_stocks(session)
+                elif task.endpoint == 'ozon_sales':
+                    collector.collect_sales(session)
+                elif task.endpoint == 'ozon_supply_orders':
+                    collector.collect_supply_orders(session)
                 else:
                     logger.error(f"Worker {self.worker_id}: Unknown endpoint {task.endpoint}")
                     return False

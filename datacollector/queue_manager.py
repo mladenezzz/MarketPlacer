@@ -2,7 +2,7 @@ import logging
 import queue
 import threading
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, UTC
 from enum import IntEnum
 
 logger = logging.getLogger(__name__)
@@ -22,7 +22,7 @@ class Task:
         self.token_id = token_id
         self.endpoint = endpoint
         self.priority = priority
-        self.created_at = datetime.utcnow()
+        self.created_at = datetime.now(UTC)
         self.attempts = 0
         self.max_attempts = 5
         self.next_retry = None
@@ -36,7 +36,7 @@ class Task:
         """Check if task can be retried"""
         if self.attempts >= self.max_attempts:
             return False
-        if self.next_retry and datetime.utcnow() < self.next_retry:
+        if self.next_retry and datetime.now(UTC) < self.next_retry:
             return False
         return True
 
@@ -44,7 +44,7 @@ class Task:
         """Schedule next retry with exponential backoff"""
         self.attempts += 1
         backoff_seconds = min(60 * (2 ** self.attempts), 3600)
-        self.next_retry = datetime.utcnow() + timedelta(seconds=backoff_seconds)
+        self.next_retry = datetime.now(UTC) + timedelta(seconds=backoff_seconds)
         logger.info(f"Task {self.token_id}:{self.endpoint} scheduled for retry #{self.attempts} at {self.next_retry}")
 
 
@@ -83,7 +83,7 @@ class TaskQueue:
             remaining_tasks = []
 
             for task in self.retry_queue:
-                if task.can_retry() and (not task.next_retry or datetime.utcnow() >= task.next_retry):
+                if task.can_retry() and (not task.next_retry or datetime.now(UTC) >= task.next_retry):
                     ready_tasks.append(task)
                 elif task.attempts < task.max_attempts:
                     remaining_tasks.append(task)

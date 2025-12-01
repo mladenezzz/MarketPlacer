@@ -3,17 +3,18 @@ import time
 import signal
 import sys
 import threading
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, UTC
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from datacollector.config import DataCollectorConfig
 from datacollector.collectors.wildberries import WildberriesCollector
+from datacollector.collectors.ozon import OzonCollector
 from datacollector.queue_manager import TaskQueue, Task, TaskPriority
 from datacollector.worker import WorkerPool
-from app.models import Token, WBStock
+from app.models import Token, WBStock, OzonStock
 
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.DEBUG,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
         logging.StreamHandler(sys.stdout),
@@ -43,14 +44,29 @@ def initialize_collectors():
     session = Session()
 
     try:
-        tokens = session.query(Token).filter_by(marketplace='wildberries').all()
-        logger.info(f"Found {len(tokens)} Wildberries tokens")
+        # Initialize Wildberries collectors
+        wb_tokens = session.query(Token).filter_by(marketplace='wildberries').all()
+        logger.info(f"Found {len(wb_tokens)} Wildberries tokens")
 
-        for token in tokens:
-            logger.info(f"Creating collector for token {token.id} ({token.name})")
+        for token in wb_tokens:
+            logger.info(f"Creating Wildberries collector for token {token.id} ({token.name})")
             collector = WildberriesCollector(
                 token_id=token.id,
                 token=token.token,
+                database_uri=DataCollectorConfig.DATABASE_URI
+            )
+            collectors[token.id] = collector
+
+        # Initialize Ozon collectors
+        ozon_tokens = session.query(Token).filter_by(marketplace='ozon').all()
+        logger.info(f"Found {len(ozon_tokens)} Ozon tokens")
+
+        for token in ozon_tokens:
+            logger.info(f"Creating Ozon collector for token {token.id} ({token.name})")
+            collector = OzonCollector(
+                token_id=token.id,
+                client_id=token.client_id,
+                api_key=token.token,
                 database_uri=DataCollectorConfig.DATABASE_URI
             )
             collectors[token.id] = collector
@@ -72,22 +88,37 @@ def check_and_load_today_stocks():
     session = Session()
 
     try:
-        today = datetime.utcnow().date()
-        tokens = session.query(Token).filter_by(marketplace='wildberries').all()
+        today = datetime.now(UTC).date()
 
-        for token in tokens:
-            # Check if stocks for today exist
+        # Check Wildberries stocks
+        wb_tokens = session.query(Token).filter_by(marketplace='wildberries').all()
+        for token in wb_tokens:
             stocks_count = session.query(WBStock).filter_by(
                 token_id=token.id,
                 date=today
             ).count()
 
             if stocks_count == 0:
-                logger.info(f"No stocks found for token {token.id} ({token.name}) for today, adding to queue")
+                logger.info(f"No WB stocks found for token {token.id} ({token.name}) for today, adding to queue")
                 task = Task(token.id, 'stocks', TaskPriority.HIGH)
                 task_queue.add_task(task)
             else:
-                logger.info(f"Stocks for token {token.id} ({token.name}) already exist for today ({stocks_count} records)")
+                logger.info(f"WB stocks for token {token.id} ({token.name}) already exist for today ({stocks_count} records)")
+
+        # Check Ozon stocks
+        ozon_tokens = session.query(Token).filter_by(marketplace='ozon').all()
+        for token in ozon_tokens:
+            stocks_count = session.query(OzonStock).filter_by(
+                token_id=token.id,
+                date=today
+            ).count()
+
+            if stocks_count == 0:
+                logger.info(f"No Ozon stocks found for token {token.id} ({token.name}) for today, adding to queue")
+                task = Task(token.id, 'ozon_stocks', TaskPriority.HIGH)
+                task_queue.add_task(task)
+            else:
+                logger.info(f"Ozon stocks for token {token.id} ({token.name}) already exist for today ({stocks_count} records)")
 
     except Exception as e:
         logger.error(f"Error checking today's stocks: {e}")
@@ -104,28 +135,39 @@ def schedule_initial_tasks():
     session = Session()
 
     try:
-        tokens = session.query(Token).filter_by(marketplace='wildberries').all()
+        from app.models import SyncState
 
-        for token in tokens:
-            # Check if initial sync has been done
-            from app.models import SyncState
+        # Schedule Wildberries tasks - only sales and orders initially
+        wb_tokens = session.query(Token).filter_by(marketplace='wildberries').all()
+        for token in wb_tokens:
             sync_state = session.query(SyncState).filter_by(
                 token_id=token.id,
-                endpoint='incomes'
+                endpoint='sales'
             ).first()
 
             if not sync_state or not sync_state.last_successful_sync:
-                logger.info(f"Scheduling initial collection for token {token.id} ({token.name})")
-                # Initial collection with high priority
-                task_queue.add_task(Task(token.id, 'incomes', TaskPriority.HIGH))
+                logger.info(f"Scheduling initial WB collection for token {token.id} ({token.name})")
                 task_queue.add_task(Task(token.id, 'sales', TaskPriority.HIGH))
                 task_queue.add_task(Task(token.id, 'orders', TaskPriority.HIGH))
             else:
-                logger.info(f"Token {token.id} ({token.name}) already synced, scheduling normal updates")
-                # Regular updates with normal priority
-                task_queue.add_task(Task(token.id, 'incomes', TaskPriority.NORMAL))
+                logger.info(f"WB token {token.id} ({token.name}) already synced, scheduling normal updates")
                 task_queue.add_task(Task(token.id, 'sales', TaskPriority.NORMAL))
                 task_queue.add_task(Task(token.id, 'orders', TaskPriority.NORMAL))
+
+        # Schedule Ozon tasks - only sales initially
+        ozon_tokens = session.query(Token).filter_by(marketplace='ozon').all()
+        for token in ozon_tokens:
+            sync_state = session.query(SyncState).filter_by(
+                token_id=token.id,
+                endpoint='ozon_sales'
+            ).first()
+
+            if not sync_state or not sync_state.last_successful_sync:
+                logger.info(f"Scheduling initial Ozon collection for token {token.id} ({token.name})")
+                task_queue.add_task(Task(token.id, 'ozon_sales', TaskPriority.HIGH))
+            else:
+                logger.info(f"Ozon token {token.id} ({token.name}) already synced, scheduling normal updates")
+                task_queue.add_task(Task(token.id, 'ozon_sales', TaskPriority.NORMAL))
 
     except Exception as e:
         logger.error(f"Error scheduling initial tasks: {e}")
@@ -133,26 +175,59 @@ def schedule_initial_tasks():
         session.close()
 
 
-def schedule_regular_updates():
-    """Schedule regular data updates for all tokens"""
-    logger.info("Scheduling regular updates...")
+def schedule_regular_updates_10min():
+    """Schedule 10-minute data updates (sales and orders only)"""
+    logger.info("Scheduling 10-minute updates (sales and orders)...")
 
     engine = create_engine(DataCollectorConfig.DATABASE_URI)
     Session = sessionmaker(bind=engine)
     session = Session()
 
     try:
-        tokens = session.query(Token).filter_by(marketplace='wildberries').all()
-
-        for token in tokens:
-            task_queue.add_task(Task(token.id, 'incomes', TaskPriority.NORMAL))
+        # Schedule Wildberries sales and orders
+        wb_tokens = session.query(Token).filter_by(marketplace='wildberries').all()
+        for token in wb_tokens:
             task_queue.add_task(Task(token.id, 'sales', TaskPriority.NORMAL))
             task_queue.add_task(Task(token.id, 'orders', TaskPriority.NORMAL))
 
-        logger.info(f"Scheduled updates for {len(tokens)} tokens")
+        # Schedule Ozon sales
+        ozon_tokens = session.query(Token).filter_by(marketplace='ozon').all()
+        for token in ozon_tokens:
+            task_queue.add_task(Task(token.id, 'ozon_sales', TaskPriority.NORMAL))
+
+        logger.info(f"Scheduled 10-min updates for {len(wb_tokens)} WB tokens and {len(ozon_tokens)} Ozon tokens")
 
     except Exception as e:
-        logger.error(f"Error scheduling regular updates: {e}")
+        logger.error(f"Error scheduling 10-min updates: {e}")
+    finally:
+        session.close()
+
+
+def schedule_hourly_updates():
+    """Schedule hourly updates (stocks and supply orders)"""
+    logger.info("Scheduling hourly updates (stocks and supply orders)...")
+
+    engine = create_engine(DataCollectorConfig.DATABASE_URI)
+    Session = sessionmaker(bind=engine)
+    session = Session()
+
+    try:
+        # Schedule Wildberries stocks and incomes
+        wb_tokens = session.query(Token).filter_by(marketplace='wildberries').all()
+        for token in wb_tokens:
+            task_queue.add_task(Task(token.id, 'stocks', TaskPriority.NORMAL))
+            task_queue.add_task(Task(token.id, 'incomes', TaskPriority.NORMAL))
+
+        # Schedule Ozon stocks and supply orders
+        ozon_tokens = session.query(Token).filter_by(marketplace='ozon').all()
+        for token in ozon_tokens:
+            task_queue.add_task(Task(token.id, 'ozon_stocks', TaskPriority.NORMAL))
+            task_queue.add_task(Task(token.id, 'ozon_supply_orders', TaskPriority.NORMAL))
+
+        logger.info(f"Scheduled hourly updates for {len(wb_tokens)} WB tokens and {len(ozon_tokens)} Ozon tokens")
+
+    except Exception as e:
+        logger.error(f"Error scheduling hourly updates: {e}")
     finally:
         session.close()
 
@@ -166,14 +241,21 @@ def schedule_daily_stocks():
     session = Session()
 
     try:
-        tokens = session.query(Token).filter_by(marketplace='wildberries').all()
-
-        for token in tokens:
+        # Schedule Wildberries stocks
+        wb_tokens = session.query(Token).filter_by(marketplace='wildberries').all()
+        for token in wb_tokens:
             task = Task(token.id, 'stocks', TaskPriority.HIGH)
             task_queue.add_task(task)
-            logger.info(f"Scheduled stocks collection for token {token.id} ({token.name})")
+            logger.info(f"Scheduled WB stocks collection for token {token.id} ({token.name})")
 
-        logger.info(f"Scheduled stocks collection for {len(tokens)} tokens")
+        # Schedule Ozon stocks
+        ozon_tokens = session.query(Token).filter_by(marketplace='ozon').all()
+        for token in ozon_tokens:
+            task = Task(token.id, 'ozon_stocks', TaskPriority.HIGH)
+            task_queue.add_task(task)
+            logger.info(f"Scheduled Ozon stocks collection for token {token.id} ({token.name})")
+
+        logger.info(f"Scheduled stocks collection for {len(wb_tokens)} WB tokens and {len(ozon_tokens)} Ozon tokens")
 
     except Exception as e:
         logger.error(f"Error scheduling daily stocks: {e}")
@@ -204,7 +286,7 @@ def stocks_scheduler():
 
     while running:
         try:
-            now = datetime.utcnow()
+            now = datetime.now(UTC)
             today = now.date()
 
             # Check if we need to run stocks collection
@@ -251,21 +333,32 @@ def main():
     retry_thread = threading.Thread(target=retry_queue_processor, daemon=True)
     retry_thread.start()
 
-    # Start stocks scheduler in background
+    # Start stocks scheduler in background (daily at 3 AM)
     stocks_thread = threading.Thread(target=stocks_scheduler, daemon=True)
     stocks_thread.start()
 
-    # Main loop - schedule regular updates every 10 minutes
-    last_update = time.time()
-    update_interval = 600  # 10 minutes
+    # Main loop - two different intervals
+    last_10min_update = time.time()
+    last_hourly_update = time.time()
+    interval_10min = 600   # 10 minutes
+    interval_hourly = 3600  # 1 hour
+
+    # Schedule first hourly update immediately
+    schedule_hourly_updates()
 
     while running:
         try:
             current_time = time.time()
 
-            if current_time - last_update >= update_interval:
-                schedule_regular_updates()
-                last_update = current_time
+            # 10-minute updates (sales and orders)
+            if current_time - last_10min_update >= interval_10min:
+                schedule_regular_updates_10min()
+                last_10min_update = current_time
+
+            # Hourly updates (stocks and supply orders)
+            if current_time - last_hourly_update >= interval_hourly:
+                schedule_hourly_updates()
+                last_hourly_update = current_time
 
             time.sleep(60)
 
