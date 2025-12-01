@@ -154,7 +154,7 @@ def schedule_initial_tasks():
                 task_queue.add_task(Task(token.id, 'sales', TaskPriority.NORMAL))
                 task_queue.add_task(Task(token.id, 'orders', TaskPriority.NORMAL))
 
-        # Schedule Ozon tasks - only sales initially
+        # Schedule Ozon tasks - sales and orders
         ozon_tokens = session.query(Token).filter_by(marketplace='ozon').all()
         for token in ozon_tokens:
             sync_state = session.query(SyncState).filter_by(
@@ -165,9 +165,11 @@ def schedule_initial_tasks():
             if not sync_state or not sync_state.last_successful_sync:
                 logger.info(f"Scheduling initial Ozon collection for token {token.id} ({token.name})")
                 task_queue.add_task(Task(token.id, 'ozon_sales', TaskPriority.HIGH))
+                task_queue.add_task(Task(token.id, 'ozon_orders', TaskPriority.HIGH))
             else:
                 logger.info(f"Ozon token {token.id} ({token.name}) already synced, scheduling normal updates")
                 task_queue.add_task(Task(token.id, 'ozon_sales', TaskPriority.NORMAL))
+                task_queue.add_task(Task(token.id, 'ozon_orders', TaskPriority.NORMAL))
 
     except Exception as e:
         logger.error(f"Error scheduling initial tasks: {e}")
@@ -190,10 +192,11 @@ def schedule_regular_updates_10min():
             task_queue.add_task(Task(token.id, 'sales', TaskPriority.NORMAL))
             task_queue.add_task(Task(token.id, 'orders', TaskPriority.NORMAL))
 
-        # Schedule Ozon sales
+        # Schedule Ozon sales and orders
         ozon_tokens = session.query(Token).filter_by(marketplace='ozon').all()
         for token in ozon_tokens:
             task_queue.add_task(Task(token.id, 'ozon_sales', TaskPriority.NORMAL))
+            task_queue.add_task(Task(token.id, 'ozon_orders', TaskPriority.NORMAL))
 
         logger.info(f"Scheduled 10-min updates for {len(wb_tokens)} WB tokens and {len(ozon_tokens)} Ozon tokens")
 
