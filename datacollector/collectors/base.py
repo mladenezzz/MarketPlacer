@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, UTC
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from app.models import Product, Warehouse, SyncState, CollectionLog
@@ -81,10 +81,10 @@ class BaseCollector:
     def update_sync_state(self, session, token_id: int, endpoint: str, success: bool = True):
         """Update sync state after collection"""
         sync_state = self.get_sync_state(session, token_id, endpoint)
-        sync_state.last_sync_date = datetime.utcnow()
+        sync_state.last_sync_date = datetime.now(UTC)
         if success:
-            sync_state.last_successful_sync = datetime.utcnow()
-        sync_state.next_sync_date = datetime.utcnow() + timedelta(minutes=10)
+            sync_state.last_successful_sync = datetime.now(UTC)
+        sync_state.next_sync_date = datetime.now(UTC) + timedelta(minutes=10)
         session.commit()
 
     def log_collection(self, session, token_id: int, marketplace: str, endpoint: str,
@@ -98,8 +98,8 @@ class BaseCollector:
             status=status,
             records_count=records_count,
             error_message=error_message,
-            started_at=started_at or datetime.utcnow(),
-            finished_at=datetime.utcnow()
+            started_at=started_at or datetime.now(UTC),
+            finished_at=datetime.now(UTC)
         )
         session.add(log)
         session.commit()
