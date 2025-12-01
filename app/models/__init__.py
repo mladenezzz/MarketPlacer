@@ -6,12 +6,14 @@ from app.models.user import User
 from app.models.token import Token
 from app.models.product import Product, Warehouse
 from app.models.wildberries import WBSale, WBOrder, WBIncome, WBIncomeItem, WBStock
+from app.models.ozon import OzonStock, OzonSale, OzonSupplyOrder, OzonSupplyItem
 from app.models.sync import CollectionLog, SyncState
 
 __all__ = [
     'db', 'User', 'Token',
     'Product', 'Warehouse',
     'WBSale', 'WBOrder', 'WBIncome', 'WBIncomeItem', 'WBStock',
+    'OzonStock', 'OzonSale', 'OzonSupplyOrder', 'OzonSupplyItem',
     'CollectionLog', 'SyncState'
 ]
 
