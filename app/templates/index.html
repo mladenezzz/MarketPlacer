@@ -18,19 +18,12 @@
                     </div>
                     <div class="card-body">
                         <div class="row align-items-end">
-                            <div class="col-md-4">
-                                <label for="date-picker" class="form-label">Выберите дату или период:</label>
-                                <input type="text" class="form-control" id="date-picker" readonly placeholder="Выберите даты..." style="background-color: white; cursor: pointer;">
-                                <input type="date" class="form-control mt-2" id="date-selector" value="">
-                                <small class="text-muted">Кликните дату дважды для одного дня, или выберите разные даты для периода</small>
+                            <div class="col-md-5">
+                                <label for="date-range-picker" class="form-label">Выберите дату или период:</label>
+                                <input type="text" class="form-control" id="date-range-picker" placeholder="Выберите даты..." style="background-color: white; cursor: pointer;">
+                                <small class="text-muted">Кликните для выбора одной даты или диапазона</small>
                             </div>
-                            <div class="col-md-2 d-flex align-items-start flex-column">
-                                <label class="form-label invisible">.</label>
-                                <button type="button" class="btn btn-outline-danger btn-sm mb-2 w-100" id="clear-dates">
-                                    <i class="bi bi-x-circle"></i> Очистить
-                                </button>
-                            </div>
-                            <div class="col-md-6">
+                            <div class="col-md-7">
                                 <div class="btn-group w-100" role="group">
                                     <button type="button" class="btn btn-outline-secondary" id="reset-to-today">
                                         <i class="bi bi-calendar-day"></i> Сегодня
@@ -40,6 +33,9 @@
                                     </button>
                                     <button type="button" class="btn btn-outline-secondary" id="reset-to-month">
                                         <i class="bi bi-calendar-month"></i> Месяц
+                                    </button>
+                                    <button type="button" class="btn btn-outline-danger" id="clear-dates">
+                                        <i class="bi bi-x-circle"></i> Очистить
                                     </button>
                                 </div>
                             </div>
@@ -586,119 +582,78 @@ document.addEventListener('DOMContentLoaded', function() {
         ]);
     }
 
-    // Переменная для отслеживания первой выбранной даты
-    let firstSelectedDate = null;
-
-    // Обновление текстового поля с выбранным диапазоном
-    function updateDatePickerDisplay() {
-        const displayField = document.getElementById('date-picker');
-        if (currentDateFrom && currentDateTo) {
-            if (formatDateForAPI(currentDateFrom) === formatDateForAPI(currentDateTo)) {
-                displayField.value = formatDate(currentDateFrom);
-            } else {
-                displayField.value = `${formatDate(currentDateFrom)} - ${formatDate(currentDateTo)}`;
+    // Инициализация Flatpickr date range picker
+    const picker = flatpickr("#date-range-picker", {
+        mode: "range",
+        dateFormat: "d.m.Y",
+        locale: "ru",
+        defaultDate: [new Date(), new Date()],
+        onChange: function(selectedDates, dateStr, instance) {
+            if (selectedDates.length === 2) {
+                currentDateFrom = selectedDates[0];
+                currentDateTo = selectedDates[1];
+                updateCurrentDate();
+                loadAllData(false);
+            } else if (selectedDates.length === 1) {
+                // Если выбрана только одна дата, используем её как начало и конец
+                currentDateFrom = selectedDates[0];
+                currentDateTo = selectedDates[0];
+                updateCurrentDate();
+                loadAllData(false);
             }
-        } else {
-            displayField.value = '';
         }
-    }
+    });
 
     // Инициализация дат на сегодня
     function initializeDates() {
         const today = new Date();
         currentDateFrom = today;
         currentDateTo = today;
-
-        // Устанавливаем значение в date selector
-        document.getElementById('date-selector').value = formatDateForInput(today);
-        updateDatePickerDisplay();
+        picker.setDate([today, today]);
     }
-
-    // Обработчик изменения даты в селекторе
-    document.getElementById('date-selector').addEventListener('change', function() {
-        const selectedDate = new Date(this.value);
-
-        if (!firstSelectedDate) {
-            // Первый клик - устанавливаем начальную дату
-            firstSelectedDate = selectedDate;
-            currentDateFrom = selectedDate;
-            currentDateTo = selectedDate;
-        } else {
-            // Второй клик - устанавливаем конечную дату
-            if (selectedDate < firstSelectedDate) {
-                // Если вторая дата раньше первой, меняем их местами
-                currentDateFrom = selectedDate;
-                currentDateTo = firstSelectedDate;
-            } else if (formatDateForAPI(selectedDate) === formatDateForAPI(firstSelectedDate)) {
-                // Если выбрана та же дата - это один день
-                currentDateFrom = selectedDate;
-                currentDateTo = selectedDate;
-            } else {
-                // Нормальный диапазон
-                currentDateFrom = firstSelectedDate;
-                currentDateTo = selectedDate;
-            }
-            firstSelectedDate = null; // Сбрасываем для следующего выбора
-        }
-
-        updateDatePickerDisplay();
-        updateCurrentDate();
-        loadAllData(false);
-    });
 
     // Обработчик кнопки "Очистить"
     document.getElementById('clear-dates').addEventListener('click', function() {
-        firstSelectedDate = null;
         const today = new Date();
         currentDateFrom = today;
         currentDateTo = today;
-        document.getElementById('date-selector').value = formatDateForInput(today);
-        updateDatePickerDisplay();
+        picker.setDate([today, today]);
         updateCurrentDate();
         loadAllData(false);
     });
 
     // Обработчик кнопки "Сегодня"
     document.getElementById('reset-to-today').addEventListener('click', function() {
-        firstSelectedDate = null;
         const today = new Date();
         currentDateFrom = today;
         currentDateTo = today;
-
-        document.getElementById('date-selector').value = formatDateForInput(today);
-        updateDatePickerDisplay();
+        picker.setDate([today, today]);
         updateCurrentDate();
         loadAllData(false);
     });
 
     // Обработчик кнопки "Неделя"
     document.getElementById('reset-to-week').addEventListener('click', function() {
-        firstSelectedDate = null;
         const today = new Date();
         const weekAgo = new Date();
         weekAgo.setDate(today.getDate() - 6);
 
         currentDateFrom = weekAgo;
         currentDateTo = today;
-
-        document.getElementById('date-selector').value = formatDateForInput(today);
-        updateDatePickerDisplay();
+        picker.setDate([weekAgo, today]);
         updateCurrentDate();
         loadAllData(false);
     });
 
     // Обработчик кнопки "Месяц"
     document.getElementById('reset-to-month').addEventListener('click', function() {
-        firstSelectedDate = null;
         const today = new Date();
         const monthAgo = new Date();
         monthAgo.setMonth(today.getMonth() - 1);
 
         currentDateFrom = monthAgo;
         currentDateTo = today;
-
-        document.getElementById('date-selector').value = formatDateForInput(today);
-        updateDatePickerDisplay();
+        picker.setDate([monthAgo, today]);
         updateCurrentDate();
         loadAllData(false);
     });
