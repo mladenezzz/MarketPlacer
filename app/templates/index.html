@@ -588,6 +588,7 @@ document.addEventListener('DOMContentLoaded', function() {
         dateFormat: "d.m.Y",
         locale: "ru",
         defaultDate: [new Date(), new Date()],
+        maxDate: "today",
         onChange: function(selectedDates, dateStr, instance) {
             if (selectedDates.length === 2) {
                 currentDateFrom = selectedDates[0];
