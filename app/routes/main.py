@@ -1,5 +1,6 @@
-from flask import Blueprint, render_template, jsonify
+from flask import Blueprint, render_template, jsonify, request
 from flask_login import login_required, current_user
+from datetime import datetime
 from app.models import Token
 from app.services.sales_service import SalesService
 
@@ -80,4 +81,64 @@ def dashboard():
 def profile():
     """Профиль пользователя"""
     return render_template('profile.html')
+
+
+@main_bp.route('/api/orders/<int:token_id>/range')
+@login_required
+def get_token_orders_range(token_id):
+    """API endpoint для получения данных о заказах за период"""
+    # Проверяем, что токен принадлежит текущему пользователю
+    token = Token.query.filter_by(id=token_id, user_id=current_user.id).first()
+
+    if not token:
+        return jsonify({'success': False, 'error': 'Токен не найден'}), 404
+
+    # Получаем параметры дат из query string
+    date_from_str = request.args.get('date_from')
+    date_to_str = request.args.get('date_to')
+
+    if not date_from_str or not date_to_str:
+        return jsonify({'success': False, 'error': 'Не указаны параметры date_from и date_to'}), 400
+
+    try:
+        # Парсим даты в формате YYYY-MM-DD
+        date_from = datetime.strptime(date_from_str, '%Y-%m-%d')
+        date_to = datetime.strptime(date_to_str, '%Y-%m-%d')
+    except ValueError:
+        return jsonify({'success': False, 'error': 'Неверный формат даты. Используйте YYYY-MM-DD'}), 400
+
+    # Получаем данные о заказах за период
+    orders_info = SalesService.get_orders_by_date_range(token_id, date_from, date_to)
+
+    return jsonify(orders_info)
+
+
+@main_bp.route('/api/sales/<int:token_id>/range')
+@login_required
+def get_token_sales_range(token_id):
+    """API endpoint для получения данных о продажах за период"""
+    # Проверяем, что токен принадлежит текущему пользователю
+    token = Token.query.filter_by(id=token_id, user_id=current_user.id).first()
+
+    if not token:
+        return jsonify({'success': False, 'error': 'Токен не найден'}), 404
+
+    # Получаем параметры дат из query string
+    date_from_str = request.args.get('date_from')
+    date_to_str = request.args.get('date_to')
+
+    if not date_from_str or not date_to_str:
+        return jsonify({'success': False, 'error': 'Не указаны параметры date_from и date_to'}), 400
+
+    try:
+        # Парсим даты в формате YYYY-MM-DD
+        date_from = datetime.strptime(date_from_str, '%Y-%m-%d')
+        date_to = datetime.strptime(date_to_str, '%Y-%m-%d')
+    except ValueError:
+        return jsonify({'success': False, 'error': 'Неверный формат даты. Используйте YYYY-MM-DD'}), 400
+
+    # Получаем данные о продажах за период
+    sales_info = SalesService.get_sales_by_date_range(token_id, date_from, date_to)
+
+    return jsonify(sales_info)
 
