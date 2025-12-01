@@ -18,11 +18,11 @@
                     </div>
                     <div class="card-body">
                         <div class="row align-items-end">
-                            <div class="col-md-5">
+                            <div class="col-md-6">
                                 <label for="date-range-picker" class="form-label">Выберите дату или период:</label>
-                                <input type="text" class="form-control" id="date-range-picker" placeholder="Выберите даты..." style="background-color: white; cursor: pointer;">
+                                <input type="text" class="form-control" id="date-range-picker" placeholder="Выберите даты..." style="background-color: white; cursor: pointer;" readonly>
                             </div>
-                            <div class="col-md-4">
+                            <div class="col-md-6">
                                 <div class="btn-group w-100" role="group">
                                     <button type="button" class="btn btn-outline-secondary" id="reset-to-today">
                                         <i class="bi bi-calendar-day"></i> Сегодня
@@ -34,11 +34,6 @@
                                         <i class="bi bi-calendar-month"></i> Месяц
                                     </button>
                                 </div>
-                            </div>
-                            <div class="col-md-3">
-                                <button type="button" class="btn btn-primary w-100" id="apply-dates">
-                                    <i class="bi bi-check-circle"></i> Сохранить
-                                </button>
                             </div>
                         </div>
                     </div>
@@ -503,23 +498,70 @@ document.addEventListener('DOMContentLoaded', function() {
         ]);
     }
 
-    // Инициализация Flatpickr date range picker
-    const picker = flatpickr("#date-range-picker", {
-        mode: "range",
-        dateFormat: "d.m.Y",
-        locale: "ru",
-        defaultDate: [new Date(), new Date()],
-        maxDate: "today",
-        onChange: function(selectedDates, dateStr, instance) {
-            // Сохраняем выбранные даты только во временные переменные
-            // Данные будут загружены только после нажатия кнопки "Сохранить"
-            if (selectedDates.length === 2) {
-                tempDateFrom = selectedDates[0];
-                tempDateTo = selectedDates[1];
-            } else if (selectedDates.length === 1) {
-                // Если выбрана только одна дата, используем её как начало и конец
-                tempDateFrom = selectedDates[0];
-                tempDateTo = selectedDates[0];
+    // Инициализация Air Datepicker
+    const picker = new AirDatepicker('#date-range-picker', {
+        range: true,
+        multipleDatesSeparator: ' - ',
+        dateFormat: 'dd.MM.yyyy',
+        autoClose: false,
+        maxDate: new Date(),
+        buttons: [
+            {
+                content(dp) {
+                    return 'Сбросить';
+                },
+                onClick(dp) {
+                    dp.clear();
+                }
+            },
+            {
+                content(dp) {
+                    return 'Сохранить';
+                },
+                onClick(dp) {
+                    const dates = dp.selectedDates;
+                    if (dates.length === 2) {
+                        currentDateFrom = dates[0];
+                        currentDateTo = dates[1];
+                        updateCurrentDate();
+                        loadAllData(false);
+                        dp.hide();
+                    } else if (dates.length === 1) {
+                        currentDateFrom = dates[0];
+                        currentDateTo = dates[0];
+                        updateCurrentDate();
+                        loadAllData(false);
+                        dp.hide();
+                    }
+                }
+            }
+        ],
+        onShow(isVisible) {
+            // Обновляем отображение выбранного периода в календаре
+            if (isVisible) {
+                const container = document.querySelector('.air-datepicker');
+                if (container && !document.querySelector('.date-range-display')) {
+                    const display = document.createElement('div');
+                    display.className = 'date-range-display';
+                    display.style.cssText = 'padding: 10px; background: #f5f5f5; border-bottom: 1px solid #ddd; font-weight: 500;';
+                    display.innerHTML = 'Начало периода: <span id="start-date">__.__.____ </span><br>Конец периода: <span id="end-date">__.__.____ </span>';
+                    container.insertBefore(display, container.firstChild);
+                }
+            }
+        },
+        onSelect({date, formattedDate, datepicker}) {
+            // Обновляем отображение выбранного периода
+            const startSpan = document.getElementById('start-date');
+            const endSpan = document.getElementById('end-date');
+            if (startSpan && endSpan) {
+                const dates = datepicker.selectedDates;
+                if (dates.length === 1) {
+                    startSpan.textContent = formatDate(dates[0]);
+                    endSpan.textContent = formatDate(dates[0]);
+                } else if (dates.length === 2) {
+                    startSpan.textContent = formatDate(dates[0]);
+                    endSpan.textContent = formatDate(dates[1]);
+                }
             }
         }
     });
@@ -529,28 +571,19 @@ document.addEventListener('DOMContentLoaded', function() {
         const today = new Date();
         currentDateFrom = today;
         currentDateTo = today;
-        picker.setDate([today, today]);
+        tempDateFrom = today;
+        tempDateTo = today;
+        picker.selectDate([today, today]);
     }
-
-    // Обработчик кнопки "Сохранить"
-    document.getElementById('apply-dates').addEventListener('click', function() {
-        // Применяем временные даты к текущим
-        if (tempDateFrom && tempDateTo) {
-            currentDateFrom = tempDateFrom;
-            currentDateTo = tempDateTo;
-            updateCurrentDate();
-            loadAllData(false);
-        }
-    });
 
     // Обработчик кнопки "Сегодня"
     document.getElementById('reset-to-today').addEventListener('click', function() {
         const today = new Date();
-        tempDateFrom = today;
-        tempDateTo = today;
         currentDateFrom = today;
         currentDateTo = today;
-        picker.setDate([today, today]);
+        tempDateFrom = today;
+        tempDateTo = today;
+        picker.selectDate([today, today]);
         updateCurrentDate();
         loadAllData(false);
     });
@@ -561,11 +594,11 @@ document.addEventListener('DOMContentLoaded', function() {
         const weekAgo = new Date();
         weekAgo.setDate(today.getDate() - 6);
 
-        tempDateFrom = weekAgo;
-        tempDateTo = today;
         currentDateFrom = weekAgo;
         currentDateTo = today;
-        picker.setDate([weekAgo, today]);
+        tempDateFrom = weekAgo;
+        tempDateTo = today;
+        picker.selectDate([weekAgo, today]);
         updateCurrentDate();
         loadAllData(false);
     });
@@ -576,11 +609,11 @@ document.addEventListener('DOMContentLoaded', function() {
         const monthAgo = new Date();
         monthAgo.setMonth(today.getMonth() - 1);
 
-        tempDateFrom = monthAgo;
-        tempDateTo = today;
         currentDateFrom = monthAgo;
         currentDateTo = today;
-        picker.setDate([monthAgo, today]);
+        tempDateFrom = monthAgo;
+        tempDateTo = today;
+        picker.selectDate([monthAgo, today]);
         updateCurrentDate();
         loadAllData(false);
     });
