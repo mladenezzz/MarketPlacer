@@ -253,13 +253,13 @@ class SalesService:
         """Получить заказы Ozon на сегодня из таблицы ozon_orders"""
         try:
             # Запрос к таблице ozon_orders (постинги FBS/FBO)
-            # Используем shipment_date - дата отгрузки
+            # Используем in_process_at - дата оформления заказа
             orders_query = db.session.query(
                 func.count(OzonOrder.id).label('count'),
                 func.sum(OzonOrder.price).label('total')
             ).filter(
                 OzonOrder.token_id == token_id,
-                OzonOrder.shipment_date >= today_start
+                OzonOrder.in_process_at >= today_start
             ).first()
 
             count = orders_query.count or 0
@@ -477,8 +477,8 @@ class SalesService:
                 func.sum(OzonOrder.price).label('total')
             ).filter(
                 OzonOrder.token_id == token_id,
-                OzonOrder.shipment_date >= date_from,
-                OzonOrder.shipment_date <= date_to
+                OzonOrder.in_process_at >= date_from,
+                OzonOrder.in_process_at <= date_to
             ).first()
 
             count = orders_query.count or 0
