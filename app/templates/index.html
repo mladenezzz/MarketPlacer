@@ -30,7 +30,46 @@
 <div class="container mb-5">
     {% if current_user.is_authenticated %}
         {% if has_tokens %}
-        <!-- Статистика заказов на сегодня -->
+
+        <!-- Фильтр по датам -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header bg-secondary text-white">
+                        <h5 class="mb-0">
+                            <i class="bi bi-calendar3"></i> Период для отображения данных
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-4">
+                                <label for="date-from" class="form-label">Дата начала:</label>
+                                <input type="date" class="form-control" id="date-from" value="">
+                            </div>
+                            <div class="col-md-4">
+                                <label for="date-to" class="form-label">Дата окончания:</label>
+                                <input type="date" class="form-control" id="date-to" value="">
+                            </div>
+                            <div class="col-md-4 d-flex align-items-end">
+                                <div class="btn-group w-100" role="group">
+                                    <button type="button" class="btn btn-primary" id="apply-date-filter">
+                                        <i class="bi bi-search"></i> Применить
+                                    </button>
+                                    <button type="button" class="btn btn-outline-secondary" id="reset-to-today">
+                                        <i class="bi bi-calendar-day"></i> Сегодня
+                                    </button>
+                                    <button type="button" class="btn btn-outline-secondary" id="reset-to-week">
+                                        <i class="bi bi-calendar-week"></i> Неделя
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Статистика заказов -->
         <div class="row mb-4">
             <div class="col-12">
                 <div class="card">
@@ -235,13 +274,28 @@ document.addEventListener('DOMContentLoaded', function() {
     const tokenOrdersData = {};
     const tokenSalesData = {};
     let updateInterval;
+    let currentDateFrom = null;
+    let currentDateTo = null;
 
-    // Функция для форматирования даты
+    // Функция для форматирования даты для отображения (DD.MM.YYYY)
     function formatDate(date) {
         const day = String(date.getDate()).padStart(2, '0');
         const month = String(date.getMonth() + 1).padStart(2, '0');
         const year = date.getFullYear();
         return `${day}.${month}.${year}`;
+    }
+
+    // Функция для форматирования даты для API (YYYY-MM-DD)
+    function formatDateForAPI(date) {
+        const day = String(date.getDate()).padStart(2, '0');
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const year = date.getFullYear();
+        return `${year}-${month}-${day}`;
+    }
+
+    // Функция для форматирования даты для input[type=date] (YYYY-MM-DD)
+    function formatDateForInput(date) {
+        return formatDateForAPI(date);
     }
 
     // Функция для форматирования времени
@@ -252,10 +306,23 @@ document.addEventListener('DOMContentLoaded', function() {
         return `${hours}:${minutes}:${seconds}`;
     }
 
-    // Обновляем текущую дату
+    // Обновляем текущую дату в заголовках
     function updateCurrentDate() {
-        const now = new Date();
-        const dateStr = `(${formatDate(now)})`;
+        let dateStr;
+        if (currentDateFrom && currentDateTo) {
+            // Если выбран диапазон дат
+            if (formatDateForAPI(currentDateFrom) === formatDateForAPI(currentDateTo)) {
+                // Если это одна дата
+                dateStr = `(${formatDate(currentDateFrom)})`;
+            } else {
+                // Если это диапазон
+                dateStr = `(${formatDate(currentDateFrom)} - ${formatDate(currentDateTo)})`;
+            }
+        } else {
+            // По умолчанию показываем сегодняшнюю дату
+            const now = new Date();
+            dateStr = `(${formatDate(now)})`;
+        }
         const currentDateElem = document.getElementById('current-date');
         const currentDateSalesElem = document.getElementById('current-date-sales');
         if (currentDateElem) currentDateElem.textContent = dateStr;
@@ -327,7 +394,18 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         try {
-            const response = await fetch(`{{ url_for('main.get_token_orders', token_id=0) }}`.replace('0', tokenId));
+            // Выбираем URL в зависимости от того, выбран ли диапазон дат
+            let url;
+            if (currentDateFrom && currentDateTo) {
+                const dateFromStr = formatDateForAPI(currentDateFrom);
+                const dateToStr = formatDateForAPI(currentDateTo);
+                url = `{{ url_for('main.get_token_orders_range', token_id=0) }}`.replace('0', tokenId) +
+                      `?date_from=${dateFromStr}&date_to=${dateToStr}`;
+            } else {
+                url = `{{ url_for('main.get_token_orders', token_id=0) }}`.replace('0', tokenId);
+            }
+
+            const response = await fetch(url);
             const data = await response.json();
 
             if (data.success) {
@@ -397,7 +475,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const countCell = row.querySelector('.sales-count');
         const totalCell = row.querySelector('.sales-total');
         const statusCell = row.querySelector('.sales-status');
-        
+
         // Если это обновление, показываем индикатор обновления
         if (isUpdate && tokenSalesData[tokenId] && tokenSalesData[tokenId].success) {
             statusCell.innerHTML = `
@@ -406,9 +484,20 @@ document.addEventListener('DOMContentLoaded', function() {
                 </span>
             `;
         }
-        
+
         try {
-            const response = await fetch(`{{ url_for('main.get_token_sales', token_id=0) }}`.replace('0', tokenId));
+            // Выбираем URL в зависимости от того, выбран ли диапазон дат
+            let url;
+            if (currentDateFrom && currentDateTo) {
+                const dateFromStr = formatDateForAPI(currentDateFrom);
+                const dateToStr = formatDateForAPI(currentDateTo);
+                url = `{{ url_for('main.get_token_sales_range', token_id=0) }}`.replace('0', tokenId) +
+                      `?date_from=${dateFromStr}&date_to=${dateToStr}`;
+            } else {
+                url = `{{ url_for('main.get_token_sales', token_id=0) }}`.replace('0', tokenId);
+            }
+
+            const response = await fetch(url);
             const data = await response.json();
             
             if (data.success) {
@@ -517,7 +606,77 @@ document.addEventListener('DOMContentLoaded', function() {
         ]);
     }
 
-    // Инициализация: обновляем дату и загружаем данные
+    // Инициализация дат на сегодня
+    function initializeDates() {
+        const today = new Date();
+        currentDateFrom = today;
+        currentDateTo = today;
+
+        // Устанавливаем значения в input поля
+        document.getElementById('date-from').value = formatDateForInput(today);
+        document.getElementById('date-to').value = formatDateForInput(today);
+    }
+
+    // Обработчик кнопки "Применить"
+    document.getElementById('apply-date-filter').addEventListener('click', function() {
+        const dateFromInput = document.getElementById('date-from').value;
+        const dateToInput = document.getElementById('date-to').value;
+
+        if (!dateFromInput || !dateToInput) {
+            alert('Пожалуйста, выберите обе даты');
+            return;
+        }
+
+        // Парсим даты из input полей
+        currentDateFrom = new Date(dateFromInput);
+        currentDateTo = new Date(dateToInput);
+
+        // Проверяем корректность дат
+        if (currentDateFrom > currentDateTo) {
+            alert('Дата начала не может быть позже даты окончания');
+            return;
+        }
+
+        // Перезагружаем данные с новыми датами
+        updateCurrentDate();
+        loadAllData(false);
+    });
+
+    // Обработчик кнопки "Сегодня"
+    document.getElementById('reset-to-today').addEventListener('click', function() {
+        const today = new Date();
+        currentDateFrom = today;
+        currentDateTo = today;
+
+        // Обновляем значения в input полях
+        document.getElementById('date-from').value = formatDateForInput(today);
+        document.getElementById('date-to').value = formatDateForInput(today);
+
+        // Перезагружаем данные
+        updateCurrentDate();
+        loadAllData(false);
+    });
+
+    // Обработчик кнопки "Неделя"
+    document.getElementById('reset-to-week').addEventListener('click', function() {
+        const today = new Date();
+        const weekAgo = new Date();
+        weekAgo.setDate(today.getDate() - 6); // 7 дней включая сегодня
+
+        currentDateFrom = weekAgo;
+        currentDateTo = today;
+
+        // Обновляем значения в input полях
+        document.getElementById('date-from').value = formatDateForInput(weekAgo);
+        document.getElementById('date-to').value = formatDateForInput(today);
+
+        // Перезагружаем данные
+        updateCurrentDate();
+        loadAllData(false);
+    });
+
+    // Инициализация: устанавливаем даты и загружаем данные
+    initializeDates();
     updateCurrentDate();
     loadAllData(false);
 
@@ -525,7 +684,7 @@ document.addEventListener('DOMContentLoaded', function() {
     updateInterval = setInterval(function() {
         loadAllData(true);
     }, 60000);
-    
+
     // Очищаем интервал при уходе со страницы
     window.addEventListener('beforeunload', function() {
         if (updateInterval) {
