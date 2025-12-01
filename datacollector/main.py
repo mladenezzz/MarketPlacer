@@ -3,7 +3,7 @@ import time
 import signal
 import sys
 import threading
-from datetime import datetime, timedelta, UTC
+from datetime import datetime, timedelta, timezone
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from datacollector.config import DataCollectorConfig
@@ -88,7 +88,7 @@ def check_and_load_today_stocks():
     session = Session()
 
     try:
-        today = datetime.now(UTC).date()
+        today = datetime.now(timezone.utc).date()
 
         # Check Wildberries stocks
         wb_tokens = session.query(Token).filter_by(marketplace='wildberries').all()
@@ -286,7 +286,7 @@ def stocks_scheduler():
 
     while running:
         try:
-            now = datetime.now(UTC)
+            now = datetime.now(timezone.utc)
             today = now.date()
 
             # Check if we need to run stocks collection
