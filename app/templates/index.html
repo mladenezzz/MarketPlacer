@@ -3,23 +3,6 @@
 {% block title %}Главная - MarketPlacer{% endblock %}
 
 {% block content %}
-<div class="hero-section">
-    <div class="container">
-        <h1><i class="bi bi-shop"></i> MarketPlacer</h1>
-
-        {% if not current_user.is_authenticated %}
-        <div class="mb-4">
-            <a href="{{ url_for('auth.register') }}" class="btn btn-light btn-lg me-3">
-                <i class="bi bi-person-plus"></i> Зарегистрироваться
-            </a>
-            <a href="{{ url_for('auth.login') }}" class="btn btn-outline-light btn-lg">
-                <i class="bi bi-box-arrow-in-right"></i> Войти
-            </a>
-        </div>
-        {% endif %}
-    </div>
-</div>
-
 <div class="container mb-5">
     {% if current_user.is_authenticated %}
         {% if has_tokens %}
