@@ -278,3 +278,190 @@ class SalesService:
                 'count': 0,
                 'error': f'Ошибка БД Wildberries: {str(e)}'
             }
+
+    @staticmethod
+    def get_orders_by_date_range(token_id: int, date_from: datetime, date_to: datetime) -> Dict:
+        """
+        Получить данные о заказах за период для конкретного токена
+
+        Args:
+            token_id: ID токена
+            date_from: Начальная дата (включительно)
+            date_to: Конечная дата (включительно)
+
+        Returns:
+            Dict с информацией о заказах за период
+        """
+        try:
+            token = Token.query.get(token_id)
+            if not token:
+                return {
+                    'success': False,
+                    'total': 0.0,
+                    'count': 0,
+                    'error': 'Токен не найден'
+                }
+
+            # Устанавливаем время для дат
+            date_from_start = date_from.replace(hour=0, minute=0, second=0, microsecond=0)
+            date_to_end = date_to.replace(hour=23, minute=59, second=59, microsecond=999999)
+
+            if token.marketplace == 'wildberries':
+                return SalesService._get_wb_orders_by_range(token_id, date_from_start, date_to_end)
+            elif token.marketplace == 'ozon':
+                return SalesService._get_ozon_sales_by_range(token_id, date_from_start, date_to_end)
+            else:
+                return {
+                    'success': True,
+                    'total': 0.0,
+                    'count': 0,
+                    'error': f'{token.marketplace} не поддерживается'
+                }
+
+        except Exception as e:
+            return {
+                'success': False,
+                'total': 0.0,
+                'count': 0,
+                'error': f'Ошибка при получении данных: {str(e)}'
+            }
+
+    @staticmethod
+    def get_sales_by_date_range(token_id: int, date_from: datetime, date_to: datetime) -> Dict:
+        """
+        Получить данные о продажах за период для конкретного токена
+
+        Args:
+            token_id: ID токена
+            date_from: Начальная дата (включительно)
+            date_to: Конечная дата (включительно)
+
+        Returns:
+            Dict с информацией о продажах за период
+        """
+        try:
+            token = Token.query.get(token_id)
+            if not token:
+                return {
+                    'success': False,
+                    'total': 0.0,
+                    'count': 0,
+                    'error': 'Токен не найден'
+                }
+
+            # Устанавливаем время для дат
+            date_from_start = date_from.replace(hour=0, minute=0, second=0, microsecond=0)
+            date_to_end = date_to.replace(hour=23, minute=59, second=59, microsecond=999999)
+
+            if token.marketplace == 'wildberries':
+                return SalesService._get_wb_sales_by_range(token_id, date_from_start, date_to_end)
+            elif token.marketplace == 'ozon':
+                return SalesService._get_ozon_sales_by_range(token_id, date_from_start, date_to_end)
+            else:
+                return {
+                    'success': True,
+                    'total': 0.0,
+                    'count': 0,
+                    'error': f'{token.marketplace} не поддерживается'
+                }
+
+        except Exception as e:
+            return {
+                'success': False,
+                'total': 0.0,
+                'count': 0,
+                'error': f'Ошибка при получении данных: {str(e)}'
+            }
+
+    @staticmethod
+    def _get_wb_orders_by_range(token_id: int, date_from: datetime, date_to: datetime) -> Dict:
+        """Получить заказы Wildberries за период из таблицы wb_orders"""
+        try:
+            orders_query = db.session.query(
+                func.count(WBOrder.id).label('count'),
+                func.sum(WBOrder.finished_price).label('total')
+            ).filter(
+                WBOrder.token_id == token_id,
+                WBOrder.date >= date_from,
+                WBOrder.date <= date_to
+            ).first()
+
+            count = orders_query.count or 0
+            total = float(orders_query.total or 0.0)
+
+            return {
+                'success': True,
+                'total': total,
+                'count': count,
+                'error': None
+            }
+
+        except Exception as e:
+            return {
+                'success': False,
+                'total': 0.0,
+                'count': 0,
+                'error': f'Ошибка БД Wildberries: {str(e)}'
+            }
+
+    @staticmethod
+    def _get_wb_sales_by_range(token_id: int, date_from: datetime, date_to: datetime) -> Dict:
+        """Получить продажи Wildberries за период из таблицы wb_sales"""
+        try:
+            sales_query = db.session.query(
+                func.count(WBSale.id).label('count'),
+                func.sum(WBSale.finished_price).label('total')
+            ).filter(
+                WBSale.token_id == token_id,
+                WBSale.date >= date_from,
+                WBSale.date <= date_to
+            ).first()
+
+            count = sales_query.count or 0
+            total = float(sales_query.total or 0.0)
+
+            return {
+                'success': True,
+                'total': total,
+                'count': count,
+                'error': None
+            }
+
+        except Exception as e:
+            return {
+                'success': False,
+                'total': 0.0,
+                'count': 0,
+                'error': f'Ошибка БД Wildberries: {str(e)}'
+            }
+
+    @staticmethod
+    def _get_ozon_sales_by_range(token_id: int, date_from: datetime, date_to: datetime) -> Dict:
+        """Получить продажи Ozon за период из таблицы ozon_sales"""
+        try:
+            sales_query = db.session.query(
+                func.count(OzonSale.id).label('count'),
+                func.sum(OzonSale.price * OzonSale.quantity).label('total')
+            ).filter(
+                OzonSale.token_id == token_id,
+                OzonSale.shipment_date >= date_from,
+                OzonSale.shipment_date <= date_to
+            ).first()
+
+            count = sales_query.count or 0
+            total = float(sales_query.total or 0.0)
+
+            return {
+                'success': True,
+                'total': total,
+                'count': count,
+                'error': None
+            }
+
+        except Exception as e:
+            return {
+                'success': False,
+                'total': 0.0,
+                'count': 0,
+                'error': f'Ошибка БД Ozon: {str(e)}'
+            }
