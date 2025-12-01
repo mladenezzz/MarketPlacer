@@ -17,12 +17,16 @@
                         </h5>
                     </div>
                     <div class="card-body">
-                        <div class="row">
-                            <div class="col-md-6">
-                                <label for="date-range" class="form-label">Выберите дату:</label>
-                                <input type="date" class="form-control" id="date-range" value="">
+                        <div class="row align-items-end">
+                            <div class="col-md-3">
+                                <label for="date-from" class="form-label">С:</label>
+                                <input type="date" class="form-control" id="date-from" value="">
                             </div>
-                            <div class="col-md-6 d-flex align-items-end">
+                            <div class="col-md-3">
+                                <label for="date-to" class="form-label">По:</label>
+                                <input type="date" class="form-control" id="date-to" value="">
+                            </div>
+                            <div class="col-md-6">
                                 <div class="btn-group w-100" role="group">
                                     <button type="button" class="btn btn-primary" id="apply-date-filter">
                                         <i class="bi bi-search"></i> Применить
@@ -584,25 +588,32 @@ document.addEventListener('DOMContentLoaded', function() {
         currentDateFrom = today;
         currentDateTo = today;
 
-        // Устанавливаем значения в input поле
-        document.getElementById('date-range').value = formatDateForInput(today);
+        // Устанавливаем значения в input поля
+        document.getElementById('date-from').value = formatDateForInput(today);
+        document.getElementById('date-to').value = formatDateForInput(today);
     }
 
     // Обработчик кнопки "Применить"
     document.getElementById('apply-date-filter').addEventListener('click', function() {
-        const dateInput = document.getElementById('date-range').value;
+        const dateFromInput = document.getElementById('date-from').value;
+        const dateToInput = document.getElementById('date-to').value;
 
-        if (!dateInput) {
-            alert('Пожалуйста, выберите дату');
+        if (!dateFromInput || !dateToInput) {
+            alert('Пожалуйста, выберите обе даты');
             return;
         }
 
-        // Парсим дату из input поля
-        const selectedDate = new Date(dateInput);
-        currentDateFrom = selectedDate;
-        currentDateTo = selectedDate;
+        // Парсим даты из input полей
+        currentDateFrom = new Date(dateFromInput);
+        currentDateTo = new Date(dateToInput);
 
-        // Перезагружаем данные с новой датой
+        // Проверяем корректность дат
+        if (currentDateFrom > currentDateTo) {
+            alert('Дата начала не может быть позже даты окончания');
+            return;
+        }
+
+        // Перезагружаем данные с новыми датами
         updateCurrentDate();
         loadAllData(false);
     });
@@ -613,8 +624,9 @@ document.addEventListener('DOMContentLoaded', function() {
         currentDateFrom = today;
         currentDateTo = today;
 
-        // Обновляем значение в input поле
-        document.getElementById('date-range').value = formatDateForInput(today);
+        // Обновляем значения в input полях
+        document.getElementById('date-from').value = formatDateForInput(today);
+        document.getElementById('date-to').value = formatDateForInput(today);
 
         // Перезагружаем данные
         updateCurrentDate();
@@ -630,8 +642,9 @@ document.addEventListener('DOMContentLoaded', function() {
         currentDateFrom = weekAgo;
         currentDateTo = today;
 
-        // Для недели показываем последний день (сегодня) в поле
-        document.getElementById('date-range').value = formatDateForInput(today);
+        // Обновляем значения в input полях
+        document.getElementById('date-from').value = formatDateForInput(weekAgo);
+        document.getElementById('date-to').value = formatDateForInput(today);
 
         // Перезагружаем данные
         updateCurrentDate();
