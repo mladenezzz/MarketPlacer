@@ -558,6 +558,10 @@ class OzonCollector(BaseCollector):
         saved_count = 0
         today = datetime.now(timezone.utc)
 
+        # Ensure start_date has timezone info
+        if start_date.tzinfo is None:
+            start_date = start_date.replace(tzinfo=timezone.utc)
+
         # Iterate through each month from start_date to today
         current_date = start_date.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 
