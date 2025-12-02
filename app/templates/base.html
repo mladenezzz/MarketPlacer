@@ -229,82 +229,13 @@
                             <i class="bi bi-house"></i> Главная
                         </a>
                     </li>
-                    
-                    <!-- Каталог с выпадающим меню -->
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                            <i class="bi bi-grid"></i> Каталог
-                        </a>
-                        <ul class="dropdown-menu">
-                            <li><a class="dropdown-item" href="#"><i class="bi bi-laptop"></i> Электроника</a></li>
-                            <li><a class="dropdown-item" href="#"><i class="bi bi-bag"></i> Одежда и обувь</a></li>
-                            <li><a class="dropdown-item" href="#"><i class="bi bi-house-door"></i> Дом и сад</a></li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li><a class="dropdown-item" href="#"><i class="bi bi-star"></i> Популярные товары</a></li>
-                            <li><a class="dropdown-item" href="#"><i class="bi bi-percent"></i> Акции и скидки</a></li>
-                        </ul>
-                    </li>
-                    
-                    <!-- Услуги с выпадающим меню -->
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                            <i class="bi bi-briefcase"></i> Услуги
-                        </a>
-                        <ul class="dropdown-menu">
-                            <li><a class="dropdown-item" href="#"><i class="bi bi-truck"></i> Доставка</a></li>
-                            <li><a class="dropdown-item" href="#"><i class="bi bi-tools"></i> Установка и настройка</a></li>
-                            <li><a class="dropdown-item" href="#"><i class="bi bi-shield-check"></i> Гарантия</a></li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li><a class="dropdown-item" href="#"><i class="bi bi-headset"></i> Поддержка</a></li>
-                        </ul>
-                    </li>
-                    
+
                     {% if current_user.is_authenticated %}
-                        <!-- Настройки с выпадающим меню -->
-                        <li class="nav-item dropdown">
-                            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                                <i class="bi bi-gear"></i> Настройки
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('tokens.list_tokens') }}">
+                                <i class="bi bi-key"></i> Токены API
                             </a>
-                            <ul class="dropdown-menu">
-                                <li><a class="dropdown-item" href="{{ url_for('tokens.list_tokens') }}"><i class="bi bi-key"></i> Токены API</a></li>
-                                <li><a class="dropdown-item" href="#"><i class="bi bi-bell"></i> Уведомления</a></li>
-                                <li><a class="dropdown-item" href="#"><i class="bi bi-palette"></i> Внешний вид</a></li>
-                            </ul>
                         </li>
-                    {% endif %}
-                    
-                    {% if current_user.is_authenticated %}
-                        <!-- Аналитика (для аналитиков и админов) -->
-                        {% if current_user.is_analyst() or current_user.is_admin() %}
-                        <li class="nav-item dropdown">
-                            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                                <i class="bi bi-graph-up"></i> Аналитика
-                            </a>
-                            <ul class="dropdown-menu">
-                                <li><a class="dropdown-item" href="#"><i class="bi bi-bar-chart"></i> Статистика продаж</a></li>
-                                <li><a class="dropdown-item" href="#"><i class="bi bi-people"></i> Активность пользователей</a></li>
-                                <li><a class="dropdown-item" href="#"><i class="bi bi-chart-line"></i> Отчеты</a></li>
-                                <li><hr class="dropdown-divider"></li>
-                                <li><a class="dropdown-item" href="#"><i class="bi bi-file-earmark-text"></i> Экспорт данных</a></li>
-                            </ul>
-                        </li>
-                        {% endif %}
-                        
-                        <!-- Финансы (для бухгалтеров и админов) -->
-                        {% if current_user.is_accountant() or current_user.is_admin() %}
-                        <li class="nav-item dropdown">
-                            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                                <i class="bi bi-calculator"></i> Финансы
-                            </a>
-                            <ul class="dropdown-menu">
-                                <li><a class="dropdown-item" href="#"><i class="bi bi-cash-stack"></i> Транзакции</a></li>
-                                <li><a class="dropdown-item" href="#"><i class="bi bi-receipt"></i> Счета и накладные</a></li>
-                                <li><a class="dropdown-item" href="#"><i class="bi bi-wallet2"></i> Бюджет</a></li>
-                                <li><hr class="dropdown-divider"></li>
-                                <li><a class="dropdown-item" href="#"><i class="bi bi-file-pdf"></i> Финансовые отчеты</a></li>
-                            </ul>
-                        </li>
-                        {% endif %}
                     {% endif %}
                 </ul>
                 
