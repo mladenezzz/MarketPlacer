@@ -303,8 +303,9 @@ class OzonCollector(BaseCollector):
                 if start_date.tzinfo is None:
                     start_date = start_date.replace(tzinfo=timezone.utc)
 
-                # Add 1 hour overlap to catch orders that might have been processed with earlier in_process_at
-                start_date = start_date - timedelta(hours=1)
+                # Add 3 hour overlap to catch orders that might have been processed with earlier in_process_at
+                # Ozon API has delay in showing orders - orders may appear in API hours after their in_process_at
+                start_date = start_date - timedelta(hours=3)
 
             logger.info(f"Collecting Ozon orders from {start_date.strftime('%Y-%m-%d %H:%M:%S')}")
 
