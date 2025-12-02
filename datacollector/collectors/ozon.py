@@ -303,7 +303,10 @@ class OzonCollector(BaseCollector):
                 if start_date.tzinfo is None:
                     start_date = start_date.replace(tzinfo=timezone.utc)
 
-            logger.info(f"Collecting Ozon orders from {start_date.strftime('%Y-%m-%d')}")
+                # Add 1 hour overlap to catch orders that might have been processed with earlier in_process_at
+                start_date = start_date - timedelta(hours=1)
+
+            logger.info(f"Collecting Ozon orders from {start_date.strftime('%Y-%m-%d %H:%M:%S')}")
 
             saved_count = 0
 
