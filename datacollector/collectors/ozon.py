@@ -299,6 +299,9 @@ class OzonCollector(BaseCollector):
                         start_date = datetime.now(timezone.utc) - timedelta(days=90)
             else:
                 start_date = sync_state.last_successful_sync
+                # Ensure start_date has timezone info
+                if start_date.tzinfo is None:
+                    start_date = start_date.replace(tzinfo=timezone.utc)
 
             logger.info(f"Collecting Ozon orders from {start_date.strftime('%Y-%m-%d')}")
 
