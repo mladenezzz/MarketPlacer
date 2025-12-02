@@ -224,30 +224,23 @@
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav me-auto">
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('main.index') }}">
-                            <i class="bi bi-house"></i> Главная
-                        </a>
-                    </li>
+                </ul>
 
+                <!-- Правая часть меню -->
+                <ul class="navbar-nav ms-auto">
                     {% if current_user.is_authenticated %}
                         <!-- Меню Настройки -->
                         <li class="nav-item dropdown">
                             <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                                 <i class="bi bi-gear"></i> Настройки
                             </a>
-                            <ul class="dropdown-menu">
+                            <ul class="dropdown-menu dropdown-menu-end">
                                 <li><a class="dropdown-item" href="{{ url_for('tokens.list_tokens') }}">
                                     <i class="bi bi-key"></i> Токены API
                                 </a></li>
                             </ul>
                         </li>
-                    {% endif %}
-                </ul>
-                
-                <!-- Правая часть меню -->
-                <ul class="navbar-nav ms-auto">
-                    {% if current_user.is_authenticated %}
+
                         <!-- Меню пользователя -->
                         <li class="nav-item dropdown">
                             <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
