@@ -1,9 +1,9 @@
 {
   "permissions": {
     "allow": [
-      "Bash(\"./venv/Scripts/python.exe\" test_wb_incomes.py)",
-      "Bash(\"./venv/Scripts/python.exe\" test_wb_full_export.py)",
-      "Bash(\"./venv/Scripts/python.exe\" add_stocks_sync_time.py)"
+      "Bash(timeout:*)",
+      "Bash(findstr:*)",
+      "Bash(dir:*)"
     ],
     "deny": [],
     "ask": []
