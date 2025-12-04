@@ -69,6 +69,8 @@ class Worker(threading.Thread):
                     collector.collect_orders(session)
                 elif task.endpoint == 'stocks':
                     collector.collect_stocks(session)
+                elif task.endpoint == 'goods':
+                    collector.collect_goods(session)
                 # Ozon endpoints
                 elif task.endpoint == 'ozon_stocks':
                     collector.collect_stocks(session)

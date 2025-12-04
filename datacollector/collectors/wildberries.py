@@ -3,7 +3,7 @@ import time
 from datetime import datetime, timezone, timedelta
 from wb_api import WBApi
 from datacollector.collectors.base import BaseCollector
-from app.models import WBSale, WBOrder, WBIncome, WBIncomeItem, WBStock
+from app.models import WBSale, WBOrder, WBIncome, WBIncomeItem, WBStock, WBGood
 
 logger = logging.getLogger(__name__)
 
@@ -315,7 +315,7 @@ class WildberriesCollector(BaseCollector):
             logger.error(f"Error collecting orders: {e}")
 
     def collect_stocks(self, session):
-        """Collect stocks data"""
+        """Collect stocks data - only quantity (available for sale)"""
         started_at = datetime.now(timezone.utc)
         try:
             logger.info(f"Collecting stocks for token {self.token_id}")
@@ -325,48 +325,49 @@ class WildberriesCollector(BaseCollector):
 
             today = datetime.now(timezone.utc).date()
             saved_count = 0
+            updated_count = 0
 
             for stock_obj in stocks_data:
-                # Convert Stock object to dict for compatibility
-                stock_data = {
-                    'nmId': stock_obj.nm_id,
-                    'supplierArticle': stock_obj.supplier_article,
-                    'warehouseName': stock_obj.warehouse_name,
-                    'barcode': stock_obj.barcode,
-                    'quantity': stock_obj.quantity,
-                    'quantityFull': stock_obj.quantity_full,
-                    'inWayToClient': stock_obj.in_way_to_client,
-                    'inWayFromClient': stock_obj.in_way_from_client
-                }
+                # Остаток = только quantity (доступно к продаже)
+                quantity = stock_obj.quantity
 
-                product = self.get_or_create_product(session, self.token_id, self.marketplace, stock_data)
-                warehouse = self.get_or_create_warehouse(session, self.marketplace, stock_data.get('warehouseName'))
+                # Пропускаем нулевые остатки
+                if quantity == 0:
+                    continue
 
-                # Check if stock for today already exists
+                barcode = stock_obj.barcode
+                warehouse_name = stock_obj.warehouse_name
+
+                # Получаем wb_good по баркоду
+                wb_good = session.query(WBGood).filter_by(barcode=barcode).first()
+
+                # Получаем или создаем склад
+                warehouse = self.get_or_create_warehouse(session, self.marketplace, warehouse_name)
+
+                # Проверяем существующую запись на сегодня по barcode + warehouse + token
                 existing = session.query(WBStock).filter_by(
                     token_id=self.token_id,
-                    product_id=product.id,
                     warehouse_id=warehouse.id if warehouse else None,
                     date=today
+                ).filter(
+                    WBStock.product_id == (wb_good.id if wb_good else None)
                 ).first()
 
                 if existing:
-                    # Update existing stock
-                    existing.quantity = stock_data.get('quantity', 0)
-                    existing.quantity_full = stock_data.get('quantityFull', 0)
-                    existing.in_way_to_client = stock_data.get('inWayToClient', 0)
-                    existing.in_way_from_client = stock_data.get('inWayFromClient', 0)
+                    # Обновляем существующую запись
+                    existing.quantity = quantity
+                    updated_count += 1
                 else:
-                    # Create new stock record
+                    # Создаем новую запись
                     stock = WBStock(
                         token_id=self.token_id,
-                        product_id=product.id,
+                        product_id=wb_good.id if wb_good else None,
                         warehouse_id=warehouse.id if warehouse else None,
                         date=today,
-                        quantity=stock_data.get('quantity', 0),
-                        quantity_full=stock_data.get('quantityFull', 0),
-                        in_way_to_client=stock_data.get('inWayToClient', 0),
-                        in_way_from_client=stock_data.get('inWayFromClient', 0)
+                        quantity=quantity,
+                        quantity_full=stock_obj.quantity_full,
+                        in_way_to_client=stock_obj.in_way_to_client,
+                        in_way_from_client=stock_obj.in_way_from_client
                     )
                     session.add(stock)
                     saved_count += 1
@@ -374,12 +375,170 @@ class WildberriesCollector(BaseCollector):
             session.commit()
             self.update_sync_state(session, self.token_id, 'stocks', success=True)
             self.log_collection(session, self.token_id, self.marketplace, 'stocks', 'success', saved_count, started_at=started_at)
-            logger.info(f"Saved {saved_count} stock records")
+            logger.info(f"Saved {saved_count} new stock records, updated {updated_count}")
 
         except Exception as e:
             session.rollback()
             self.log_collection(session, self.token_id, self.marketplace, 'stocks', 'error', 0, str(e), started_at)
             logger.error(f"Error collecting stocks: {e}")
+            raise
+
+    def collect_goods(self, session):
+        """Collect goods (product cards) from WB Content API"""
+        import requests
+
+        started_at = datetime.now(timezone.utc)
+        try:
+            logger.info(f"Collecting goods for token {self.token_id}")
+
+            url = "https://content-api.wildberries.ru/content/v2/get/cards/list"
+            headers = {
+                "Authorization": self.api.api_key,
+                "Content-Type": "application/json"
+            }
+
+            all_cards = []
+            cursor = {"limit": 100}
+
+            while True:
+                payload = {
+                    "settings": {
+                        "cursor": cursor,
+                        "filter": {"withPhoto": -1}
+                    }
+                }
+
+                # Retry logic for 429 errors
+                max_retries = 5
+                retry_count = 0
+                response = None
+
+                while retry_count < max_retries:
+                    try:
+                        response = requests.post(url, headers=headers, json=payload, timeout=30)
+                        if response.status_code == 429:
+                            retry_count += 1
+                            logger.warning(f"Rate limit 429, retry {retry_count}/{max_retries}, waiting 15s")
+                            time.sleep(15)
+                            continue
+                        break
+                    except requests.exceptions.Timeout:
+                        retry_count += 1
+                        logger.warning(f"Request timeout, retry {retry_count}/{max_retries}")
+                        time.sleep(5)
+                    except requests.exceptions.RequestException as e:
+                        logger.error(f"Request error: {e}")
+                        break
+
+                if response is None or retry_count >= max_retries:
+                    logger.error("Max retries exceeded")
+                    break
+
+                if response.status_code != 200:
+                    logger.error(f"API error: {response.status_code}")
+                    break
+
+                data = response.json()
+                cards = data.get("cards", [])
+                cursor_data = data.get("cursor", {})
+
+                if not cards:
+                    break
+
+                all_cards.extend(cards)
+
+                if len(cards) < 100:
+                    break
+
+                if not cursor_data.get("updatedAt") and not cursor_data.get("nmID"):
+                    break
+
+                cursor = {
+                    "limit": 100,
+                    "updatedAt": cursor_data.get("updatedAt"),
+                    "nmID": cursor_data.get("nmID")
+                }
+
+            logger.info(f"Received {len(all_cards)} cards from API")
+
+            # Save cards to wb_goods
+            inserted = 0
+            updated = 0
+
+            for card in all_cards:
+                vendor_code = card.get("vendorCode", "")
+                brand = card.get("brand", "")
+                title = card.get("title", "")
+                description = card.get("description", "")
+
+                # Parse dates
+                created_at_str = card.get("createdAt")
+                updated_at_str = card.get("updatedAt")
+                card_created_at = None
+                card_updated_at = None
+                if created_at_str:
+                    try:
+                        card_created_at = datetime.fromisoformat(created_at_str.replace('Z', '+00:00'))
+                    except ValueError:
+                        pass
+                if updated_at_str:
+                    try:
+                        card_updated_at = datetime.fromisoformat(updated_at_str.replace('Z', '+00:00'))
+                    except ValueError:
+                        pass
+
+                # Get photos
+                photos = card.get("photos", [])
+                photo_urls = []
+                for photo in photos:
+                    photo_url = photo.get("big") or photo.get("c246x328") or photo.get("c516x688") or ""
+                    if photo_url:
+                        photo_urls.append(photo_url)
+                photos_str = ",".join(photo_urls)
+
+                sizes = card.get("sizes", [])
+                for size in sizes:
+                    tech_size = size.get("techSize", "")
+                    wb_size = size.get("wbSize", "")
+                    skus = size.get("skus", [])
+                    barcode = skus[0] if skus else ""
+
+                    if not barcode:
+                        continue
+
+                    # Check if exists
+                    existing = session.query(WBGood).filter_by(barcode=barcode).first()
+
+                    if existing:
+                        # Update if photos are empty
+                        if not existing.photos and photos_str:
+                            existing.photos = photos_str
+                            updated += 1
+                    else:
+                        # Insert new
+                        good = WBGood(
+                            vendor_code=vendor_code,
+                            brand=brand,
+                            title=title,
+                            description=description,
+                            tech_size=tech_size,
+                            wb_size=wb_size,
+                            barcode=barcode,
+                            photos=photos_str,
+                            card_created_at=card_created_at,
+                            card_updated_at=card_updated_at
+                        )
+                        session.add(good)
+                        inserted += 1
+
+            session.commit()
+            self.log_collection(session, self.token_id, self.marketplace, 'goods', 'success', inserted, started_at=started_at)
+            logger.info(f"Goods: inserted {inserted}, updated photos {updated}")
+
+        except Exception as e:
+            session.rollback()
+            self.log_collection(session, self.token_id, self.marketplace, 'goods', 'error', 0, str(e), started_at)
+            logger.error(f"Error collecting goods: {e}")
             raise
 
     def update_data(self):

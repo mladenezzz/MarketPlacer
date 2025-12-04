@@ -80,7 +80,7 @@ def initialize_collectors():
 
 
 def check_and_load_today_stocks():
-    """Check if today's stocks exist, if not - load them"""
+    """Check if today's stocks exist, if not - load goods first, then stocks"""
     logger.info("Checking today's stocks...")
 
     engine = create_engine(DataCollectorConfig.DATABASE_URI)
@@ -99,9 +99,10 @@ def check_and_load_today_stocks():
             ).count()
 
             if stocks_count == 0:
-                logger.info(f"No WB stocks found for token {token.id} ({token.name}) for today, adding to queue")
-                task = Task(token.id, 'stocks', TaskPriority.HIGH)
-                task_queue.add_task(task)
+                logger.info(f"No WB stocks found for token {token.id} ({token.name}) for today, adding goods and stocks to queue")
+                # Сначала товары, потом остатки
+                task_queue.add_task(Task(token.id, 'goods', TaskPriority.HIGH))
+                task_queue.add_task(Task(token.id, 'stocks', TaskPriority.HIGH))
             else:
                 logger.info(f"WB stocks for token {token.id} ({token.name}) already exist for today ({stocks_count} records)")
 
@@ -207,17 +208,19 @@ def schedule_regular_updates_10min():
 
 
 def schedule_hourly_updates():
-    """Schedule hourly updates (stocks and supply orders)"""
-    logger.info("Scheduling hourly updates (stocks and supply orders)...")
+    """Schedule hourly updates (goods, stocks and supply orders)"""
+    logger.info("Scheduling hourly updates (goods, stocks and supply orders)...")
 
     engine = create_engine(DataCollectorConfig.DATABASE_URI)
     Session = sessionmaker(bind=engine)
     session = Session()
 
     try:
-        # Schedule Wildberries stocks and incomes
+        # Schedule Wildberries goods (first), then stocks and incomes
         wb_tokens = session.query(Token).filter_by(marketplace='wildberries').all()
         for token in wb_tokens:
+            # Сначала собираем товары, потом остатки
+            task_queue.add_task(Task(token.id, 'goods', TaskPriority.NORMAL))
             task_queue.add_task(Task(token.id, 'stocks', TaskPriority.NORMAL))
             task_queue.add_task(Task(token.id, 'incomes', TaskPriority.NORMAL))
 
@@ -244,12 +247,13 @@ def schedule_daily_stocks():
     session = Session()
 
     try:
-        # Schedule Wildberries stocks
+        # Schedule Wildberries goods first, then stocks
         wb_tokens = session.query(Token).filter_by(marketplace='wildberries').all()
         for token in wb_tokens:
-            task = Task(token.id, 'stocks', TaskPriority.HIGH)
-            task_queue.add_task(task)
-            logger.info(f"Scheduled WB stocks collection for token {token.id} ({token.name})")
+            # Сначала товары, потом остатки
+            task_queue.add_task(Task(token.id, 'goods', TaskPriority.HIGH))
+            task_queue.add_task(Task(token.id, 'stocks', TaskPriority.HIGH))
+            logger.info(f"Scheduled WB goods and stocks collection for token {token.id} ({token.name})")
 
         # Schedule Ozon stocks
         ozon_tokens = session.query(Token).filter_by(marketplace='ozon').all()
