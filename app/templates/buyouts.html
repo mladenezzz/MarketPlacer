@@ -142,7 +142,7 @@
                                 {% for article, size, delivered_count, cancelled_count, stock_count in ozon_products %}
                                 {% set total = delivered_count + cancelled_count %}
                                 {% set buyout_percent = (delivered_count / total * 100) if total > 0 else 0 %}
-                                <tr data-article="{{ article }}" data-total="{{ total }}" data-delivered="{{ delivered_count }}" data-cancelled="{{ cancelled_count }}" data-percent="{{ buyout_percent }}" data-stock="{{ stock_count }}">
+                                <tr data-article="{{ article }}" data-size="{{ size }}" data-total="{{ total }}" data-delivered="{{ delivered_count }}" data-cancelled="{{ cancelled_count }}" data-percent="{{ buyout_percent }}" data-stock="{{ stock_count }}">
                                     <td><strong>{{ article }}</strong></td>
                                     <td>{{ size if size else '-' }}</td>
                                     <td class="text-center">
@@ -344,17 +344,37 @@ document.addEventListener('DOMContentLoaded', function() {
             const tbody = table.querySelector('tbody');
             const rows = Array.from(tbody.querySelectorAll('tr'));
 
+            // Функция для получения порядка размера
+            function getSizeOrder(size) {
+                const sizeOrder = {
+                    'S': 0, 'M': 1, 'L': 2, 'XL': 3, 'XXL': 4,
+                    '6': 10, '6.5': 11, '7': 12, '7.5': 13,
+                    '8': 14, '8.5': 15, '9': 16, '9.5': 17,
+                    '10': 18, '10.5': 19, '11': 20, '11.5': 21,
+                    '12': 22, '12.5': 23
+                };
+                return sizeOrder[size] !== undefined ? sizeOrder[size] : 999;
+            }
+
             rows.sort((a, b) => {
                 let aVal, bVal;
 
                 if (sortKey === 'article') {
                     aVal = a.dataset.article.toLowerCase();
                     bVal = b.dataset.article.toLowerCase();
+                    let result;
                     if (currentSort.direction === 'asc') {
-                        return aVal.localeCompare(bVal);
+                        result = aVal.localeCompare(bVal);
                     } else {
-                        return bVal.localeCompare(aVal);
+                        result = bVal.localeCompare(aVal);
                     }
+                    // Если артикулы равны, сортируем по размеру
+                    if (result === 0) {
+                        const aSize = getSizeOrder(a.dataset.size);
+                        const bSize = getSizeOrder(b.dataset.size);
+                        return aSize - bSize;
+                    }
+                    return result;
                 } else {
                     aVal = parseFloat(a.dataset[sortKey]) || 0;
                     bVal = parseFloat(b.dataset[sortKey]) || 0;
