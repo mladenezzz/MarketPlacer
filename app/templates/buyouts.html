@@ -121,6 +121,9 @@
                                         Артикул <i class="bi bi-arrow-down-up text-muted"></i>
                                     </th>
                                     <th>Размер</th>
+                                    <th class="text-center sortable" data-sort="stock" style="cursor: pointer;">
+                                        Остатки <i class="bi bi-arrow-down-up text-muted"></i>
+                                    </th>
                                     <th class="text-center sortable" data-sort="total" style="cursor: pointer;">
                                         Заказано <i class="bi bi-arrow-down-up text-muted"></i>
                                     </th>
@@ -136,17 +139,20 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                {% for article, size, delivering_count, cancelled_count in ozon_products %}
-                                {% set total = delivering_count + cancelled_count %}
-                                {% set buyout_percent = (delivering_count / total * 100) if total > 0 else 0 %}
-                                <tr data-article="{{ article }}" data-total="{{ total }}" data-delivered="{{ delivering_count }}" data-cancelled="{{ cancelled_count }}" data-percent="{{ buyout_percent }}">
+                                {% for article, size, delivered_count, cancelled_count, stock_count in ozon_products %}
+                                {% set total = delivered_count + cancelled_count %}
+                                {% set buyout_percent = (delivered_count / total * 100) if total > 0 else 0 %}
+                                <tr data-article="{{ article }}" data-total="{{ total }}" data-delivered="{{ delivered_count }}" data-cancelled="{{ cancelled_count }}" data-percent="{{ buyout_percent }}" data-stock="{{ stock_count }}">
                                     <td><strong>{{ article }}</strong></td>
                                     <td>{{ size if size else '-' }}</td>
+                                    <td class="text-center">
+                                        <span class="badge bg-secondary">{{ stock_count }}</span>
+                                    </td>
                                     <td class="text-center">
                                         <span class="badge bg-info">{{ total }}</span>
                                     </td>
                                     <td class="text-center">
-                                        <span class="badge bg-success">{{ delivering_count }}</span>
+                                        <span class="badge bg-success">{{ delivered_count }}</span>
                                     </td>
                                     <td class="text-center">
                                         <span class="badge bg-danger">{{ cancelled_count }}</span>
