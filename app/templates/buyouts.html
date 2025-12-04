@@ -1,0 +1,297 @@
+{% extends "base.html" %}
+
+{% block title %}Статистика выкупов - MarketPlacer{% endblock %}
+
+{% block content %}
+<div class="container my-5">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="mb-0">
+                        <i class="bi bi-cart-check"></i> Статистика выкупов
+                    </h3>
+                </div>
+                <div class="card-body">
+                    {% if tokens %}
+                        <p class="text-muted mb-4">Выберите аккаунты для анализа выкупов:</p>
+                        <div class="list-group">
+                            {% for token in tokens %}
+                                <div class="list-group-item d-flex align-items-center">
+                                    <div class="form-check me-3" style="min-width: 20px;">
+                                        <input class="form-check-input" type="checkbox"
+                                               id="token_{{ token.id }}"
+                                               value="{{ token.id }}"
+                                               {% if token.marketplace == 'ozon' %}checked{% endif %}>
+                                    </div>
+                                    <div class="me-3" style="min-width: 130px;">
+                                        {% if token.marketplace == 'wildberries' %}
+                                            <span class="badge bg-purple">
+                                                <i class="bi bi-box-seam"></i> {{ token.marketplace_display }}
+                                            </span>
+                                        {% elif token.marketplace == 'ozon' %}
+                                            <span class="badge bg-primary">
+                                                <i class="bi bi-box-seam"></i> {{ token.marketplace_display }}
+                                            </span>
+                                        {% endif %}
+                                    </div>
+                                    <div>
+                                        <strong>{{ token.name }}</strong>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="alert alert-info">
+                            <i class="bi bi-info-circle"></i>
+                            У вас пока нет добавленных токенов маркетплейсов.
+                            <a href="{{ url_for('tokens.add') }}" class="alert-link">Добавить токен</a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Фильтр по датам -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-secondary text-white">
+                    <h5 class="mb-0">
+                        <i class="bi bi-calendar3"></i> Период для отображения данных
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row align-items-end">
+                        <div class="col-md-6">
+                            <label for="date-range-picker" class="form-label">Выберите дату или период:</label>
+                            <input type="text" class="form-control" id="date-range-picker" placeholder="Все время..." style="background-color: white; cursor: pointer;" readonly>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="btn-group w-100" role="group">
+                                <button type="button" class="btn btn-outline-secondary" id="reset-dates">
+                                    <i class="bi bi-infinity"></i> Все время
+                                </button>
+                                <button type="button" class="btn btn-outline-secondary" id="reset-to-week">
+                                    <i class="bi bi-calendar-week"></i> Неделя
+                                </button>
+                                <button type="button" class="btn btn-outline-secondary" id="reset-to-month">
+                                    <i class="bi bi-calendar-month"></i> Месяц
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if ozon_products %}
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <div class="row align-items-center">
+                        <div class="col-md-6">
+                            <div class="input-group">
+                                <span class="input-group-text">
+                                    <i class="bi bi-search"></i>
+                                </span>
+                                <input type="text"
+                                       class="form-control"
+                                       id="articleFilter"
+                                       placeholder="Поиск по артикулу..."
+                                       autocomplete="off">
+                            </div>
+                        </div>
+                        <div class="col-md-6 text-end mt-2 mt-md-0">
+                            <small class="text-muted">
+                                Показано: <span id="visibleCount">{{ ozon_products|length }}</span> из {{ ozon_products|length }}
+                            </small>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Артикул</th>
+                                    <th>Размер</th>
+                                    <th class="text-center">Заказано</th>
+                                    <th class="text-center">Выкуплено</th>
+                                    <th class="text-center">Отменено</th>
+                                    <th class="text-center">% выкупа</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for article, size, delivering_count, cancelled_count in ozon_products %}
+                                {% set total = delivering_count + cancelled_count %}
+                                {% set buyout_percent = (delivering_count / total * 100) if total > 0 else 0 %}
+                                <tr>
+                                    <td><strong>{{ article }}</strong></td>
+                                    <td>{{ size if size else '-' }}</td>
+                                    <td class="text-center">
+                                        <span class="badge bg-info">{{ total }}</span>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="badge bg-success">{{ delivering_count }}</span>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="badge bg-danger">{{ cancelled_count }}</span>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="badge {% if buyout_percent >= 80 %}bg-success{% elif buyout_percent >= 50 %}bg-warning{% else %}bg-danger{% endif %}">
+                                            {{ "%.1f"|format(buyout_percent) }}%
+                                        </span>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    <p class="text-muted mt-3 mb-0">
+                        <small>Всего уникальных товаров: {{ ozon_products|length }}</small>
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const filterInput = document.getElementById('articleFilter');
+    const tableBody = document.querySelector('table tbody');
+    const visibleCount = document.getElementById('visibleCount');
+    const totalCount = {{ ozon_products|length }};
+
+    // Фильтрация по артикулу
+    if (filterInput && tableBody) {
+        filterInput.addEventListener('input', function() {
+            const filterValue = this.value.toLowerCase().trim();
+            const rows = tableBody.querySelectorAll('tr');
+            let visibleRows = 0;
+
+            rows.forEach(row => {
+                const articleCell = row.querySelector('td:first-child');
+                if (articleCell) {
+                    const articleText = articleCell.textContent.toLowerCase();
+
+                    // Показываем строку, если артикул начинается с введенного текста
+                    if (filterValue === '' || articleText.startsWith(filterValue)) {
+                        row.style.display = '';
+                        visibleRows++;
+                    } else {
+                        row.style.display = 'none';
+                    }
+                }
+            });
+
+            // Обновляем счетчик
+            if (visibleCount) {
+                visibleCount.textContent = visibleRows;
+            }
+        });
+
+        // Фокус на поле поиска при нажатии Ctrl+F или Cmd+F
+        document.addEventListener('keydown', function(e) {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+                e.preventDefault();
+                filterInput.focus();
+            }
+        });
+    }
+
+    // Функция для форматирования даты для API (YYYY-MM-DD)
+    function formatDateForAPI(date) {
+        const day = String(date.getDate()).padStart(2, '0');
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const year = date.getFullYear();
+        return `${year}-${month}-${day}`;
+    }
+
+    // Функция для форматирования даты для отображения (DD.MM.YYYY)
+    function formatDate(date) {
+        const day = String(date.getDate()).padStart(2, '0');
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const year = date.getFullYear();
+        return `${day}.${month}.${year}`;
+    }
+
+    // Функция для перезагрузки страницы с новыми датами
+    function reloadWithDates(dateFrom, dateTo) {
+        const url = new URL(window.location.href);
+        if (dateFrom && dateTo) {
+            url.searchParams.set('date_from', formatDateForAPI(dateFrom));
+            url.searchParams.set('date_to', formatDateForAPI(dateTo));
+        } else {
+            url.searchParams.delete('date_from');
+            url.searchParams.delete('date_to');
+        }
+        window.location.href = url.toString();
+    }
+
+    // Инициализация Air Datepicker
+    const picker = new AirDatepicker('#date-range-picker', {
+        range: true,
+        multipleDatesSeparator: ' - ',
+        dateFormat: 'dd.MM.yyyy',
+        autoClose: false,
+        maxDate: new Date(),
+        buttons: [
+            {
+                content(dp) {
+                    return 'Сбросить';
+                },
+                onClick(dp) {
+                    dp.clear();
+                    reloadWithDates(null, null);
+                }
+            },
+            {
+                content(dp) {
+                    return 'Применить';
+                },
+                onClick(dp) {
+                    const dates = dp.selectedDates;
+                    if (dates.length === 2) {
+                        reloadWithDates(dates[0], dates[1]);
+                    } else if (dates.length === 1) {
+                        reloadWithDates(dates[0], dates[0]);
+                    }
+                }
+            }
+        ]
+    });
+
+    // Обработчик кнопки "Все время"
+    document.getElementById('reset-dates').addEventListener('click', function() {
+        picker.clear();
+        reloadWithDates(null, null);
+    });
+
+    // Обработчик кнопки "Неделя"
+    document.getElementById('reset-to-week').addEventListener('click', function() {
+        const today = new Date();
+        const weekAgo = new Date();
+        weekAgo.setDate(today.getDate() - 6);
+        picker.selectDate([weekAgo, today]);
+        reloadWithDates(weekAgo, today);
+    });
+
+    // Обработчик кнопки "Месяц"
+    document.getElementById('reset-to-month').addEventListener('click', function() {
+        const today = new Date();
+        const monthAgo = new Date();
+        monthAgo.setMonth(today.getMonth() - 1);
+        picker.selectDate([monthAgo, today]);
+        reloadWithDates(monthAgo, today);
+    });
+});
+</script>
+{% endblock %}
