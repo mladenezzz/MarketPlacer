@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime, timedelta, UTC
+from datetime import datetime, timedelta, timezone
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from app.models import Product, Warehouse, SyncState, CollectionLog
