@@ -240,7 +240,7 @@ def buyouts():
         # Словарь для подсчёта статусов: {(article, size): {'delivered': count, 'cancelled': count, 'stock': count}}
         stats = {}
 
-        # Получаем остатки на сегодня
+        # Получаем остатки на сегодня (только ненулевые)
         today = datetime.now().date()
         stocks = db.session.query(
             OzonStock.offer_id,
@@ -248,7 +248,9 @@ def buyouts():
         ).filter(
             OzonStock.token_id.in_(ozon_token_ids),
             func.date(OzonStock.date) == today
-        ).group_by(OzonStock.offer_id).all()
+        ).group_by(OzonStock.offer_id).having(
+            func.sum(OzonStock.fbo_present + OzonStock.fbs_present) > 0
+        ).all()
 
         # Добавляем остатки в статистику
         for stock in stocks:
