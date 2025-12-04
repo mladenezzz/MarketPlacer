@@ -138,7 +138,7 @@ class WBStock(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     token_id = db.Column(db.Integer, db.ForeignKey('tokens.id'), nullable=False)
-    product_id = db.Column(db.Integer, db.ForeignKey('products.id'), nullable=True)
+    product_id = db.Column(db.Integer, db.ForeignKey('wb_goods.id'), nullable=True)
     warehouse_id = db.Column(db.Integer, db.ForeignKey('warehouses.id'), nullable=True)
 
     quantity = db.Column(db.Integer, nullable=True)
@@ -150,7 +150,7 @@ class WBStock(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     token = db.relationship('Token', backref=db.backref('wb_stocks', lazy=True))
-    product = db.relationship('Product', backref=db.backref('wb_stocks', lazy=True))
+    product = db.relationship('WBGood', backref=db.backref('wb_stocks', lazy=True))
     warehouse = db.relationship('Warehouse', backref=db.backref('wb_stocks', lazy=True))
 
     __table_args__ = (
