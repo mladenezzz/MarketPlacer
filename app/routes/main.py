@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, jsonify, request
 from flask_login import login_required, current_user
 from datetime import datetime
-from app.models import Token, OzonOrder, db
+from app.models import Token, OzonOrder, OzonStock, db
 from app.services.sales_service import SalesService
 from sqlalchemy import distinct, func
 
@@ -234,6 +234,29 @@ def buyouts():
     # Получаем уникальные сочетания артикул+размер для Ozon токенов с подсчётом статусов
     ozon_products = []
     if ozon_token_ids:
+        # Словарь для подсчёта статусов: {(article, size): {'delivered': count, 'cancelled': count, 'stock': count}}
+        stats = {}
+
+        # Получаем остатки на сегодня
+        today = datetime.now().date()
+        stocks = db.session.query(
+            OzonStock.offer_id,
+            func.sum(OzonStock.fbo_present + OzonStock.fbs_present).label('total_stock')
+        ).filter(
+            OzonStock.token_id.in_(ozon_token_ids),
+            func.date(OzonStock.date) == today
+        ).group_by(OzonStock.offer_id).all()
+
+        # Добавляем остатки в статистику
+        for stock in stocks:
+            article, size = parse_offer_id(stock.offer_id)
+            if not article:
+                continue
+            key = (article, size)
+            if key not in stats:
+                stats[key] = {'delivered': 0, 'cancelled': 0, 'delivering': 0, 'stock': 0}
+            stats[key]['stock'] = int(stock.total_stock or 0)
+
         # Строим запрос с учётом фильтрации по датам
         query = db.session.query(
             OzonOrder.offer_id,
@@ -245,25 +268,24 @@ def buyouts():
 
         # Если указаны даты, добавляем фильтр по дате
         if date_from and date_to:
+            from datetime import timedelta
             query = query.filter(
                 OzonOrder.in_process_at >= date_from,
-                OzonOrder.in_process_at < date_to + func.cast('1 day', db.Interval)
+                OzonOrder.in_process_at < date_to + timedelta(days=1)
             )
 
         orders = query.all()
 
-        # Словарь для подсчёта статусов: {(article, size): {'delivered': count, 'cancelled': count}}
-        stats = {}
+        # Добавляем заказы в статистику
         for order in orders:
             article, size = parse_offer_id(order.offer_id)
-            if not article:  # Пропускаем если артикул пустой
+            if not article:
                 continue
 
             key = (article, size)
             if key not in stats:
-                stats[key] = {'delivered': 0, 'cancelled': 0, 'delivering': 0}
+                stats[key] = {'delivered': 0, 'cancelled': 0, 'delivering': 0, 'stock': 0}
 
-            # Подсчитываем статусы
             if order.status == 'delivered':
                 stats[key]['delivered'] += 1
             elif order.status == 'cancelled':
@@ -271,12 +293,18 @@ def buyouts():
             elif order.status == 'delivering':
                 stats[key]['delivering'] += 1
 
-        # Сортируем по артикулу и размеру (используем умную сортировку для размеров)
+        # Сортируем по артикулу и размеру
         sorted_keys = sorted(stats.keys(), key=lambda x: (x[0], get_size_sort_key(x[1])))
 
-        # Формируем результат с преобразованием размеров для отображения
+        # Формируем результат
         ozon_products = [
-            (article, parse_size_display(size), stats[(article, size)]['delivered'], stats[(article, size)]['cancelled'])
+            (
+                article,
+                parse_size_display(size),
+                stats[(article, size)]['delivered'],
+                stats[(article, size)]['cancelled'],
+                stats[(article, size)]['stock']
+            )
             for article, size in sorted_keys
         ]
 
