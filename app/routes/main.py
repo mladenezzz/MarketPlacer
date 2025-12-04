@@ -89,6 +89,9 @@ def parse_offer_id(offer_id: str) -> tuple:
     if not offer_id:
         return '', ''
 
+    # Убираем лишние символы в начале (например, ')
+    offer_id = offer_id.lstrip("'\"")
+
     # Обычно offer_id имеет формат "артикул/размер" или "артикул_размер"
     if '/' in offer_id:
         parts = offer_id.split('/')
