@@ -117,19 +117,29 @@
                         <table class="table table-hover">
                             <thead>
                                 <tr>
-                                    <th>Артикул</th>
+                                    <th class="sortable" data-sort="article" style="cursor: pointer;">
+                                        Артикул <i class="bi bi-arrow-down-up text-muted"></i>
+                                    </th>
                                     <th>Размер</th>
-                                    <th class="text-center">Заказано</th>
-                                    <th class="text-center">Выкуплено</th>
-                                    <th class="text-center">Отменено</th>
-                                    <th class="text-center">% выкупа</th>
+                                    <th class="text-center sortable" data-sort="total" style="cursor: pointer;">
+                                        Заказано <i class="bi bi-arrow-down-up text-muted"></i>
+                                    </th>
+                                    <th class="text-center sortable" data-sort="delivered" style="cursor: pointer;">
+                                        Выкуплено <i class="bi bi-arrow-down-up text-muted"></i>
+                                    </th>
+                                    <th class="text-center sortable" data-sort="cancelled" style="cursor: pointer;">
+                                        Отменено <i class="bi bi-arrow-down-up text-muted"></i>
+                                    </th>
+                                    <th class="text-center sortable" data-sort="percent" style="cursor: pointer;">
+                                        % выкупа <i class="bi bi-arrow-down-up text-muted"></i>
+                                    </th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {% for article, size, delivering_count, cancelled_count in ozon_products %}
                                 {% set total = delivering_count + cancelled_count %}
                                 {% set buyout_percent = (delivering_count / total * 100) if total > 0 else 0 %}
-                                <tr>
+                                <tr data-article="{{ article }}" data-total="{{ total }}" data-delivered="{{ delivering_count }}" data-cancelled="{{ cancelled_count }}" data-percent="{{ buyout_percent }}">
                                     <td><strong>{{ article }}</strong></td>
                                     <td>{{ size if size else '-' }}</td>
                                     <td class="text-center">
@@ -291,6 +301,76 @@ document.addEventListener('DOMContentLoaded', function() {
         monthAgo.setMonth(today.getMonth() - 1);
         picker.selectDate([monthAgo, today]);
         reloadWithDates(monthAgo, today);
+    });
+
+    // Сортировка таблицы
+    const table = document.querySelector('table');
+    const headers = document.querySelectorAll('th.sortable');
+    let currentSort = { column: null, direction: 'asc' };
+
+    headers.forEach(header => {
+        header.addEventListener('click', function() {
+            const sortKey = this.dataset.sort;
+            const icon = this.querySelector('i');
+
+            // Определяем направление сортировки
+            if (currentSort.column === sortKey) {
+                currentSort.direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
+            } else {
+                currentSort.column = sortKey;
+                currentSort.direction = 'asc';
+            }
+
+            // Сбрасываем иконки на всех заголовках
+            headers.forEach(h => {
+                const hIcon = h.querySelector('i');
+                hIcon.className = 'bi bi-arrow-down-up text-muted';
+            });
+
+            // Устанавливаем иконку для текущего столбца
+            if (currentSort.direction === 'asc') {
+                icon.className = 'bi bi-arrow-up';
+            } else {
+                icon.className = 'bi bi-arrow-down';
+            }
+
+            // Сортируем строки
+            const tbody = table.querySelector('tbody');
+            const rows = Array.from(tbody.querySelectorAll('tr'));
+
+            rows.sort((a, b) => {
+                let aVal, bVal;
+
+                if (sortKey === 'article') {
+                    aVal = a.dataset.article.toLowerCase();
+                    bVal = b.dataset.article.toLowerCase();
+                    if (currentSort.direction === 'asc') {
+                        return aVal.localeCompare(bVal);
+                    } else {
+                        return bVal.localeCompare(aVal);
+                    }
+                } else {
+                    aVal = parseFloat(a.dataset[sortKey]) || 0;
+                    bVal = parseFloat(b.dataset[sortKey]) || 0;
+                    let result;
+                    if (currentSort.direction === 'asc') {
+                        result = aVal - bVal;
+                    } else {
+                        result = bVal - aVal;
+                    }
+                    // Если значения равны, сортируем по артикулу
+                    if (result === 0) {
+                        const aArticle = a.dataset.article.toLowerCase();
+                        const bArticle = b.dataset.article.toLowerCase();
+                        return aArticle.localeCompare(bArticle);
+                    }
+                    return result;
+                }
+            });
+
+            // Перемещаем строки в новом порядке
+            rows.forEach(row => tbody.appendChild(row));
+        });
     });
 });
 </script>
