@@ -160,3 +160,38 @@ class WBStock(db.Model):
 
     def __repr__(self):
         return f'<WBStock {self.id}>'
+
+
+class WBGood(db.Model):
+    """Модель карточки товара Wildberries"""
+    __tablename__ = 'wb_goods'
+
+    id = db.Column(db.Integer, primary_key=True)
+
+    # Информация о товаре
+    vendor_code = db.Column(db.String(200), nullable=True)  # Артикул поставщика
+    brand = db.Column(db.String(200), nullable=True)
+    title = db.Column(db.String(500), nullable=True)  # Название
+    description = db.Column(db.Text, nullable=True)  # Описание
+
+    # Размер
+    tech_size = db.Column(db.String(50), nullable=True)  # Технический размер
+    wb_size = db.Column(db.String(50), nullable=True)  # Размер на WB
+    barcode = db.Column(db.String(200), nullable=False, unique=True)  # Штрихкод
+
+    # Фото (все ссылки через запятую)
+    photos = db.Column(db.Text, nullable=True)
+
+    # Даты из API
+    card_created_at = db.Column(db.DateTime, nullable=True)  # Дата создания карточки
+    card_updated_at = db.Column(db.DateTime, nullable=True)  # Дата обновления карточки
+
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    __table_args__ = (
+        db.Index('idx_wb_goods_vendor_code', 'vendor_code'),
+    )
+
+    def __repr__(self):
+        return f'<WBGood {self.vendor_code} - {self.tech_size}>'
