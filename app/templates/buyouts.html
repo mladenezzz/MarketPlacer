@@ -186,6 +186,39 @@ document.addEventListener('DOMContentLoaded', function() {
     const visibleCount = document.getElementById('visibleCount');
     const totalCount = {{ ozon_products|length }};
 
+    // Функция для получения порядка размера
+    function getSizeOrder(size) {
+        const sizeOrder = {
+            'S': 0, 'M': 1, 'L': 2, 'XL': 3, 'XXL': 4,
+            '6': 10, '6.5': 11, '7': 12, '7.5': 13,
+            '8': 14, '8.5': 15, '9': 16, '9.5': 17,
+            '10': 18, '10.5': 19, '11': 20, '11.5': 21,
+            '12': 22, '12.5': 23
+        };
+        return sizeOrder[size] !== undefined ? sizeOrder[size] : 999;
+    }
+
+    // Функция сортировки по артикулу и размеру
+    function sortByArticleAndSize() {
+        if (!tableBody) return;
+        const rows = Array.from(tableBody.querySelectorAll('tr'));
+        rows.sort((a, b) => {
+            const aArticle = a.dataset.article.toLowerCase();
+            const bArticle = b.dataset.article.toLowerCase();
+            let result = aArticle.localeCompare(bArticle);
+            if (result === 0) {
+                const aSize = getSizeOrder(a.dataset.size);
+                const bSize = getSizeOrder(b.dataset.size);
+                return aSize - bSize;
+            }
+            return result;
+        });
+        rows.forEach(row => tableBody.appendChild(row));
+    }
+
+    // Сортируем при загрузке страницы
+    sortByArticleAndSize();
+
     // Фильтрация по артикулу
     if (filterInput && tableBody) {
         filterInput.addEventListener('input', function() {
@@ -343,18 +376,6 @@ document.addEventListener('DOMContentLoaded', function() {
             // Сортируем строки
             const tbody = table.querySelector('tbody');
             const rows = Array.from(tbody.querySelectorAll('tr'));
-
-            // Функция для получения порядка размера
-            function getSizeOrder(size) {
-                const sizeOrder = {
-                    'S': 0, 'M': 1, 'L': 2, 'XL': 3, 'XXL': 4,
-                    '6': 10, '6.5': 11, '7': 12, '7.5': 13,
-                    '8': 14, '8.5': 15, '9': 16, '9.5': 17,
-                    '10': 18, '10.5': 19, '11': 20, '11.5': 21,
-                    '12': 22, '12.5': 23
-                };
-                return sizeOrder[size] !== undefined ? sizeOrder[size] : 999;
-            }
 
             rows.sort((a, b) => {
                 let aVal, bVal;
