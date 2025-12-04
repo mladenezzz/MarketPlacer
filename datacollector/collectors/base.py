@@ -81,10 +81,10 @@ class BaseCollector:
     def update_sync_state(self, session, token_id: int, endpoint: str, success: bool = True):
         """Update sync state after collection"""
         sync_state = self.get_sync_state(session, token_id, endpoint)
-        sync_state.last_sync_date = datetime.now(UTC)
+        sync_state.last_sync_date = datetime.now(timezone.utc)
         if success:
-            sync_state.last_successful_sync = datetime.now(UTC)
-        sync_state.next_sync_date = datetime.now(UTC) + timedelta(minutes=10)
+            sync_state.last_successful_sync = datetime.now(timezone.utc)
+        sync_state.next_sync_date = datetime.now(timezone.utc) + timedelta(minutes=10)
         session.commit()
 
     def log_collection(self, session, token_id: int, marketplace: str, endpoint: str,
@@ -98,8 +98,8 @@ class BaseCollector:
             status=status,
             records_count=records_count,
             error_message=error_message,
-            started_at=started_at or datetime.now(UTC),
-            finished_at=datetime.now(UTC)
+            started_at=started_at or datetime.now(timezone.utc),
+            finished_at=datetime.now(timezone.utc)
         )
         session.add(log)
         session.commit()
