@@ -14,7 +14,7 @@
                 </div>
                 <div class="card-body">
                     {% if tokens %}
-                        <p class="text-muted mb-4">Выберите аккаунты для анализа выкупов (перетаскивайте для изменения порядка):</p>
+                        <p class="text-muted mb-4">Выберите аккаунты и колонки для отображения (перетаскивайте для изменения порядка):</p>
                         <div class="list-group" id="token-list">
                             {% for token in tokens %}
                                 <div class="list-group-item d-flex align-items-center token-item"
@@ -24,13 +24,6 @@
                                      style="cursor: grab;">
                                     <div class="me-2 text-muted drag-handle">
                                         <i class="bi bi-grip-vertical"></i>
-                                    </div>
-                                    <div class="form-check me-3" style="min-width: 20px;">
-                                        <input class="form-check-input token-checkbox" type="checkbox"
-                                               id="token_{{ token.id }}"
-                                               value="{{ token.id }}"
-                                               data-token-id="{{ token.id }}"
-                                               data-marketplace="{{ token.marketplace }}">
                                     </div>
                                     <div class="me-3" style="min-width: 130px;">
                                         {% if token.marketplace == 'wildberries' %}
@@ -43,8 +36,50 @@
                                             </span>
                                         {% endif %}
                                     </div>
-                                    <div>
+                                    <div class="me-3" style="min-width: 120px;">
                                         <strong>{{ token.name }}</strong>
+                                    </div>
+                                    <div class="d-flex flex-wrap gap-2">
+                                        <div class="form-check form-check-inline">
+                                            <input class="form-check-input column-checkbox" type="checkbox"
+                                                   id="col_stock_{{ token.id }}"
+                                                   data-token-id="{{ token.id }}"
+                                                   data-marketplace="{{ token.marketplace }}"
+                                                   data-col-type="stock">
+                                            <label class="form-check-label small" for="col_stock_{{ token.id }}">Остатки</label>
+                                        </div>
+                                        <div class="form-check form-check-inline">
+                                            <input class="form-check-input column-checkbox" type="checkbox"
+                                                   id="col_orders_{{ token.id }}"
+                                                   data-token-id="{{ token.id }}"
+                                                   data-marketplace="{{ token.marketplace }}"
+                                                   data-col-type="orders">
+                                            <label class="form-check-label small" for="col_orders_{{ token.id }}">Заказы</label>
+                                        </div>
+                                        <div class="form-check form-check-inline">
+                                            <input class="form-check-input column-checkbox" type="checkbox"
+                                                   id="col_delivered_{{ token.id }}"
+                                                   data-token-id="{{ token.id }}"
+                                                   data-marketplace="{{ token.marketplace }}"
+                                                   data-col-type="delivered">
+                                            <label class="form-check-label small" for="col_delivered_{{ token.id }}">Выкупы</label>
+                                        </div>
+                                        <div class="form-check form-check-inline">
+                                            <input class="form-check-input column-checkbox" type="checkbox"
+                                                   id="col_cancelled_{{ token.id }}"
+                                                   data-token-id="{{ token.id }}"
+                                                   data-marketplace="{{ token.marketplace }}"
+                                                   data-col-type="cancelled">
+                                            <label class="form-check-label small" for="col_cancelled_{{ token.id }}">Отмены</label>
+                                        </div>
+                                        <div class="form-check form-check-inline">
+                                            <input class="form-check-input column-checkbox" type="checkbox"
+                                                   id="col_percent_{{ token.id }}"
+                                                   data-token-id="{{ token.id }}"
+                                                   data-marketplace="{{ token.marketplace }}"
+                                                   data-col-type="percent">
+                                            <label class="form-check-label small" for="col_percent_{{ token.id }}">% выкупа</label>
+                                        </div>
                                     </div>
                                 </div>
                             {% endfor %}
@@ -353,14 +388,14 @@ document.addEventListener('DOMContentLoaded', function() {
     const visibleCount = document.getElementById('visibleCount');
     const totalCount = {{ ozon_products|length }};
 
-    // === Управление видимостью и порядком колонок ===
-    const STORAGE_KEY = 'buyouts_token_visibility';
+    // === Управление видимостью колонок по типам для каждого токена ===
+    const COLUMNS_STORAGE_KEY = 'buyouts_column_visibility';
     const ORDER_STORAGE_KEY = 'buyouts_token_order';
-    const tokenCheckboxes = document.querySelectorAll('.token-checkbox');
+    const columnCheckboxes = document.querySelectorAll('.column-checkbox');
 
-    // Загрузка сохраненного состояния из localStorage
-    function loadTokenVisibility() {
-        const saved = localStorage.getItem(STORAGE_KEY);
+    // Загрузка сохраненного состояния колонок из localStorage
+    function loadColumnVisibility() {
+        const saved = localStorage.getItem(COLUMNS_STORAGE_KEY);
         if (saved) {
             try {
                 return JSON.parse(saved);
@@ -371,36 +406,30 @@ document.addEventListener('DOMContentLoaded', function() {
         return null;
     }
 
-    // Сохранение состояния в localStorage
-    function saveTokenVisibility() {
+    // Сохранение состояния колонок в localStorage
+    function saveColumnVisibility() {
         const state = {};
-        tokenCheckboxes.forEach(checkbox => {
+        columnCheckboxes.forEach(checkbox => {
             const tokenId = checkbox.dataset.tokenId;
-            state[tokenId] = checkbox.checked;
+            const colType = checkbox.dataset.colType;
+            const key = `${tokenId}_${colType}`;
+            state[key] = checkbox.checked;
         });
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+        localStorage.setItem(COLUMNS_STORAGE_KEY, JSON.stringify(state));
     }
 
-    // Обновление видимости колонок
-    function updateColumnVisibility(tokenId, marketplace, visible) {
-        const columnTypes = ['stock', 'orders', 'delivered', 'cancelled', 'percent'];
-
+    // Обновление видимости конкретной колонки
+    function updateSingleColumnVisibility(tokenId, marketplace, colType, visible) {
         if (marketplace === 'ozon') {
-            // Для Ozon скрываем/показываем все колонки Ozon
-            columnTypes.forEach(type => {
-                document.querySelectorAll(`.ozon-${type}-col`).forEach(el => {
-                    el.style.display = visible ? '' : 'none';
-                });
+            document.querySelectorAll(`.ozon-${colType}-col`).forEach(el => {
+                el.style.display = visible ? '' : 'none';
             });
         } else if (marketplace === 'wildberries') {
-            // Для WB скрываем/показываем все колонки конкретного токена
-            columnTypes.forEach(type => {
-                document.querySelectorAll(`.wb-${type}-col[data-token-id="${tokenId}"]`).forEach(el => {
-                    el.style.display = visible ? '' : 'none';
-                });
+            document.querySelectorAll(`.wb-${colType}-col[data-token-id="${tokenId}"]`).forEach(el => {
+                el.style.display = visible ? '' : 'none';
             });
         }
-        // Обновляем colspan всех заголовков
+        // Обновляем colspan заголовка этого типа
         updateAllHeaderColspans();
     }
 
@@ -414,15 +443,15 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Считаем видимые колонки данного типа
         const allCols = marketplaceRow.querySelectorAll(`.ozon-${colClass}-col, .wb-${colClass}-col`);
-        let visibleCount = 0;
+        let visibleColsCount = 0;
         allCols.forEach(col => {
             if (col.style.display !== 'none') {
-                visibleCount++;
+                visibleColsCount++;
             }
         });
 
-        if (visibleCount > 0) {
-            header.colSpan = visibleCount;
+        if (visibleColsCount > 0) {
+            header.colSpan = visibleColsCount;
             header.style.display = '';
         } else {
             header.style.display = 'none';
@@ -444,40 +473,42 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Инициализация чекбоксов и видимости
-    function initTokenVisibility() {
-        const savedState = loadTokenVisibility();
+    // Инициализация чекбоксов колонок
+    function initColumnVisibility() {
+        const savedState = loadColumnVisibility();
 
-        tokenCheckboxes.forEach(checkbox => {
+        columnCheckboxes.forEach(checkbox => {
             const tokenId = checkbox.dataset.tokenId;
             const marketplace = checkbox.dataset.marketplace;
+            const colType = checkbox.dataset.colType;
+            const key = `${tokenId}_${colType}`;
 
             // Устанавливаем состояние чекбокса из сохраненного или по умолчанию (checked)
-            if (savedState && savedState.hasOwnProperty(tokenId)) {
-                checkbox.checked = savedState[tokenId];
+            if (savedState && savedState.hasOwnProperty(key)) {
+                checkbox.checked = savedState[key];
             } else {
                 // По умолчанию все включены
                 checkbox.checked = true;
             }
 
             // Применяем видимость
-            updateColumnVisibility(tokenId, marketplace, checkbox.checked);
+            updateSingleColumnVisibility(tokenId, marketplace, colType, checkbox.checked);
 
             // Обработчик изменения чекбокса
             checkbox.addEventListener('change', function() {
-                updateColumnVisibility(tokenId, marketplace, this.checked);
-                saveTokenVisibility();
+                updateSingleColumnVisibility(tokenId, marketplace, colType, this.checked);
+                saveColumnVisibility();
             });
         });
 
         // Сохраняем начальное состояние если его не было
         if (!savedState) {
-            saveTokenVisibility();
+            saveColumnVisibility();
         }
     }
 
-    // Инициализируем видимость токенов
-    initTokenVisibility();
+    // Инициализируем видимость колонок
+    initColumnVisibility();
 
     // === Drag and Drop для изменения порядка токенов ===
     const tokenList = document.getElementById('token-list');
