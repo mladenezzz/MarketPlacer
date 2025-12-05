@@ -160,8 +160,8 @@
                                         <small>Все</small> <i class="bi bi-arrow-down-up text-muted"></i>
                                     </th>
                                     {% for wb_token in wb_tokens|default([]) %}
-                                    <th class="text-center wb-stock-col" data-token-id="{{ wb_token.id }}">
-                                        <small>{{ wb_token.name }}</small>
+                                    <th class="text-center sortable wb-stock-col" data-token-id="{{ wb_token.id }}" data-sort="wb_stock_{{ wb_token.id }}" style="cursor: pointer;">
+                                        <small>{{ wb_token.name }}</small> <i class="bi bi-arrow-down-up text-muted"></i>
                                     </th>
                                     {% endfor %}
                                 </tr>
@@ -170,7 +170,12 @@
                                 {% for article, size, delivered_count, cancelled_count, stock_count in ozon_products %}
                                 {% set total = delivered_count + cancelled_count %}
                                 {% set buyout_percent = (delivered_count / total * 100) if total > 0 else 0 %}
-                                <tr data-article="{{ article }}" data-size="{{ size }}" data-total="{{ total }}" data-delivered="{{ delivered_count }}" data-cancelled="{{ cancelled_count }}" data-percent="{{ buyout_percent }}" data-stock="{{ stock_count }}">
+                                <tr data-article="{{ article }}" data-size="{{ size }}" data-total="{{ total }}" data-delivered="{{ delivered_count }}" data-cancelled="{{ cancelled_count }}" data-percent="{{ buyout_percent }}" data-stock="{{ stock_count }}"
+                                    {% for wb_token in wb_tokens|default([]) %}
+                                    {% set wb_key = article ~ '|' ~ (size if size else '') %}
+                                    {% set wb_stock = wb_stocks_by_token.get(wb_token.id, {}).get('stocks', {}).get(wb_key, 0) %}
+                                    data-wb_stock_{{ wb_token.id }}="{{ wb_stock }}"
+                                    {% endfor %}>
                                     <td><strong>{{ article }}</strong></td>
                                     <td>{{ size if size else '-' }}</td>
                                     <td class="text-center ozon-stock-col">
