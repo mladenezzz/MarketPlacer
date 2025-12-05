@@ -503,6 +503,7 @@ document.addEventListener('DOMContentLoaded', function() {
             checkbox.addEventListener('change', function() {
                 updateSingleColumnVisibility(tokenId, marketplace, colType, this.checked);
                 saveColumnVisibility();
+                updateEmptyRowsVisibility();
             });
         });
 
@@ -512,8 +513,81 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
+    // Функция для скрытия строк, где все видимые значения равны 0
+    function updateEmptyRowsVisibility() {
+        if (!tableBody) return;
+
+        const rows = tableBody.querySelectorAll('tr');
+        let visibleRows = 0;
+
+        rows.forEach(row => {
+            // Получаем видимые колонки
+            const visibleColumns = getVisibleColumnsForRow();
+
+            // Проверяем, есть ли хотя бы одно ненулевое значение
+            let hasNonZeroValue = false;
+            visibleColumns.forEach(col => {
+                const value = parseFloat(row.dataset[col.dataKey]) || 0;
+                if (value !== 0) {
+                    hasNonZeroValue = true;
+                }
+            });
+
+            // Также проверяем фильтр по артикулу
+            const filterValue = filterInput ? filterInput.value.toLowerCase().trim() : '';
+            const articleText = row.dataset.article ? row.dataset.article.toLowerCase() : '';
+            const matchesFilter = filterValue === '' || articleText.startsWith(filterValue);
+
+            // Показываем строку только если есть данные и соответствует фильтру
+            if (hasNonZeroValue && matchesFilter) {
+                row.style.display = '';
+                visibleRows++;
+            } else {
+                row.style.display = 'none';
+            }
+        });
+
+        // Обновляем счетчик
+        if (visibleCount) {
+            visibleCount.textContent = visibleRows;
+        }
+    }
+
+    // Получение видимых колонок для проверки строк
+    function getVisibleColumnsForRow() {
+        const columns = [];
+
+        columnCheckboxes.forEach(checkbox => {
+            if (!checkbox.checked) return;
+
+            const tokenId = checkbox.dataset.tokenId;
+            const marketplace = checkbox.dataset.marketplace;
+            const colType = checkbox.dataset.colType;
+
+            let dataKey;
+            if (marketplace === 'ozon') {
+                switch (colType) {
+                    case 'stock': dataKey = 'stock'; break;
+                    case 'orders': dataKey = 'total'; break;
+                    case 'delivered': dataKey = 'delivered'; break;
+                    case 'cancelled': dataKey = 'cancelled'; break;
+                    case 'percent': dataKey = 'percent'; break;
+                }
+            } else if (marketplace === 'wildberries') {
+                dataKey = `wb_${colType}_${tokenId}`;
+            }
+
+            columns.push({ dataKey: dataKey });
+        });
+
+        return columns;
+    }
+
     // Инициализируем видимость колонок
     initColumnVisibility();
+
+    // Скрываем пустые строки после инициализации
+    updateEmptyRowsVisibility();
 
     // === Drag and Drop для изменения порядка токенов ===
     const tokenList = document.getElementById('token-list');
@@ -756,29 +830,8 @@ document.addEventListener('DOMContentLoaded', function() {
     // Фильтрация по артикулу
     if (filterInput && tableBody) {
         filterInput.addEventListener('input', function() {
-            const filterValue = this.value.toLowerCase().trim();
-            const rows = tableBody.querySelectorAll('tr');
-            let visibleRows = 0;
-
-            rows.forEach(row => {
-                const articleCell = row.querySelector('td:first-child');
-                if (articleCell) {
-                    const articleText = articleCell.textContent.toLowerCase();
-
-                    // Показываем строку, если артикул начинается с введенного текста
-                    if (filterValue === '' || articleText.startsWith(filterValue)) {
-                        row.style.display = '';
-                        visibleRows++;
-                    } else {
-                        row.style.display = 'none';
-                    }
-                }
-            });
-
-            // Обновляем счетчик
-            if (visibleCount) {
-                visibleCount.textContent = visibleRows;
-            }
+            // Используем общую функцию для обновления видимости строк
+            updateEmptyRowsVisibility();
         });
 
         // Фокус на поле поиска при нажатии Ctrl+F или Cmd+F
