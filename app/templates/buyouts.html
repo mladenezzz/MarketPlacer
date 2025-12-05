@@ -352,11 +352,6 @@
 </div>
 {% endblock %}
 
-{% block extra_head %}
-<!-- SheetJS для экспорта в Excel -->
-<script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
-{% endblock %}
-
 {% block extra_css %}
 <style>
     .token-item.dragging {
@@ -389,6 +384,8 @@
 {% endblock %}
 
 {% block extra_js %}
+<!-- SheetJS для экспорта в Excel -->
+<script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const filterInput = document.getElementById('articleFilter');
