@@ -14,10 +14,17 @@
                 </div>
                 <div class="card-body">
                     {% if tokens %}
-                        <p class="text-muted mb-4">Выберите аккаунты для анализа выкупов:</p>
-                        <div class="list-group">
+                        <p class="text-muted mb-4">Выберите аккаунты для анализа выкупов (перетаскивайте для изменения порядка):</p>
+                        <div class="list-group" id="token-list">
                             {% for token in tokens %}
-                                <div class="list-group-item d-flex align-items-center">
+                                <div class="list-group-item d-flex align-items-center token-item"
+                                     data-token-id="{{ token.id }}"
+                                     data-marketplace="{{ token.marketplace }}"
+                                     draggable="true"
+                                     style="cursor: grab;">
+                                    <div class="me-2 text-muted drag-handle">
+                                        <i class="bi bi-grip-vertical"></i>
+                                    </div>
                                     <div class="form-check me-3" style="min-width: 20px;">
                                         <input class="form-check-input token-checkbox" type="checkbox"
                                                id="token_{{ token.id }}"
@@ -193,6 +200,24 @@
 </div>
 {% endblock %}
 
+{% block extra_css %}
+<style>
+    .token-item.dragging {
+        opacity: 0.5;
+        background-color: #e9ecef;
+    }
+    .token-item.drag-over {
+        border-top: 3px solid #0d6efd;
+    }
+    .drag-handle {
+        cursor: grab;
+    }
+    .drag-handle:active {
+        cursor: grabbing;
+    }
+</style>
+{% endblock %}
+
 {% block extra_js %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
@@ -201,8 +226,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const visibleCount = document.getElementById('visibleCount');
     const totalCount = {{ ozon_products|length }};
 
-    // === Управление видимостью колонок по чекбоксам ===
+    // === Управление видимостью и порядком колонок ===
     const STORAGE_KEY = 'buyouts_token_visibility';
+    const ORDER_STORAGE_KEY = 'buyouts_token_order';
     const tokenCheckboxes = document.querySelectorAll('.token-checkbox');
 
     // Загрузка сохраненного состояния из localStorage
@@ -277,6 +303,201 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Инициализируем видимость токенов
     initTokenVisibility();
+
+    // === Drag and Drop для изменения порядка токенов ===
+    const tokenList = document.getElementById('token-list');
+    const tokenItems = tokenList ? tokenList.querySelectorAll('.token-item') : [];
+    let draggedItem = null;
+
+    // Загрузка сохраненного порядка
+    function loadTokenOrder() {
+        const saved = localStorage.getItem(ORDER_STORAGE_KEY);
+        if (saved) {
+            try {
+                return JSON.parse(saved);
+            } catch (e) {
+                return null;
+            }
+        }
+        return null;
+    }
+
+    // Сохранение порядка токенов
+    function saveTokenOrder() {
+        if (!tokenList) return;
+        const items = tokenList.querySelectorAll('.token-item');
+        const order = Array.from(items).map(item => item.dataset.tokenId);
+        localStorage.setItem(ORDER_STORAGE_KEY, JSON.stringify(order));
+    }
+
+    // Применение сохраненного порядка к списку токенов
+    function applyTokenOrder() {
+        if (!tokenList) return;
+        const savedOrder = loadTokenOrder();
+        if (!savedOrder) return;
+
+        const items = Array.from(tokenList.querySelectorAll('.token-item'));
+        const orderedItems = [];
+
+        // Сначала добавляем элементы в сохраненном порядке
+        savedOrder.forEach(tokenId => {
+            const item = items.find(i => i.dataset.tokenId === tokenId);
+            if (item) {
+                orderedItems.push(item);
+            }
+        });
+
+        // Добавляем оставшиеся элементы (новые токены)
+        items.forEach(item => {
+            if (!orderedItems.includes(item)) {
+                orderedItems.push(item);
+            }
+        });
+
+        // Перестраиваем DOM
+        orderedItems.forEach(item => tokenList.appendChild(item));
+    }
+
+    // Обновление порядка колонок в таблице
+    function reorderTableColumns() {
+        if (!tokenList || !tableBody) return;
+
+        const table = document.querySelector('table');
+        if (!table) return;
+
+        const thead = table.querySelector('thead tr');
+        const rows = table.querySelectorAll('tbody tr');
+
+        // Получаем текущий порядок токенов
+        const tokenOrder = Array.from(tokenList.querySelectorAll('.token-item'))
+            .map(item => ({
+                id: item.dataset.tokenId,
+                marketplace: item.dataset.marketplace
+            }));
+
+        // Находим базовый индекс (после колонки "Размер" = индекс 2)
+        const baseIndex = 2; // Артикул(0), Размер(1), затем остатки
+
+        // Собираем все колонки остатков
+        const stockColumns = [];
+
+        // Ozon колонка
+        const ozonHeader = thead.querySelector('.ozon-stock-col');
+        if (ozonHeader) {
+            stockColumns.push({
+                type: 'ozon',
+                header: ozonHeader,
+                cells: Array.from(rows).map(row => row.querySelector('.ozon-stock-col'))
+            });
+        }
+
+        // WB колонки
+        tokenOrder.filter(t => t.marketplace === 'wildberries').forEach(token => {
+            const header = thead.querySelector(`.wb-stock-col[data-token-id="${token.id}"]`);
+            if (header) {
+                stockColumns.push({
+                    type: 'wb',
+                    tokenId: token.id,
+                    header: header,
+                    cells: Array.from(rows).map(row =>
+                        row.querySelector(`.wb-stock-col[data-token-id="${token.id}"]`)
+                    )
+                });
+            }
+        });
+
+        // Переупорядочиваем колонки согласно порядку токенов
+        const orderedColumns = [];
+        tokenOrder.forEach(token => {
+            if (token.marketplace === 'ozon') {
+                const col = stockColumns.find(c => c.type === 'ozon');
+                if (col && !orderedColumns.includes(col)) {
+                    orderedColumns.push(col);
+                }
+            } else if (token.marketplace === 'wildberries') {
+                const col = stockColumns.find(c => c.type === 'wb' && c.tokenId === token.id);
+                if (col && !orderedColumns.includes(col)) {
+                    orderedColumns.push(col);
+                }
+            }
+        });
+
+        // Находим референсную колонку (первая колонка после остатков - "Заказано")
+        const allHeaders = Array.from(thead.querySelectorAll('th'));
+        let referenceHeader = null;
+        for (let i = 0; i < allHeaders.length; i++) {
+            if (allHeaders[i].dataset.sort === 'total') {
+                referenceHeader = allHeaders[i];
+                break;
+            }
+        }
+
+        // Вставляем колонки в правильном порядке
+        orderedColumns.forEach(col => {
+            if (col.header && referenceHeader) {
+                thead.insertBefore(col.header, referenceHeader);
+            }
+            col.cells.forEach((cell, idx) => {
+                if (cell && rows[idx]) {
+                    const refCell = rows[idx].querySelector('td[class="text-center"]:not(.ozon-stock-col):not(.wb-stock-col)');
+                    if (refCell) {
+                        rows[idx].insertBefore(cell, refCell);
+                    }
+                }
+            });
+        });
+    }
+
+    // Инициализация drag and drop
+    if (tokenList && tokenItems.length > 0) {
+        tokenItems.forEach(item => {
+            item.addEventListener('dragstart', function(e) {
+                draggedItem = this;
+                this.classList.add('dragging');
+                e.dataTransfer.effectAllowed = 'move';
+            });
+
+            item.addEventListener('dragend', function() {
+                this.classList.remove('dragging');
+                document.querySelectorAll('.token-item').forEach(i => i.classList.remove('drag-over'));
+                draggedItem = null;
+                saveTokenOrder();
+                reorderTableColumns();
+            });
+
+            item.addEventListener('dragover', function(e) {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+                if (this !== draggedItem) {
+                    this.classList.add('drag-over');
+                }
+            });
+
+            item.addEventListener('dragleave', function() {
+                this.classList.remove('drag-over');
+            });
+
+            item.addEventListener('drop', function(e) {
+                e.preventDefault();
+                this.classList.remove('drag-over');
+                if (draggedItem && this !== draggedItem) {
+                    const allItems = Array.from(tokenList.querySelectorAll('.token-item'));
+                    const draggedIndex = allItems.indexOf(draggedItem);
+                    const targetIndex = allItems.indexOf(this);
+
+                    if (draggedIndex < targetIndex) {
+                        tokenList.insertBefore(draggedItem, this.nextSibling);
+                    } else {
+                        tokenList.insertBefore(draggedItem, this);
+                    }
+                }
+            });
+        });
+
+        // Применяем сохраненный порядок при загрузке
+        applyTokenOrder();
+        reorderTableColumns();
+    }
 
     // Функция для получения порядка размера
     function getSizeOrder(size) {
