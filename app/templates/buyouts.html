@@ -19,10 +19,11 @@
                             {% for token in tokens %}
                                 <div class="list-group-item d-flex align-items-center">
                                     <div class="form-check me-3" style="min-width: 20px;">
-                                        <input class="form-check-input" type="checkbox"
+                                        <input class="form-check-input token-checkbox" type="checkbox"
                                                id="token_{{ token.id }}"
                                                value="{{ token.id }}"
-                                               {% if token.marketplace == 'ozon' %}checked{% endif %}>
+                                               data-token-id="{{ token.id }}"
+                                               data-marketplace="{{ token.marketplace }}">
                                     </div>
                                     <div class="me-3" style="min-width: 130px;">
                                         {% if token.marketplace == 'wildberries' %}
@@ -121,12 +122,12 @@
                                         Артикул <i class="bi bi-arrow-down-up text-muted"></i>
                                     </th>
                                     <th>Размер</th>
-                                    <th class="text-center sortable" data-sort="stock" style="cursor: pointer;">
+                                    <th class="text-center sortable ozon-stock-col" data-sort="stock" style="cursor: pointer;">
                                         <span style="white-space: pre-line;">Ozon
 Остатки</span> <i class="bi bi-arrow-down-up text-muted"></i>
                                     </th>
                                     {% for wb_token in wb_tokens|default([]) %}
-                                    <th class="text-center" style="cursor: default;">
+                                    <th class="text-center wb-stock-col" data-token-id="{{ wb_token.id }}" style="cursor: default;">
                                         <span style="white-space: pre-line;">WB
 {{ wb_token.name }}</span>
                                     </th>
@@ -152,13 +153,13 @@
                                 <tr data-article="{{ article }}" data-size="{{ size }}" data-total="{{ total }}" data-delivered="{{ delivered_count }}" data-cancelled="{{ cancelled_count }}" data-percent="{{ buyout_percent }}" data-stock="{{ stock_count }}">
                                     <td><strong>{{ article }}</strong></td>
                                     <td>{{ size if size else '-' }}</td>
-                                    <td class="text-center">
+                                    <td class="text-center ozon-stock-col">
                                         <span class="badge bg-secondary">{{ stock_count }}</span>
                                     </td>
                                     {% for wb_token in wb_tokens|default([]) %}
                                     {% set wb_key = article ~ '|' ~ (size if size else '') %}
                                     {% set wb_stock = wb_stocks_by_token.get(wb_token.id, {}).get('stocks', {}).get(wb_key, 0) %}
-                                    <td class="text-center">
+                                    <td class="text-center wb-stock-col" data-token-id="{{ wb_token.id }}">
                                         <span class="badge bg-purple">{{ wb_stock }}</span>
                                     </td>
                                     {% endfor %}
@@ -199,6 +200,83 @@ document.addEventListener('DOMContentLoaded', function() {
     const tableBody = document.querySelector('table tbody');
     const visibleCount = document.getElementById('visibleCount');
     const totalCount = {{ ozon_products|length }};
+
+    // === Управление видимостью колонок по чекбоксам ===
+    const STORAGE_KEY = 'buyouts_token_visibility';
+    const tokenCheckboxes = document.querySelectorAll('.token-checkbox');
+
+    // Загрузка сохраненного состояния из localStorage
+    function loadTokenVisibility() {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved) {
+            try {
+                return JSON.parse(saved);
+            } catch (e) {
+                return null;
+            }
+        }
+        return null;
+    }
+
+    // Сохранение состояния в localStorage
+    function saveTokenVisibility() {
+        const state = {};
+        tokenCheckboxes.forEach(checkbox => {
+            const tokenId = checkbox.dataset.tokenId;
+            state[tokenId] = checkbox.checked;
+        });
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    }
+
+    // Обновление видимости колонок
+    function updateColumnVisibility(tokenId, marketplace, visible) {
+        if (marketplace === 'ozon') {
+            // Для Ozon скрываем/показываем колонку остатков Ozon
+            document.querySelectorAll('.ozon-stock-col').forEach(el => {
+                el.style.display = visible ? '' : 'none';
+            });
+        } else if (marketplace === 'wildberries') {
+            // Для WB скрываем/показываем колонку конкретного токена
+            document.querySelectorAll(`.wb-stock-col[data-token-id="${tokenId}"]`).forEach(el => {
+                el.style.display = visible ? '' : 'none';
+            });
+        }
+    }
+
+    // Инициализация чекбоксов и видимости
+    function initTokenVisibility() {
+        const savedState = loadTokenVisibility();
+
+        tokenCheckboxes.forEach(checkbox => {
+            const tokenId = checkbox.dataset.tokenId;
+            const marketplace = checkbox.dataset.marketplace;
+
+            // Устанавливаем состояние чекбокса из сохраненного или по умолчанию (checked)
+            if (savedState && savedState.hasOwnProperty(tokenId)) {
+                checkbox.checked = savedState[tokenId];
+            } else {
+                // По умолчанию все включены
+                checkbox.checked = true;
+            }
+
+            // Применяем видимость
+            updateColumnVisibility(tokenId, marketplace, checkbox.checked);
+
+            // Обработчик изменения чекбокса
+            checkbox.addEventListener('change', function() {
+                updateColumnVisibility(tokenId, marketplace, this.checked);
+                saveTokenVisibility();
+            });
+        });
+
+        // Сохраняем начальное состояние если его не было
+        if (!savedState) {
+            saveTokenVisibility();
+        }
+    }
+
+    // Инициализируем видимость токенов
+    initTokenVisibility();
 
     // Функция для получения порядка размера
     function getSizeOrder(size) {
