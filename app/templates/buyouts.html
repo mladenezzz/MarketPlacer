@@ -175,11 +175,12 @@
                                     <th class="text-center wb-percent-col" data-token-id="{{ wb_token.id }}">WB</th>
                                     {% endfor %}
                                 </tr>
+                                {% set ozon_token_names = ozon_tokens|default([])|map(attribute='name')|join(', ') %}
                                 <!-- Третья строка: названия токенов -->
                                 <tr id="token-name-row">
                                     <!-- Остатки -->
                                     <th class="text-center sortable ozon-stock-col" data-sort="stock" style="cursor: pointer;">
-                                        <small>Все</small> <i class="bi bi-arrow-down-up text-muted"></i>
+                                        <small>{{ ozon_token_names or 'Все' }}</small> <i class="bi bi-arrow-down-up text-muted"></i>
                                     </th>
                                     {% for wb_token in wb_tokens|default([]) %}
                                     <th class="text-center sortable wb-stock-col" data-token-id="{{ wb_token.id }}" data-sort="wb_stock_{{ wb_token.id }}" style="cursor: pointer;">
@@ -188,7 +189,7 @@
                                     {% endfor %}
                                     <!-- Заказано -->
                                     <th class="text-center sortable ozon-orders-col" data-sort="total" style="cursor: pointer;">
-                                        <small>Все</small> <i class="bi bi-arrow-down-up text-muted"></i>
+                                        <small>{{ ozon_token_names or 'Все' }}</small> <i class="bi bi-arrow-down-up text-muted"></i>
                                     </th>
                                     {% for wb_token in wb_tokens|default([]) %}
                                     <th class="text-center sortable wb-orders-col" data-token-id="{{ wb_token.id }}" data-sort="wb_orders_{{ wb_token.id }}" style="cursor: pointer;">
@@ -197,7 +198,7 @@
                                     {% endfor %}
                                     <!-- Выкуплено -->
                                     <th class="text-center sortable ozon-delivered-col" data-sort="delivered" style="cursor: pointer;">
-                                        <small>Все</small> <i class="bi bi-arrow-down-up text-muted"></i>
+                                        <small>{{ ozon_token_names or 'Все' }}</small> <i class="bi bi-arrow-down-up text-muted"></i>
                                     </th>
                                     {% for wb_token in wb_tokens|default([]) %}
                                     <th class="text-center sortable wb-delivered-col" data-token-id="{{ wb_token.id }}" data-sort="wb_delivered_{{ wb_token.id }}" style="cursor: pointer;">
@@ -206,7 +207,7 @@
                                     {% endfor %}
                                     <!-- Отменено -->
                                     <th class="text-center sortable ozon-cancelled-col" data-sort="cancelled" style="cursor: pointer;">
-                                        <small>Все</small> <i class="bi bi-arrow-down-up text-muted"></i>
+                                        <small>{{ ozon_token_names or 'Все' }}</small> <i class="bi bi-arrow-down-up text-muted"></i>
                                     </th>
                                     {% for wb_token in wb_tokens|default([]) %}
                                     <th class="text-center sortable wb-cancelled-col" data-token-id="{{ wb_token.id }}" data-sort="wb_cancelled_{{ wb_token.id }}" style="cursor: pointer;">
@@ -215,7 +216,7 @@
                                     {% endfor %}
                                     <!-- % выкупа -->
                                     <th class="text-center sortable ozon-percent-col" data-sort="percent" style="cursor: pointer;">
-                                        <small>Все</small> <i class="bi bi-arrow-down-up text-muted"></i>
+                                        <small>{{ ozon_token_names or 'Все' }}</small> <i class="bi bi-arrow-down-up text-muted"></i>
                                     </th>
                                     {% for wb_token in wb_tokens|default([]) %}
                                     <th class="text-center sortable wb-percent-col" data-token-id="{{ wb_token.id }}" data-sort="wb_percent_{{ wb_token.id }}" style="cursor: pointer;">
