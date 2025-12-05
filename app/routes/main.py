@@ -2,6 +2,7 @@ from flask import Blueprint, render_template, jsonify, request
 from flask_login import login_required, current_user
 from datetime import datetime
 from app.models import Token, OzonOrder, OzonStock, db
+from app.models.wildberries import WBStock, WBGood
 from app.services.sales_service import SalesService
 from sqlalchemy import distinct, func
 
@@ -217,6 +218,7 @@ def buyouts():
     # Формируем список токенов для отображения
     tokens_list = []
     ozon_token_ids = []
+    wb_tokens = []  # Список WB токенов с их данными
 
     for token in user_tokens:
         # Фильтруем только Wildberries и Ozon
@@ -233,6 +235,8 @@ def buyouts():
 
         if token.marketplace == 'ozon':
             ozon_token_ids.append(token.id)
+        elif token.marketplace == 'wildberries':
+            wb_tokens.append({'id': token.id, 'name': token_name})
 
     # Получаем уникальные сочетания артикул+размер для Ozon токенов с подсчётом статусов
     ozon_products = []
@@ -313,7 +317,46 @@ def buyouts():
             for article, size in sorted_keys
         ]
 
-    return render_template('buyouts.html', tokens=tokens_list, ozon_products=ozon_products)
+    # Получаем остатки WB для каждого токена
+    wb_stocks_by_token = {}  # {token_id: {(article, size): quantity}}
+    today = datetime.now().date()
+
+    for wb_token in wb_tokens:
+        token_id = wb_token['id']
+        token_name = wb_token['name']
+
+        # Получаем остатки на сегодня для данного токена
+        stocks = db.session.query(
+            WBGood.vendor_code,
+            WBGood.tech_size,
+            func.sum(WBStock.quantity).label('total_quantity')
+        ).join(
+            WBStock, WBStock.product_id == WBGood.id
+        ).filter(
+            WBStock.token_id == token_id,
+            func.date(WBStock.date) == today
+        ).group_by(
+            WBGood.vendor_code,
+            WBGood.tech_size
+        ).having(
+            func.sum(WBStock.quantity) > 0
+        ).all()
+
+        # Формируем словарь остатков для этого токена
+        # Используем строковый ключ "article|size" для совместимости с Jinja
+        token_stocks = {}
+        for stock in stocks:
+            if stock.vendor_code:
+                key = f"{stock.vendor_code}|{stock.tech_size or ''}"
+                token_stocks[key] = int(stock.total_quantity or 0)
+
+        wb_stocks_by_token[token_id] = {
+            'name': token_name,
+            'stocks': token_stocks
+        }
+
+    return render_template('buyouts.html', tokens=tokens_list, ozon_products=ozon_products,
+                          wb_tokens=wb_tokens, wb_stocks_by_token=wb_stocks_by_token)
 
 
 @main_bp.route('/api/orders/<int:token_id>/range')
