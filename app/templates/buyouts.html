@@ -122,8 +122,15 @@
                                     </th>
                                     <th>Размер</th>
                                     <th class="text-center sortable" data-sort="stock" style="cursor: pointer;">
-                                        Остатки <i class="bi bi-arrow-down-up text-muted"></i>
+                                        <span style="white-space: pre-line;">Ozon
+Остатки</span> <i class="bi bi-arrow-down-up text-muted"></i>
                                     </th>
+                                    {% for wb_token in wb_tokens|default([]) %}
+                                    <th class="text-center" style="cursor: default;">
+                                        <span style="white-space: pre-line;">WB
+{{ wb_token.name }}</span>
+                                    </th>
+                                    {% endfor %}
                                     <th class="text-center sortable" data-sort="total" style="cursor: pointer;">
                                         Заказано <i class="bi bi-arrow-down-up text-muted"></i>
                                     </th>
@@ -148,6 +155,13 @@
                                     <td class="text-center">
                                         <span class="badge bg-secondary">{{ stock_count }}</span>
                                     </td>
+                                    {% for wb_token in wb_tokens|default([]) %}
+                                    {% set wb_key = article ~ '|' ~ (size if size else '') %}
+                                    {% set wb_stock = wb_stocks_by_token.get(wb_token.id, {}).get('stocks', {}).get(wb_key, 0) %}
+                                    <td class="text-center">
+                                        <span class="badge bg-purple">{{ wb_stock }}</span>
+                                    </td>
+                                    {% endfor %}
                                     <td class="text-center">
                                         <span class="badge bg-info">{{ total }}</span>
                                     </td>
