@@ -118,7 +118,7 @@
                             <label for="date-range-picker" class="form-label">Выберите дату или период:</label>
                             <input type="text" class="form-control" id="date-range-picker" placeholder="Все время..." style="background-color: white; cursor: pointer;" readonly>
                         </div>
-                        <div class="col-md-6">
+                        <div class="col-md-4">
                             <div class="btn-group w-100" role="group">
                                 <button type="button" class="btn btn-outline-secondary" id="reset-dates">
                                     <i class="bi bi-infinity"></i> Все время
@@ -130,6 +130,11 @@
                                     <i class="bi bi-calendar-month"></i> Месяц
                                 </button>
                             </div>
+                        </div>
+                        <div class="col-md-2">
+                            <button type="button" class="btn btn-primary w-100" id="refresh-stocks">
+                                <i class="bi bi-arrow-clockwise"></i> Обновить остатки
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -1043,6 +1048,53 @@ document.addEventListener('DOMContentLoaded', function() {
         picker.selectDate([monthAgo, today]);
         reloadWithDates(monthAgo, today);
     });
+
+    // Обработчик кнопки "Обновить остатки"
+    const refreshBtn = document.getElementById('refresh-stocks');
+    if (refreshBtn) {
+        refreshBtn.addEventListener('click', function() {
+            const btn = this;
+            const originalHtml = btn.innerHTML;
+
+            // Показываем индикатор загрузки
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span> Обновление...';
+
+            fetch('/api/stocks/refresh', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Показываем успешное сообщение
+                    btn.innerHTML = '<i class="bi bi-check-lg"></i> Запущено!';
+                    btn.classList.remove('btn-primary');
+                    btn.classList.add('btn-success');
+
+                    // Через 3 секунды возвращаем кнопку в исходное состояние
+                    setTimeout(() => {
+                        btn.innerHTML = originalHtml;
+                        btn.classList.remove('btn-success');
+                        btn.classList.add('btn-primary');
+                        btn.disabled = false;
+                    }, 3000);
+                } else {
+                    alert('Ошибка: ' + data.error);
+                    btn.innerHTML = originalHtml;
+                    btn.disabled = false;
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Произошла ошибка при обновлении остатков');
+                btn.innerHTML = originalHtml;
+                btn.disabled = false;
+            });
+        });
+    }
 
     // Сортировка таблицы
     const table = document.querySelector('table');
