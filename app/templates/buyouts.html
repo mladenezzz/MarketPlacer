@@ -806,6 +806,34 @@ document.addEventListener('DOMContentLoaded', function() {
         return sizeOrder[size] !== undefined ? sizeOrder[size] : 999;
     }
 
+    // Естественная сортировка для артикулов (2089090018-1, 2089090018-2, 2089090018-11)
+    function naturalCompare(a, b) {
+        const aParts = a.split(/(-?\d+)/);
+        const bParts = b.split(/(-?\d+)/);
+
+        for (let i = 0; i < Math.max(aParts.length, bParts.length); i++) {
+            const aPart = aParts[i] || '';
+            const bPart = bParts[i] || '';
+
+            // Если обе части - числа, сравниваем как числа
+            const aNum = parseInt(aPart, 10);
+            const bNum = parseInt(bPart, 10);
+
+            if (!isNaN(aNum) && !isNaN(bNum)) {
+                if (aNum !== bNum) {
+                    return aNum - bNum;
+                }
+            } else {
+                // Иначе сравниваем как строки
+                const cmp = aPart.localeCompare(bPart);
+                if (cmp !== 0) {
+                    return cmp;
+                }
+            }
+        }
+        return 0;
+    }
+
     // Функция сортировки по артикулу и размеру
     function sortByArticleAndSize() {
         if (!tableBody) return;
@@ -813,7 +841,7 @@ document.addEventListener('DOMContentLoaded', function() {
         rows.sort((a, b) => {
             const aArticle = a.dataset.article.toLowerCase();
             const bArticle = b.dataset.article.toLowerCase();
-            let result = aArticle.localeCompare(bArticle);
+            let result = naturalCompare(aArticle, bArticle);
             if (result === 0) {
                 const aSize = getSizeOrder(a.dataset.size);
                 const bSize = getSizeOrder(b.dataset.size);
@@ -972,9 +1000,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     bVal = b.dataset.article.toLowerCase();
                     let result;
                     if (currentSort.direction === 'asc') {
-                        result = aVal.localeCompare(bVal);
+                        result = naturalCompare(aVal, bVal);
                     } else {
-                        result = bVal.localeCompare(aVal);
+                        result = naturalCompare(bVal, aVal);
                     }
                     // Если артикулы равны, сортируем по размеру
                     if (result === 0) {
