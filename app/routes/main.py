@@ -219,6 +219,7 @@ def buyouts():
     # Формируем список токенов для отображения
     tokens_list = []
     ozon_token_ids = []
+    ozon_tokens = []  # Список Ozon токенов с их данными
     wb_tokens = []  # Список WB токенов с их данными
 
     for token in user_tokens:
@@ -236,6 +237,7 @@ def buyouts():
 
         if token.marketplace == 'ozon':
             ozon_token_ids.append(token.id)
+            ozon_tokens.append({'id': token.id, 'name': token_name})
         elif token.marketplace == 'wildberries':
             wb_tokens.append({'id': token.id, 'name': token_name})
 
@@ -403,7 +405,7 @@ def buyouts():
         }
 
     return render_template('buyouts.html', tokens=tokens_list, ozon_products=ozon_products,
-                          wb_tokens=wb_tokens, wb_stocks_by_token=wb_stocks_by_token)
+                          ozon_tokens=ozon_tokens, wb_tokens=wb_tokens, wb_stocks_by_token=wb_stocks_by_token)
 
 
 @main_bp.route('/api/orders/<int:token_id>/range')
