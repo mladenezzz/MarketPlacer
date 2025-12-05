@@ -178,6 +178,7 @@ class WBGood(db.Model):
     tech_size = db.Column(db.String(50), nullable=True)  # Технический размер
     wb_size = db.Column(db.String(50), nullable=True)  # Размер на WB
     barcode = db.Column(db.String(200), nullable=False, unique=True)  # Штрихкод
+    gtin = db.Column(db.String(20), nullable=True)  # GTIN (Global Trade Item Number)
 
     # Фото (все ссылки через запятую)
     photos = db.Column(db.Text, nullable=True)
