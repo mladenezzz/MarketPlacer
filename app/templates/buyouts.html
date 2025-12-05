@@ -124,43 +124,101 @@
                     <div class="table-responsive">
                         <table class="table table-hover">
                             <thead>
+                                {% set token_cols_count = 1 + (wb_tokens|default([]))|length %}
                                 <!-- Первая строка: объединённые заголовки -->
                                 <tr>
                                     <th rowspan="3" class="sortable align-middle" data-sort="article" style="cursor: pointer;">
                                         Артикул <i class="bi bi-arrow-down-up text-muted"></i>
                                     </th>
                                     <th rowspan="3" class="align-middle">Размер</th>
-                                    {% set stock_cols_count = 1 + (wb_tokens|default([]))|length %}
-                                    <th colspan="{{ stock_cols_count }}" class="text-center" id="stocks-header">
+                                    <th colspan="{{ token_cols_count }}" class="text-center" id="stocks-header">
                                         Остатки
                                     </th>
-                                    <th rowspan="3" class="text-center sortable align-middle" data-sort="total" style="cursor: pointer;">
-                                        Заказано <i class="bi bi-arrow-down-up text-muted"></i>
+                                    <th colspan="{{ token_cols_count }}" class="text-center" id="orders-header">
+                                        Заказано
                                     </th>
-                                    <th rowspan="3" class="text-center sortable align-middle" data-sort="delivered" style="cursor: pointer;">
-                                        Выкуплено <i class="bi bi-arrow-down-up text-muted"></i>
+                                    <th colspan="{{ token_cols_count }}" class="text-center" id="delivered-header">
+                                        Выкуплено
                                     </th>
-                                    <th rowspan="3" class="text-center sortable align-middle" data-sort="cancelled" style="cursor: pointer;">
-                                        Отменено <i class="bi bi-arrow-down-up text-muted"></i>
+                                    <th colspan="{{ token_cols_count }}" class="text-center" id="cancelled-header">
+                                        Отменено
                                     </th>
-                                    <th rowspan="3" class="text-center sortable align-middle" data-sort="percent" style="cursor: pointer;">
-                                        % выкупа <i class="bi bi-arrow-down-up text-muted"></i>
+                                    <th colspan="{{ token_cols_count }}" class="text-center" id="percent-header">
+                                        % выкупа
                                     </th>
                                 </tr>
                                 <!-- Вторая строка: маркетплейсы -->
                                 <tr id="marketplace-row">
+                                    <!-- Остатки -->
                                     <th class="text-center ozon-stock-col">Ozon</th>
                                     {% for wb_token in wb_tokens|default([]) %}
                                     <th class="text-center wb-stock-col" data-token-id="{{ wb_token.id }}">WB</th>
                                     {% endfor %}
+                                    <!-- Заказано -->
+                                    <th class="text-center ozon-orders-col">Ozon</th>
+                                    {% for wb_token in wb_tokens|default([]) %}
+                                    <th class="text-center wb-orders-col" data-token-id="{{ wb_token.id }}">WB</th>
+                                    {% endfor %}
+                                    <!-- Выкуплено -->
+                                    <th class="text-center ozon-delivered-col">Ozon</th>
+                                    {% for wb_token in wb_tokens|default([]) %}
+                                    <th class="text-center wb-delivered-col" data-token-id="{{ wb_token.id }}">WB</th>
+                                    {% endfor %}
+                                    <!-- Отменено -->
+                                    <th class="text-center ozon-cancelled-col">Ozon</th>
+                                    {% for wb_token in wb_tokens|default([]) %}
+                                    <th class="text-center wb-cancelled-col" data-token-id="{{ wb_token.id }}">WB</th>
+                                    {% endfor %}
+                                    <!-- % выкупа -->
+                                    <th class="text-center ozon-percent-col">Ozon</th>
+                                    {% for wb_token in wb_tokens|default([]) %}
+                                    <th class="text-center wb-percent-col" data-token-id="{{ wb_token.id }}">WB</th>
+                                    {% endfor %}
                                 </tr>
                                 <!-- Третья строка: названия токенов -->
                                 <tr id="token-name-row">
+                                    <!-- Остатки -->
                                     <th class="text-center sortable ozon-stock-col" data-sort="stock" style="cursor: pointer;">
                                         <small>Все</small> <i class="bi bi-arrow-down-up text-muted"></i>
                                     </th>
                                     {% for wb_token in wb_tokens|default([]) %}
                                     <th class="text-center sortable wb-stock-col" data-token-id="{{ wb_token.id }}" data-sort="wb_stock_{{ wb_token.id }}" style="cursor: pointer;">
+                                        <small>{{ wb_token.name }}</small> <i class="bi bi-arrow-down-up text-muted"></i>
+                                    </th>
+                                    {% endfor %}
+                                    <!-- Заказано -->
+                                    <th class="text-center sortable ozon-orders-col" data-sort="total" style="cursor: pointer;">
+                                        <small>Все</small> <i class="bi bi-arrow-down-up text-muted"></i>
+                                    </th>
+                                    {% for wb_token in wb_tokens|default([]) %}
+                                    <th class="text-center sortable wb-orders-col" data-token-id="{{ wb_token.id }}" data-sort="wb_orders_{{ wb_token.id }}" style="cursor: pointer;">
+                                        <small>{{ wb_token.name }}</small> <i class="bi bi-arrow-down-up text-muted"></i>
+                                    </th>
+                                    {% endfor %}
+                                    <!-- Выкуплено -->
+                                    <th class="text-center sortable ozon-delivered-col" data-sort="delivered" style="cursor: pointer;">
+                                        <small>Все</small> <i class="bi bi-arrow-down-up text-muted"></i>
+                                    </th>
+                                    {% for wb_token in wb_tokens|default([]) %}
+                                    <th class="text-center sortable wb-delivered-col" data-token-id="{{ wb_token.id }}" data-sort="wb_delivered_{{ wb_token.id }}" style="cursor: pointer;">
+                                        <small>{{ wb_token.name }}</small> <i class="bi bi-arrow-down-up text-muted"></i>
+                                    </th>
+                                    {% endfor %}
+                                    <!-- Отменено -->
+                                    <th class="text-center sortable ozon-cancelled-col" data-sort="cancelled" style="cursor: pointer;">
+                                        <small>Все</small> <i class="bi bi-arrow-down-up text-muted"></i>
+                                    </th>
+                                    {% for wb_token in wb_tokens|default([]) %}
+                                    <th class="text-center sortable wb-cancelled-col" data-token-id="{{ wb_token.id }}" data-sort="wb_cancelled_{{ wb_token.id }}" style="cursor: pointer;">
+                                        <small>{{ wb_token.name }}</small> <i class="bi bi-arrow-down-up text-muted"></i>
+                                    </th>
+                                    {% endfor %}
+                                    <!-- % выкупа -->
+                                    <th class="text-center sortable ozon-percent-col" data-sort="percent" style="cursor: pointer;">
+                                        <small>Все</small> <i class="bi bi-arrow-down-up text-muted"></i>
+                                    </th>
+                                    {% for wb_token in wb_tokens|default([]) %}
+                                    <th class="text-center sortable wb-percent-col" data-token-id="{{ wb_token.id }}" data-sort="wb_percent_{{ wb_token.id }}" style="cursor: pointer;">
                                         <small>{{ wb_token.name }}</small> <i class="bi bi-arrow-down-up text-muted"></i>
                                     </th>
                                     {% endfor %}
@@ -170,38 +228,75 @@
                                 {% for article, size, delivered_count, cancelled_count, stock_count in ozon_products %}
                                 {% set total = delivered_count + cancelled_count %}
                                 {% set buyout_percent = (delivered_count / total * 100) if total > 0 else 0 %}
+                                {% set wb_key = article ~ '|' ~ (size if size else '') %}
                                 <tr data-article="{{ article }}" data-size="{{ size }}" data-total="{{ total }}" data-delivered="{{ delivered_count }}" data-cancelled="{{ cancelled_count }}" data-percent="{{ buyout_percent }}" data-stock="{{ stock_count }}"
                                     {% for wb_token in wb_tokens|default([]) %}
-                                    {% set wb_key = article ~ '|' ~ (size if size else '') %}
-                                    {% set wb_stock = wb_stocks_by_token.get(wb_token.id, {}).get('stocks', {}).get(wb_key, 0) %}
+                                    {% set wb_data = wb_stocks_by_token.get(wb_token.id, {}) %}
+                                    {% set wb_stock = wb_data.get('stocks', {}).get(wb_key, 0) %}
+                                    {% set wb_order_data = wb_data.get('orders', {}).get(wb_key, {}) %}
                                     data-wb_stock_{{ wb_token.id }}="{{ wb_stock }}"
+                                    data-wb_orders_{{ wb_token.id }}="{{ wb_order_data.get('total', 0) }}"
+                                    data-wb_delivered_{{ wb_token.id }}="{{ wb_order_data.get('delivered', 0) }}"
+                                    data-wb_cancelled_{{ wb_token.id }}="{{ wb_order_data.get('cancelled', 0) }}"
+                                    data-wb_percent_{{ wb_token.id }}="{{ wb_order_data.get('percent', 0) }}"
                                     {% endfor %}>
                                     <td><strong>{{ article }}</strong></td>
                                     <td>{{ size if size else '-' }}</td>
+                                    <!-- Остатки -->
                                     <td class="text-center ozon-stock-col">
                                         <span class="badge bg-secondary">{{ stock_count }}</span>
                                     </td>
                                     {% for wb_token in wb_tokens|default([]) %}
-                                    {% set wb_key = article ~ '|' ~ (size if size else '') %}
                                     {% set wb_stock = wb_stocks_by_token.get(wb_token.id, {}).get('stocks', {}).get(wb_key, 0) %}
                                     <td class="text-center wb-stock-col" data-token-id="{{ wb_token.id }}">
                                         <span class="badge bg-purple">{{ wb_stock }}</span>
                                     </td>
                                     {% endfor %}
-                                    <td class="text-center">
+                                    <!-- Заказано -->
+                                    <td class="text-center ozon-orders-col">
                                         <span class="badge bg-info">{{ total }}</span>
                                     </td>
-                                    <td class="text-center">
+                                    {% for wb_token in wb_tokens|default([]) %}
+                                    {% set wb_order_data = wb_stocks_by_token.get(wb_token.id, {}).get('orders', {}).get(wb_key, {}) %}
+                                    <td class="text-center wb-orders-col" data-token-id="{{ wb_token.id }}">
+                                        <span class="badge bg-info">{{ wb_order_data.get('total', 0) }}</span>
+                                    </td>
+                                    {% endfor %}
+                                    <!-- Выкуплено -->
+                                    <td class="text-center ozon-delivered-col">
                                         <span class="badge bg-success">{{ delivered_count }}</span>
                                     </td>
-                                    <td class="text-center">
+                                    {% for wb_token in wb_tokens|default([]) %}
+                                    {% set wb_order_data = wb_stocks_by_token.get(wb_token.id, {}).get('orders', {}).get(wb_key, {}) %}
+                                    <td class="text-center wb-delivered-col" data-token-id="{{ wb_token.id }}">
+                                        <span class="badge bg-success">{{ wb_order_data.get('delivered', 0) }}</span>
+                                    </td>
+                                    {% endfor %}
+                                    <!-- Отменено -->
+                                    <td class="text-center ozon-cancelled-col">
                                         <span class="badge bg-danger">{{ cancelled_count }}</span>
                                     </td>
-                                    <td class="text-center">
+                                    {% for wb_token in wb_tokens|default([]) %}
+                                    {% set wb_order_data = wb_stocks_by_token.get(wb_token.id, {}).get('orders', {}).get(wb_key, {}) %}
+                                    <td class="text-center wb-cancelled-col" data-token-id="{{ wb_token.id }}">
+                                        <span class="badge bg-danger">{{ wb_order_data.get('cancelled', 0) }}</span>
+                                    </td>
+                                    {% endfor %}
+                                    <!-- % выкупа -->
+                                    <td class="text-center ozon-percent-col">
                                         <span class="badge {% if buyout_percent >= 80 %}bg-success{% elif buyout_percent >= 50 %}bg-warning{% else %}bg-danger{% endif %}">
                                             {{ "%.1f"|format(buyout_percent) }}%
                                         </span>
                                     </td>
+                                    {% for wb_token in wb_tokens|default([]) %}
+                                    {% set wb_order_data = wb_stocks_by_token.get(wb_token.id, {}).get('orders', {}).get(wb_key, {}) %}
+                                    {% set wb_percent = wb_order_data.get('percent', 0) %}
+                                    <td class="text-center wb-percent-col" data-token-id="{{ wb_token.id }}">
+                                        <span class="badge {% if wb_percent >= 80 %}bg-success{% elif wb_percent >= 50 %}bg-warning{% else %}bg-danger{% endif %}">
+                                            {{ "%.1f"|format(wb_percent) }}%
+                                        </span>
+                                    </td>
+                                    {% endfor %}
                                 </tr>
                                 {% endfor %}
                             </tbody>
@@ -274,39 +369,65 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Обновление видимости колонок
     function updateColumnVisibility(tokenId, marketplace, visible) {
+        const columnTypes = ['stock', 'orders', 'delivered', 'cancelled', 'percent'];
+
         if (marketplace === 'ozon') {
-            // Для Ozon скрываем/показываем колонку остатков Ozon
-            document.querySelectorAll('.ozon-stock-col').forEach(el => {
-                el.style.display = visible ? '' : 'none';
+            // Для Ozon скрываем/показываем все колонки Ozon
+            columnTypes.forEach(type => {
+                document.querySelectorAll(`.ozon-${type}-col`).forEach(el => {
+                    el.style.display = visible ? '' : 'none';
+                });
             });
         } else if (marketplace === 'wildberries') {
-            // Для WB скрываем/показываем колонку конкретного токена
-            document.querySelectorAll(`.wb-stock-col[data-token-id="${tokenId}"]`).forEach(el => {
-                el.style.display = visible ? '' : 'none';
+            // Для WB скрываем/показываем все колонки конкретного токена
+            columnTypes.forEach(type => {
+                document.querySelectorAll(`.wb-${type}-col[data-token-id="${tokenId}"]`).forEach(el => {
+                    el.style.display = visible ? '' : 'none';
+                });
             });
         }
-        // Обновляем colspan заголовка "Остатки"
-        updateStocksHeaderColspan();
+        // Обновляем colspan всех заголовков
+        updateAllHeaderColspans();
     }
 
-    // Обновление colspan заголовка "Остатки"
-    function updateStocksHeaderColspan() {
-        const stocksHeader = document.getElementById('stocks-header');
-        if (!stocksHeader) return;
+    // Обновление colspan для конкретного типа заголовка
+    function updateHeaderColspan(headerId, colClass) {
+        const header = document.getElementById(headerId);
+        if (!header) return;
 
-        // Считаем видимые колонки остатков
         const marketplaceRow = document.getElementById('marketplace-row');
         if (!marketplaceRow) return;
 
-        const visibleCols = marketplaceRow.querySelectorAll('th:not([style*="display: none"])');
-        const newColspan = visibleCols.length;
+        // Считаем видимые колонки данного типа
+        const allCols = marketplaceRow.querySelectorAll(`.ozon-${colClass}-col, .wb-${colClass}-col`);
+        let visibleCount = 0;
+        allCols.forEach(col => {
+            if (col.style.display !== 'none') {
+                visibleCount++;
+            }
+        });
 
-        if (newColspan > 0) {
-            stocksHeader.colSpan = newColspan;
-            stocksHeader.style.display = '';
+        if (visibleCount > 0) {
+            header.colSpan = visibleCount;
+            header.style.display = '';
         } else {
-            stocksHeader.style.display = 'none';
+            header.style.display = 'none';
         }
+    }
+
+    // Обновление colspan всех заголовков
+    function updateAllHeaderColspans() {
+        // Маппинг: id заголовка -> класс колонок
+        const headerMapping = {
+            'stocks-header': 'stock',
+            'orders-header': 'orders',
+            'delivered-header': 'delivered',
+            'cancelled-header': 'cancelled',
+            'percent-header': 'percent'
+        };
+        Object.entries(headerMapping).forEach(([headerId, colClass]) => {
+            updateHeaderColspan(headerId, colClass);
+        });
     }
 
     // Инициализация чекбоксов и видимости
@@ -398,6 +519,64 @@ document.addEventListener('DOMContentLoaded', function() {
         orderedItems.forEach(item => tokenList.appendChild(item));
     }
 
+    // Обновление порядка колонок в таблице для определенного типа
+    function reorderColumnsForType(colType, tokenOrder, rows) {
+        const marketplaceRow = document.getElementById('marketplace-row');
+        const tokenNameRow = document.getElementById('token-name-row');
+
+        if (!marketplaceRow || !tokenNameRow) return;
+
+        // Собираем все колонки данного типа
+        const columns = [];
+
+        // Ozon колонка
+        const ozonMpHeader = marketplaceRow.querySelector(`.ozon-${colType}-col`);
+        const ozonTkHeader = tokenNameRow.querySelector(`.ozon-${colType}-col`);
+        if (ozonMpHeader && ozonTkHeader) {
+            columns.push({
+                type: 'ozon',
+                marketplaceHeader: ozonMpHeader,
+                tokenHeader: ozonTkHeader,
+                cells: Array.from(rows).map(row => row.querySelector(`.ozon-${colType}-col`))
+            });
+        }
+
+        // WB колонки
+        tokenOrder.filter(t => t.marketplace === 'wildberries').forEach(token => {
+            const mpHeader = marketplaceRow.querySelector(`.wb-${colType}-col[data-token-id="${token.id}"]`);
+            const tkHeader = tokenNameRow.querySelector(`.wb-${colType}-col[data-token-id="${token.id}"]`);
+            if (mpHeader && tkHeader) {
+                columns.push({
+                    type: 'wb',
+                    tokenId: token.id,
+                    marketplaceHeader: mpHeader,
+                    tokenHeader: tkHeader,
+                    cells: Array.from(rows).map(row =>
+                        row.querySelector(`.wb-${colType}-col[data-token-id="${token.id}"]`)
+                    )
+                });
+            }
+        });
+
+        // Переупорядочиваем колонки согласно порядку токенов
+        const orderedColumns = [];
+        tokenOrder.forEach(token => {
+            if (token.marketplace === 'ozon') {
+                const col = columns.find(c => c.type === 'ozon');
+                if (col && !orderedColumns.includes(col)) {
+                    orderedColumns.push(col);
+                }
+            } else if (token.marketplace === 'wildberries') {
+                const col = columns.find(c => c.type === 'wb' && c.tokenId === token.id);
+                if (col && !orderedColumns.includes(col)) {
+                    orderedColumns.push(col);
+                }
+            }
+        });
+
+        return orderedColumns;
+    }
+
     // Обновление порядка колонок в таблице
     function reorderTableColumns() {
         if (!tokenList || !tableBody) return;
@@ -418,68 +597,24 @@ document.addEventListener('DOMContentLoaded', function() {
                 marketplace: item.dataset.marketplace
             }));
 
-        // Собираем все колонки остатков (из обеих строк заголовка и tbody)
-        const stockColumns = [];
+        // Типы колонок в порядке их расположения
+        const colTypes = ['stock', 'orders', 'delivered', 'cancelled', 'percent'];
 
-        // Ozon колонка
-        const ozonMarketplaceHeader = marketplaceRow.querySelector('.ozon-stock-col');
-        const ozonTokenHeader = tokenNameRow.querySelector('.ozon-stock-col');
-        if (ozonMarketplaceHeader && ozonTokenHeader) {
-            stockColumns.push({
-                type: 'ozon',
-                marketplaceHeader: ozonMarketplaceHeader,
-                tokenHeader: ozonTokenHeader,
-                cells: Array.from(rows).map(row => row.querySelector('.ozon-stock-col'))
-            });
-        }
+        // Для каждого типа переупорядочиваем колонки
+        colTypes.forEach(colType => {
+            const orderedColumns = reorderColumnsForType(colType, tokenOrder, rows);
 
-        // WB колонки
-        tokenOrder.filter(t => t.marketplace === 'wildberries').forEach(token => {
-            const mpHeader = marketplaceRow.querySelector(`.wb-stock-col[data-token-id="${token.id}"]`);
-            const tkHeader = tokenNameRow.querySelector(`.wb-stock-col[data-token-id="${token.id}"]`);
-            if (mpHeader && tkHeader) {
-                stockColumns.push({
-                    type: 'wb',
-                    tokenId: token.id,
-                    marketplaceHeader: mpHeader,
-                    tokenHeader: tkHeader,
-                    cells: Array.from(rows).map(row =>
-                        row.querySelector(`.wb-stock-col[data-token-id="${token.id}"]`)
-                    )
-                });
-            }
-        });
-
-        // Переупорядочиваем колонки согласно порядку токенов
-        const orderedColumns = [];
-        tokenOrder.forEach(token => {
-            if (token.marketplace === 'ozon') {
-                const col = stockColumns.find(c => c.type === 'ozon');
-                if (col && !orderedColumns.includes(col)) {
-                    orderedColumns.push(col);
-                }
-            } else if (token.marketplace === 'wildberries') {
-                const col = stockColumns.find(c => c.type === 'wb' && c.tokenId === token.id);
-                if (col && !orderedColumns.includes(col)) {
-                    orderedColumns.push(col);
-                }
-            }
-        });
-
-        // Вставляем колонки в правильном порядке (в обе строки заголовка и в tbody)
-        orderedColumns.forEach(col => {
-            // Перемещаем заголовки маркетплейсов
-            marketplaceRow.appendChild(col.marketplaceHeader);
-            // Перемещаем заголовки токенов
-            tokenNameRow.appendChild(col.tokenHeader);
-            // Перемещаем ячейки в tbody
-            col.cells.forEach((cell, idx) => {
-                if (cell && rows[idx]) {
-                    const refCell = rows[idx].querySelector('td.text-center:not(.ozon-stock-col):not(.wb-stock-col)');
-                    if (refCell) {
-                        rows[idx].insertBefore(cell, refCell);
+            // Вставляем колонки в правильном порядке
+            orderedColumns.forEach(col => {
+                // Перемещаем заголовки
+                marketplaceRow.appendChild(col.marketplaceHeader);
+                tokenNameRow.appendChild(col.tokenHeader);
+                // Перемещаем ячейки в tbody
+                col.cells.forEach((cell, idx) => {
+                    if (cell && rows[idx]) {
+                        rows[idx].appendChild(cell);
                     }
-                }
+                });
             });
         });
     }

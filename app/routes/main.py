@@ -2,7 +2,8 @@ from flask import Blueprint, render_template, jsonify, request
 from flask_login import login_required, current_user
 from datetime import datetime
 from app.models import Token, OzonOrder, OzonStock, db
-from app.models.wildberries import WBStock, WBGood
+from app.models.wildberries import WBStock, WBGood, WBOrder
+from app.models.product import Product
 from app.services.sales_service import SalesService
 from sqlalchemy import distinct, func
 
@@ -350,9 +351,55 @@ def buyouts():
                 key = f"{stock.vendor_code}|{stock.tech_size or ''}"
                 token_stocks[key] = int(stock.total_quantity or 0)
 
+        # Получаем статистику заказов для данного токена
+        # Заказы = все записи, Выкупы = is_cancel=False, Отмены = is_cancel=True
+        orders_query = db.session.query(
+            WBGood.vendor_code,
+            WBGood.tech_size,
+            func.count(WBOrder.id).label('total_orders'),
+            func.sum(db.case((WBOrder.is_cancel == False, 1), else_=0)).label('delivered'),
+            func.sum(db.case((WBOrder.is_cancel == True, 1), else_=0)).label('cancelled')
+        ).select_from(WBOrder).join(
+            Product, WBOrder.product_id == Product.id
+        ).join(
+            WBGood, Product.barcode == WBGood.barcode
+        ).filter(
+            WBOrder.token_id == token_id
+        )
+
+        # Если указаны даты, добавляем фильтр по дате
+        if date_from and date_to:
+            from datetime import timedelta as td
+            orders_query = orders_query.filter(
+                WBOrder.date >= date_from,
+                WBOrder.date < date_to + td(days=1)
+            )
+
+        orders_stats = orders_query.group_by(
+            WBGood.vendor_code,
+            WBGood.tech_size
+        ).all()
+
+        # Формируем словарь статистики заказов для этого токена
+        token_orders = {}
+        for stat in orders_stats:
+            if stat.vendor_code:
+                key = f"{stat.vendor_code}|{stat.tech_size or ''}"
+                total = int(stat.total_orders or 0)
+                delivered = int(stat.delivered or 0)
+                cancelled = int(stat.cancelled or 0)
+                percent = (delivered / total * 100) if total > 0 else 0
+                token_orders[key] = {
+                    'total': total,
+                    'delivered': delivered,
+                    'cancelled': cancelled,
+                    'percent': round(percent, 1)
+                }
+
         wb_stocks_by_token[token_id] = {
             'name': token_name,
-            'stocks': token_stocks
+            'stocks': token_stocks,
+            'orders': token_orders
         }
 
     return render_template('buyouts.html', tokens=tokens_list, ozon_products=ozon_products,
