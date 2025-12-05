@@ -110,13 +110,12 @@ def parse_offer_id(offer_id: str) -> tuple:
     return article, size
 
 
-def parse_size_display(size: str) -> str:
-    """Преобразование размера для отображения (например, 65 -> 6.5)"""
+def normalize_size(size: str) -> str:
+    """Нормализация размера для использования как ключ (65 -> 6.5, 75 -> 7.5 и т.д.)"""
     if not size:
         return size
 
-    # Проверяем специальные форматы размеров
-    # 65 -> 6.5, 75 -> 7.5, 85 -> 8.5, 95 -> 9.5, 105 -> 10.5, 115 -> 11.5
+    # Преобразуем числовые размеры вида 65, 75, 85, 95, 105, 115 в формат с точкой
     if size.isdigit() and len(size) in [2, 3]:
         try:
             num = int(size)
@@ -128,6 +127,19 @@ def parse_size_display(size: str) -> str:
                 return f"{num // 10}.5"
         except ValueError:
             pass
+
+    return size
+
+
+def parse_size_display(size: str) -> str:
+    """Преобразование размера для отображения (например, 65 -> 6.5)"""
+    if not size:
+        return size
+
+    # Сначала нормализуем размер
+    normalized = normalize_size(size)
+    if normalized != size:
+        return normalized
 
     # Размеры вида 658 -> 6.5-8, 685 -> 6-8.5
     if size.isdigit() and len(size) == 3:
@@ -264,6 +276,8 @@ def buyouts():
             article, size = parse_offer_id(stock.offer_id)
             if not article:
                 continue
+            # Нормализуем размер для единообразия ключей (75 -> 7.5)
+            size = normalize_size(size)
             key = (article, size)
             if key not in all_products_stats:
                 all_products_stats[key] = {'ozon_delivered': 0, 'ozon_cancelled': 0, 'ozon_stock': 0}
@@ -294,6 +308,8 @@ def buyouts():
             if not article:
                 continue
 
+            # Нормализуем размер для единообразия ключей (75 -> 7.5)
+            size = normalize_size(size)
             key = (article, size)
             if key not in all_products_stats:
                 all_products_stats[key] = {'ozon_delivered': 0, 'ozon_cancelled': 0, 'ozon_stock': 0}
