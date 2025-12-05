@@ -806,32 +806,38 @@ document.addEventListener('DOMContentLoaded', function() {
         return sizeOrder[size] !== undefined ? sizeOrder[size] : 999;
     }
 
-    // Естественная сортировка для артикулов (2089090018-1, 2089090018-2, 2089090018-11)
+    // Естественная сортировка для артикулов (2089090018, 2089090018-1, 2089090018-2, 2089090018-11)
     function naturalCompare(a, b) {
-        const aParts = a.split(/(-?\d+)/);
-        const bParts = b.split(/(-?\d+)/);
+        // Разбиваем на базовую часть и суффикс после дефиса
+        const aHasDash = a.includes('-');
+        const bHasDash = b.includes('-');
+        const aBase = aHasDash ? a.substring(0, a.lastIndexOf('-')) : a;
+        const bBase = bHasDash ? b.substring(0, b.lastIndexOf('-')) : b;
+        const aSuffix = aHasDash ? a.substring(a.lastIndexOf('-') + 1) : '';
+        const bSuffix = bHasDash ? b.substring(b.lastIndexOf('-') + 1) : '';
 
-        for (let i = 0; i < Math.max(aParts.length, bParts.length); i++) {
-            const aPart = aParts[i] || '';
-            const bPart = bParts[i] || '';
-
-            // Если обе части - числа, сравниваем как числа
-            const aNum = parseInt(aPart, 10);
-            const bNum = parseInt(bPart, 10);
-
-            if (!isNaN(aNum) && !isNaN(bNum)) {
-                if (aNum !== bNum) {
-                    return aNum - bNum;
-                }
-            } else {
-                // Иначе сравниваем как строки
-                const cmp = aPart.localeCompare(bPart);
-                if (cmp !== 0) {
-                    return cmp;
-                }
+        // Сначала сравниваем базовые части
+        if (aBase !== bBase) {
+            // Сравниваем базовые части как числа если возможно
+            const aBaseNum = parseInt(aBase, 10);
+            const bBaseNum = parseInt(bBase, 10);
+            if (!isNaN(aBaseNum) && !isNaN(bBaseNum)) {
+                return aBaseNum - bBaseNum;
             }
+            return aBase.localeCompare(bBase);
         }
-        return 0;
+
+        // Базовые части равны - артикул без дефиса идёт первым
+        if (!aHasDash && bHasDash) return -1;
+        if (aHasDash && !bHasDash) return 1;
+
+        // Оба имеют дефис - сравниваем суффиксы как числа
+        const aSuffixNum = parseInt(aSuffix, 10);
+        const bSuffixNum = parseInt(bSuffix, 10);
+        if (!isNaN(aSuffixNum) && !isNaN(bSuffixNum)) {
+            return aSuffixNum - bSuffixNum;
+        }
+        return aSuffix.localeCompare(bSuffix);
     }
 
     // Функция сортировки по артикулу и размеру
