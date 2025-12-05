@@ -241,14 +241,14 @@ def buyouts():
         elif token.marketplace == 'wildberries':
             wb_tokens.append({'id': token.id, 'name': token_name})
 
-    # Получаем уникальные сочетания артикул+размер для Ozon токенов с подсчётом статусов
-    ozon_products = []
-    if ozon_token_ids:
-        # Словарь для подсчёта статусов: {(article, size): {'delivered': count, 'cancelled': count, 'stock': count}}
-        stats = {}
+    # Общий словарь для всех артикулов (из Ozon и WB)
+    # {(article, size): {'ozon_delivered': 0, 'ozon_cancelled': 0, 'ozon_stock': 0}}
+    all_products_stats = {}
+    today = datetime.now().date()
 
+    # Получаем данные Ozon
+    if ozon_token_ids:
         # Получаем остатки на сегодня (только ненулевые)
-        today = datetime.now().date()
         stocks = db.session.query(
             OzonStock.offer_id,
             func.sum(OzonStock.fbo_present + OzonStock.fbs_present).label('total_stock')
@@ -265,9 +265,9 @@ def buyouts():
             if not article:
                 continue
             key = (article, size)
-            if key not in stats:
-                stats[key] = {'delivered': 0, 'cancelled': 0, 'delivering': 0, 'stock': 0}
-            stats[key]['stock'] = int(stock.total_stock or 0)
+            if key not in all_products_stats:
+                all_products_stats[key] = {'ozon_delivered': 0, 'ozon_cancelled': 0, 'ozon_stock': 0}
+            all_products_stats[key]['ozon_stock'] = int(stock.total_stock or 0)
 
         # Строим запрос с учётом фильтрации по датам
         query = db.session.query(
@@ -295,34 +295,17 @@ def buyouts():
                 continue
 
             key = (article, size)
-            if key not in stats:
-                stats[key] = {'delivered': 0, 'cancelled': 0, 'delivering': 0, 'stock': 0}
+            if key not in all_products_stats:
+                all_products_stats[key] = {'ozon_delivered': 0, 'ozon_cancelled': 0, 'ozon_stock': 0}
 
             if order.status == 'delivered':
-                stats[key]['delivered'] += 1
+                all_products_stats[key]['ozon_delivered'] += 1
             elif order.status == 'cancelled':
-                stats[key]['cancelled'] += 1
-            elif order.status == 'delivering':
-                stats[key]['delivering'] += 1
-
-        # Сортируем по артикулу и размеру
-        sorted_keys = sorted(stats.keys(), key=lambda x: (x[0], get_size_sort_key(x[1])))
-
-        # Формируем результат
-        ozon_products = [
-            (
-                article,
-                parse_size_display(size),
-                stats[(article, size)]['delivered'],
-                stats[(article, size)]['cancelled'],
-                stats[(article, size)]['stock']
-            )
-            for article, size in sorted_keys
-        ]
+                all_products_stats[key]['ozon_cancelled'] += 1
 
     # Получаем остатки WB для каждого токена
-    wb_stocks_by_token = {}  # {token_id: {(article, size): quantity}}
-    today = datetime.now().date()
+    wb_stocks_by_token = {}  # {token_id: {'name': ..., 'stocks': {key: qty}, 'orders': {key: {...}}}}
+    wb_token_ids = [t['id'] for t in wb_tokens]
 
     for wb_token in wb_tokens:
         token_id = wb_token['id']
@@ -346,15 +329,17 @@ def buyouts():
         ).all()
 
         # Формируем словарь остатков для этого токена
-        # Используем строковый ключ "article|size" для совместимости с Jinja
         token_stocks = {}
         for stock in stocks:
             if stock.vendor_code:
                 key = f"{stock.vendor_code}|{stock.tech_size or ''}"
                 token_stocks[key] = int(stock.total_quantity or 0)
+                # Добавляем в общий список артикулов
+                product_key = (stock.vendor_code, stock.tech_size or '')
+                if product_key not in all_products_stats:
+                    all_products_stats[product_key] = {'ozon_delivered': 0, 'ozon_cancelled': 0, 'ozon_stock': 0}
 
         # Получаем статистику заказов для данного токена
-        # Заказы = все записи, Выкупы = is_cancel=False, Отмены = is_cancel=True
         orders_query = db.session.query(
             WBGood.vendor_code,
             WBGood.tech_size,
@@ -397,12 +382,31 @@ def buyouts():
                     'cancelled': cancelled,
                     'percent': round(percent, 1)
                 }
+                # Добавляем в общий список артикулов
+                product_key = (stat.vendor_code, stat.tech_size or '')
+                if product_key not in all_products_stats:
+                    all_products_stats[product_key] = {'ozon_delivered': 0, 'ozon_cancelled': 0, 'ozon_stock': 0}
 
         wb_stocks_by_token[token_id] = {
             'name': token_name,
             'stocks': token_stocks,
             'orders': token_orders
         }
+
+    # Сортируем все артикулы и формируем итоговый список
+    sorted_keys = sorted(all_products_stats.keys(), key=lambda x: (x[0], get_size_sort_key(x[1])))
+
+    # Формируем ozon_products из общего списка (для совместимости с шаблоном)
+    ozon_products = [
+        (
+            article,
+            parse_size_display(size),
+            all_products_stats[(article, size)]['ozon_delivered'],
+            all_products_stats[(article, size)]['ozon_cancelled'],
+            all_products_stats[(article, size)]['ozon_stock']
+        )
+        for article, size in sorted_keys
+    ]
 
     return render_template('buyouts.html', tokens=tokens_list, ozon_products=ozon_products,
                           ozon_tokens=ozon_tokens, wb_tokens=wb_tokens, wb_stocks_by_token=wb_stocks_by_token)
