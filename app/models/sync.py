@@ -50,3 +50,27 @@ class SyncState(db.Model):
 
     def __repr__(self):
         return f'<SyncState {self.endpoint} - {self.last_sync_date}>'
+
+
+class ManualTask(db.Model):
+    """Модель для ручных задач из веб-интерфейса"""
+    __tablename__ = 'manual_tasks'
+
+    id = db.Column(db.Integer, primary_key=True)
+    token_id = db.Column(db.Integer, db.ForeignKey('tokens.id'), nullable=False)
+    task_type = db.Column(db.String(50), nullable=False)  # stocks, goods, sales, orders
+    status = db.Column(db.String(20), default='pending')  # pending, processing, completed, failed
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    started_at = db.Column(db.DateTime, nullable=True)
+    finished_at = db.Column(db.DateTime, nullable=True)
+    error_message = db.Column(db.Text, nullable=True)
+
+    token = db.relationship('Token', backref=db.backref('manual_tasks', lazy=True))
+
+    __table_args__ = (
+        db.Index('idx_manual_tasks_status', 'status'),
+        db.Index('idx_manual_tasks_created', 'created_at'),
+    )
+
+    def __repr__(self):
+        return f'<ManualTask {self.token_id}:{self.task_type} - {self.status}>'

@@ -6,7 +6,6 @@ from app.models.wildberries import WBStock, WBGood, WBOrder
 from app.models.product import Product
 from app.services.sales_service import SalesService
 from sqlalchemy import distinct, func
-import threading
 
 main_bp = Blueprint('main', __name__)
 
@@ -472,12 +471,10 @@ def get_token_sales_range(token_id):
 @main_bp.route('/api/stocks/refresh', methods=['POST'])
 @login_required
 def refresh_all_stocks():
-    """API endpoint для обновления остатков по всем токенам пользователя"""
-    from datacollector.config import DataCollectorConfig
-    from datacollector.collectors.wildberries import WildberriesCollector
-    from datacollector.collectors.ozon import OzonCollector
-    from sqlalchemy import create_engine
-    from sqlalchemy.orm import sessionmaker
+    """API endpoint для обновления остатков по всем токенам пользователя.
+    Создает задачи в БД, которые обрабатываются datacollector'ом.
+    """
+    from app.models.sync import ManualTask
 
     # Получаем все токены пользователя
     user_tokens = Token.query.filter_by(user_id=current_user.id).filter(
@@ -487,51 +484,22 @@ def refresh_all_stocks():
     if not user_tokens:
         return jsonify({'success': False, 'error': 'Нет токенов для обновления'}), 404
 
-    # Функция для обновления остатков в фоне
-    def update_stocks_background(tokens_data):
-        engine = create_engine(DataCollectorConfig.DATABASE_URI)
-        Session = sessionmaker(bind=engine)
+    # Создаем задачи на обновление остатков для каждого токена
+    tasks_created = 0
+    for token in user_tokens:
+        # Создаем задачу с типом 'stocks'
+        task = ManualTask(
+            token_id=token.id,
+            task_type='stocks',
+            status='pending'
+        )
+        db.session.add(task)
+        tasks_created += 1
 
-        for token_data in tokens_data:
-            session = Session()
-            try:
-                if token_data['marketplace'] == 'wildberries':
-                    collector = WildberriesCollector(
-                        token_id=token_data['id'],
-                        token=token_data['token'],
-                        database_uri=DataCollectorConfig.DATABASE_URI
-                    )
-                    # Сначала обновляем товары, потом остатки
-                    collector.collect_goods(session)
-                    collector.collect_stocks(session)
-                elif token_data['marketplace'] == 'ozon':
-                    collector = OzonCollector(
-                        token_id=token_data['id'],
-                        client_id=token_data['client_id'],
-                        api_key=token_data['token'],
-                        database_uri=DataCollectorConfig.DATABASE_URI
-                    )
-                    collector.collect_stocks(session)
-            except Exception as e:
-                print(f"Error updating stocks for token {token_data['id']}: {e}")
-            finally:
-                session.close()
-
-    # Подготавливаем данные токенов для передачи в поток
-    tokens_data = [{
-        'id': t.id,
-        'marketplace': t.marketplace,
-        'token': t.token,
-        'client_id': t.client_id
-    } for t in user_tokens]
-
-    # Запускаем обновление в фоновом потоке
-    thread = threading.Thread(target=update_stocks_background, args=(tokens_data,))
-    thread.daemon = True
-    thread.start()
+    db.session.commit()
 
     return jsonify({
         'success': True,
-        'message': f'Запущено обновление остатков для {len(user_tokens)} токенов'
+        'message': f'Создано {tasks_created} задач на обновление остатков. Datacollector обработает их в ближайшее время.'
     })
 
