@@ -36,6 +36,13 @@
                                             </span>
                                         {% endif %}
                                     </div>
+                                    <div class="form-check me-2">
+                                        <input class="form-check-input master-checkbox" type="checkbox"
+                                               id="master_{{ token.id }}"
+                                               data-token-id="{{ token.id }}"
+                                               data-marketplace="{{ token.marketplace }}"
+                                               checked>
+                                    </div>
                                     <div class="me-3" style="min-width: 120px;">
                                         <strong>{{ token.name }}</strong>
                                     </div>
@@ -395,8 +402,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // === Управление видимостью колонок по типам для каждого токена ===
     const COLUMNS_STORAGE_KEY = 'buyouts_column_visibility';
+    const MASTER_STORAGE_KEY = 'buyouts_master_visibility';
     const ORDER_STORAGE_KEY = 'buyouts_token_order';
     const columnCheckboxes = document.querySelectorAll('.column-checkbox');
+    const masterCheckboxes = document.querySelectorAll('.master-checkbox');
 
     // Загрузка сохраненного состояния колонок из localStorage
     function loadColumnVisibility() {
@@ -504,6 +513,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 updateSingleColumnVisibility(tokenId, marketplace, colType, this.checked);
                 saveColumnVisibility();
                 updateEmptyRowsVisibility();
+                // Обновляем состояние мастер-галочки
+                updateMasterCheckboxState(tokenId);
             });
         });
 
@@ -511,6 +522,73 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!savedState) {
             saveColumnVisibility();
         }
+    }
+
+    // === Мастер-галочки для управления всеми колонками токена ===
+
+    // Загрузка состояния мастер-галочек
+    function loadMasterVisibility() {
+        const saved = localStorage.getItem(MASTER_STORAGE_KEY);
+        if (saved) {
+            try {
+                return JSON.parse(saved);
+            } catch (e) {
+                return null;
+            }
+        }
+        return null;
+    }
+
+    // Сохранение состояния мастер-галочек
+    function saveMasterVisibility() {
+        const state = {};
+        masterCheckboxes.forEach(checkbox => {
+            const tokenId = checkbox.dataset.tokenId;
+            state[tokenId] = checkbox.checked;
+        });
+        localStorage.setItem(MASTER_STORAGE_KEY, JSON.stringify(state));
+    }
+
+    // Обновление состояния мастер-галочки на основе дочерних чекбоксов
+    function updateMasterCheckboxState(tokenId) {
+        const masterCheckbox = document.getElementById(`master_${tokenId}`);
+        if (!masterCheckbox) return;
+
+        const tokenCheckboxes = document.querySelectorAll(`.column-checkbox[data-token-id="${tokenId}"]`);
+        const allChecked = Array.from(tokenCheckboxes).every(cb => cb.checked);
+        const someChecked = Array.from(tokenCheckboxes).some(cb => cb.checked);
+
+        masterCheckbox.checked = allChecked;
+        masterCheckbox.indeterminate = someChecked && !allChecked;
+    }
+
+    // Инициализация мастер-галочек
+    function initMasterCheckboxes() {
+        const savedState = loadMasterVisibility();
+
+        masterCheckboxes.forEach(masterCheckbox => {
+            const tokenId = masterCheckbox.dataset.tokenId;
+            const marketplace = masterCheckbox.dataset.marketplace;
+
+            // Обновляем состояние мастер-галочки на основе дочерних
+            updateMasterCheckboxState(tokenId);
+
+            // Обработчик изменения мастер-галочки
+            masterCheckbox.addEventListener('change', function() {
+                const isChecked = this.checked;
+                const tokenCheckboxes = document.querySelectorAll(`.column-checkbox[data-token-id="${tokenId}"]`);
+
+                tokenCheckboxes.forEach(checkbox => {
+                    checkbox.checked = isChecked;
+                    const colType = checkbox.dataset.colType;
+                    updateSingleColumnVisibility(tokenId, marketplace, colType, isChecked);
+                });
+
+                saveColumnVisibility();
+                saveMasterVisibility();
+                updateEmptyRowsVisibility();
+            });
+        });
     }
 
     // Функция для скрытия строк, где все видимые значения равны 0
@@ -585,6 +663,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Инициализируем видимость колонок
     initColumnVisibility();
+
+    // Инициализируем мастер-галочки
+    initMasterCheckboxes();
 
     // Скрываем пустые строки после инициализации
     updateEmptyRowsVisibility();
