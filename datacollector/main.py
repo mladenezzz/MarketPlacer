@@ -12,6 +12,7 @@ from datacollector.collectors.ozon import OzonCollector
 from datacollector.queue_manager import TaskQueue, Task, TaskPriority
 from datacollector.worker import WorkerPool
 from app.models import Token, WBStock, OzonStock
+from app.models.sync import ManualTask
 
 logging.basicConfig(
     level=logging.DEBUG,
@@ -285,6 +286,70 @@ def retry_queue_processor():
     logger.info("Retry queue processor stopped")
 
 
+def process_manual_tasks():
+    """Background thread to process manual tasks from database"""
+    logger.info("Manual tasks processor started")
+
+    while running:
+        try:
+            engine = create_engine(DataCollectorConfig.DATABASE_URI)
+            Session = sessionmaker(bind=engine)
+            session = Session()
+
+            try:
+                # Получаем pending задачи
+                pending_tasks = session.query(ManualTask).filter_by(status='pending').all()
+
+                for manual_task in pending_tasks:
+                    # Помечаем как processing
+                    manual_task.status = 'processing'
+                    manual_task.started_at = datetime.now(timezone.utc)
+                    session.commit()
+
+                    # Получаем токен
+                    token = session.query(Token).filter_by(id=manual_task.token_id).first()
+                    if not token:
+                        manual_task.status = 'failed'
+                        manual_task.error_message = 'Token not found'
+                        manual_task.finished_at = datetime.now(timezone.utc)
+                        session.commit()
+                        continue
+
+                    # Добавляем задачи в очередь
+                    if token.marketplace == 'wildberries':
+                        if manual_task.task_type == 'stocks':
+                            task_queue.add_task(Task(token.id, 'goods', TaskPriority.HIGH))
+                            task_queue.add_task(Task(token.id, 'stocks', TaskPriority.HIGH))
+                        else:
+                            task_queue.add_task(Task(token.id, manual_task.task_type, TaskPriority.HIGH))
+                    elif token.marketplace == 'ozon':
+                        if manual_task.task_type == 'stocks':
+                            task_queue.add_task(Task(token.id, 'ozon_stocks', TaskPriority.HIGH))
+                        else:
+                            task_queue.add_task(Task(token.id, f'ozon_{manual_task.task_type}', TaskPriority.HIGH))
+
+                    # Помечаем как completed
+                    manual_task.status = 'completed'
+                    manual_task.finished_at = datetime.now(timezone.utc)
+                    session.commit()
+
+                    logger.info(f"Manual task {manual_task.id} processed: {token.marketplace} {manual_task.task_type}")
+
+            except Exception as e:
+                logger.error(f"Error processing manual tasks: {e}")
+                session.rollback()
+            finally:
+                session.close()
+
+            time.sleep(5)  # Check every 5 seconds
+
+        except Exception as e:
+            logger.error(f"Error in manual tasks processor: {e}")
+            time.sleep(5)
+
+    logger.info("Manual tasks processor stopped")
+
+
 def stocks_scheduler():
     """Background thread to schedule daily stocks collection"""
     logger.info("Stocks scheduler started")
@@ -343,6 +408,10 @@ def main():
     # Start stocks scheduler in background (daily at 3 AM)
     stocks_thread = threading.Thread(target=stocks_scheduler, daemon=True)
     stocks_thread.start()
+
+    # Start manual tasks processor in background
+    manual_tasks_thread = threading.Thread(target=process_manual_tasks, daemon=True)
+    manual_tasks_thread.start()
 
     # Main loop - two different intervals
     last_10min_update = time.time()
