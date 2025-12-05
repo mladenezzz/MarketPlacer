@@ -149,6 +149,9 @@
                             </div>
                         </div>
                         <div class="col-md-6 text-end mt-2 mt-md-0">
+                            <button type="button" class="btn btn-success btn-sm me-3" id="exportExcel">
+                                <i class="bi bi-file-earmark-excel"></i> Экспорт в Excel
+                            </button>
                             <small class="text-muted">
                                 Показано: <span id="visibleCount">{{ ozon_products|length }}</span> из {{ ozon_products|length }}
                             </small>
@@ -347,6 +350,11 @@
     </div>
     {% endif %}
 </div>
+{% endblock %}
+
+{% block extra_head %}
+<!-- SheetJS для экспорта в Excel -->
+<script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
 {% endblock %}
 
 {% block extra_css %}
@@ -948,6 +956,130 @@ document.addEventListener('DOMContentLoaded', function() {
             rows.forEach(row => tbody.appendChild(row));
         });
     });
+
+    // === Экспорт в Excel ===
+    const exportBtn = document.getElementById('exportExcel');
+    if (exportBtn) {
+        exportBtn.addEventListener('click', function() {
+            exportToExcel();
+        });
+    }
+
+    function exportToExcel() {
+        const table = document.querySelector('table');
+        if (!table) return;
+
+        // Получаем видимые колонки на основе чекбоксов
+        const visibleColumns = getVisibleColumns();
+
+        // Собираем данные для Excel
+        const data = [];
+
+        // Формируем заголовок
+        const headerRow = ['Артикул', 'Размер'];
+        visibleColumns.forEach(col => {
+            headerRow.push(col.label);
+        });
+        data.push(headerRow);
+
+        // Собираем данные из строк таблицы
+        const rows = table.querySelectorAll('tbody tr');
+        rows.forEach(row => {
+            // Пропускаем скрытые строки (отфильтрованные)
+            if (row.style.display === 'none') return;
+
+            const rowData = [];
+
+            // Артикул и размер
+            rowData.push(row.dataset.article || '');
+            rowData.push(row.dataset.size || '');
+
+            // Данные для каждой видимой колонки
+            visibleColumns.forEach(col => {
+                const value = row.dataset[col.dataKey];
+                if (col.isPercent) {
+                    rowData.push(parseFloat(value) || 0);
+                } else {
+                    rowData.push(parseInt(value) || 0);
+                }
+            });
+
+            data.push(rowData);
+        });
+
+        // Создаем рабочую книгу Excel
+        const wb = XLSX.utils.book_new();
+        const ws = XLSX.utils.aoa_to_array ? XLSX.utils.aoa_to_sheet(data) : XLSX.utils.aoa_to_sheet(data);
+
+        // Настраиваем ширину колонок
+        const colWidths = [{ wch: 20 }, { wch: 10 }];
+        visibleColumns.forEach(() => colWidths.push({ wch: 15 }));
+        ws['!cols'] = colWidths;
+
+        XLSX.utils.book_append_sheet(wb, ws, 'Статистика выкупов');
+
+        // Формируем имя файла с датой
+        const now = new Date();
+        const dateStr = now.toISOString().slice(0, 10);
+        const timeStr = now.toTimeString().slice(0, 8).replace(/:/g, '-');
+        const filename = `buyouts_${dateStr}_${timeStr}.xlsx`;
+
+        // Сохраняем файл (автоматически в папку Загрузки)
+        XLSX.writeFile(wb, filename);
+    }
+
+    function getVisibleColumns() {
+        const columns = [];
+        const colTypes = ['stock', 'orders', 'delivered', 'cancelled', 'percent'];
+        const colLabels = {
+            'stock': 'Остатки',
+            'orders': 'Заказы',
+            'delivered': 'Выкупы',
+            'cancelled': 'Отмены',
+            'percent': '% выкупа'
+        };
+
+        // Проверяем чекбоксы для каждого токена
+        columnCheckboxes.forEach(checkbox => {
+            if (!checkbox.checked) return;
+
+            const tokenId = checkbox.dataset.tokenId;
+            const marketplace = checkbox.dataset.marketplace;
+            const colType = checkbox.dataset.colType;
+
+            // Получаем имя токена
+            const tokenItem = document.querySelector(`.token-item[data-token-id="${tokenId}"]`);
+            const tokenName = tokenItem ? tokenItem.querySelector('strong').textContent : '';
+
+            let dataKey, label;
+            if (marketplace === 'ozon') {
+                // Для Ozon используем стандартные ключи
+                switch (colType) {
+                    case 'stock': dataKey = 'stock'; break;
+                    case 'orders': dataKey = 'total'; break;
+                    case 'delivered': dataKey = 'delivered'; break;
+                    case 'cancelled': dataKey = 'cancelled'; break;
+                    case 'percent': dataKey = 'percent'; break;
+                }
+                label = `Ozon ${tokenName} - ${colLabels[colType]}`;
+            } else if (marketplace === 'wildberries') {
+                // Для WB используем ключи с token_id
+                dataKey = `wb_${colType}_${tokenId}`;
+                label = `WB ${tokenName} - ${colLabels[colType]}`;
+            }
+
+            columns.push({
+                tokenId: tokenId,
+                marketplace: marketplace,
+                colType: colType,
+                dataKey: dataKey,
+                label: label,
+                isPercent: colType === 'percent'
+            });
+        });
+
+        return columns;
+    }
 });
 </script>
 {% endblock %}
