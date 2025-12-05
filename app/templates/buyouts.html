@@ -3,7 +3,7 @@
 {% block title %}Статистика выкупов - MarketPlacer{% endblock %}
 
 {% block content %}
-<div class="container my-5">
+<div class="container-fluid my-5 px-4">
     <div class="row">
         <div class="col-12">
             <div class="card">
@@ -327,6 +327,19 @@
     }
     .drag-handle:active {
         cursor: grabbing;
+    }
+    /* Компактная таблица */
+    .table th, .table td {
+        padding: 0.4rem 0.5rem;
+        font-size: 0.875rem;
+        white-space: nowrap;
+    }
+    .table .badge {
+        font-size: 0.75rem;
+        padding: 0.25em 0.5em;
+    }
+    .table-responsive {
+        overflow-x: auto;
     }
 </style>
 {% endblock %}
