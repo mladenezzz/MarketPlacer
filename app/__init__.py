@@ -29,13 +29,14 @@ def create_app(config_class=Config):
         return User.query.get(int(user_id))
     
     # Регистрация blueprints
-    from app.routes import main_bp, auth_bp, admin_bp, tokens_bp, vpn_bp
+    from app.routes import main_bp, auth_bp, admin_bp, tokens_bp, vpn_bp, marking_bp
 
     app.register_blueprint(main_bp)
     app.register_blueprint(auth_bp)
     app.register_blueprint(admin_bp)
     app.register_blueprint(tokens_bp)
     app.register_blueprint(vpn_bp)
+    app.register_blueprint(marking_bp)
     
     # Создание таблиц базы данных
     with app.app_context():
