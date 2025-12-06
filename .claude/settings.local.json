@@ -6,7 +6,14 @@
       "Bash(git push:*)",
       "Bash(python:*)",
       "Bash(pip install:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(git rm:*)",
+      "Bash(tasklist:*)",
+      "Bash(taskkill:*)",
+      "Bash(cmd //c \"del /F app.db\")",
+      "Bash(findstr:*)",
+      "Bash(git branch:*)",
+      "Bash(git checkout:*)"
     ],
     "deny": [],
     "ask": []
