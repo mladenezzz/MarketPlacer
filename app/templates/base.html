@@ -234,6 +234,15 @@
                                 <li><a class="dropdown-item" href="{{ url_for('main.buyouts') }}"><i class="bi bi-cart-check"></i> Выкупы</a></li>
                             </ul>
                         </li>
+                        <!-- Меню Маркировка -->
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="bi bi-upc-scan"></i> Маркировка
+                            </a>
+                            <ul class="dropdown-menu">
+                                <li><a class="dropdown-item" href="{{ url_for('marking.batch_order') }}"><i class="bi bi-list-task"></i> Создание пакетного заказа КИЗ</a></li>
+                            </ul>
+                        </li>
                         {% if current_user.is_admin() %}
                         <!-- Меню Сервер -->
                         <li class="nav-item dropdown">
