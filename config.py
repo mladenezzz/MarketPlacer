@@ -38,3 +38,17 @@ T9kEZPDnLIeWowRgvBuCAAAAF212ZXJldGVsbmlrb3ZAZ21haWwuY29tAQIDBAUG
     VLESS_PRIVATE_KEY = os.environ.get('VLESS_PRIVATE_KEY') or 'kAl2R_xsgBn9cb4NHyWDOaZRPUvidhkMO_KntaGvW2M'
     VLESS_SHORT_ID = os.environ.get('VLESS_SHORT_ID') or 'abcd1234'
 
+    # Настройки SMB для маркировки
+    SMB_HOST = os.environ.get('SMB_HOST') or '192.168.0.35'
+    SMB_PORT = int(os.environ.get('SMB_PORT') or 445)
+    SMB_USER = os.environ.get('SMB_USER') or 'Mike'
+    SMB_PASSWORD = os.environ.get('SMB_PASSWORD') or 'Lvl23party'
+    SMB_SHARE = os.environ.get('SMB_SHARE') or 'd'
+    SMB_KIZ_ORDER_PATH = os.environ.get('SMB_KIZ_ORDER_PATH') or 'YandexDisk/Work/Маркировка/Одежда 3я волна/ИП Веретельников/Заказ КМ'
+    SMB_KIZ_KM_PATH = os.environ.get('SMB_KIZ_KM_PATH') or 'YandexDisk/Work/Маркировка/Одежда 3я волна/ИП Веретельников/КМ'
+
+    # Настройки 1С API
+    C1_API_URL = os.environ.get('C1_API_URL') or 'http://192.168.0.35/Ut11/hs/api_v1'
+    C1_API_USER = os.environ.get('C1_API_USER') or 'Mike'
+    C1_API_PASSWORD = os.environ.get('C1_API_PASSWORD') or 'Lvl23party'
+
