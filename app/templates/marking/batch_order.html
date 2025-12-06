@@ -2,15 +2,545 @@
 
 {% block title %}Создание пакетного заказа КИЗ - MarketPlacer{% endblock %}
 
+{% block extra_css %}
+<style>
+    .table-container {
+        max-height: 350px;
+        overflow-y: auto;
+    }
+    .table-container table {
+        margin-bottom: 0;
+    }
+    .table-container thead {
+        position: sticky;
+        top: 0;
+        z-index: 1;
+        background: white;
+    }
+    .quantity-input {
+        width: 80px;
+        text-align: center;
+    }
+    .selected-row {
+        background-color: #e3f2fd !important;
+    }
+    .btn-action {
+        min-width: 160px;
+    }
+    .search-section, .selected-section {
+        background: white;
+        border-radius: 15px;
+        padding: 1.5rem;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    .section-title {
+        font-weight: 600;
+        margin-bottom: 1rem;
+        color: #4f46e5;
+    }
+    .total-info {
+        font-size: 1.1rem;
+        font-weight: 500;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="container mt-4">
-    <div class="card">
-        <div class="card-header">
-            <h4 class="mb-0"><i class="bi bi-list-task"></i> Создание пакетного заказа КИЗ</h4>
+<div class="container-fluid mt-4">
+    <!-- Поиск товаров -->
+    <div class="search-section mb-4">
+        <h5 class="section-title"><i class="bi bi-search"></i> Поиск товаров</h5>
+
+        <div class="row mb-3">
+            <div class="col-md-4">
+                <div class="input-group">
+                    <span class="input-group-text"><i class="bi bi-upc"></i></span>
+                    <input type="text" class="form-control" id="articleSearch" placeholder="Введите артикул..." autofocus>
+                </div>
+            </div>
+            <div class="col-md-8 text-end">
+                <button type="button" class="btn btn-info btn-action" onclick="loadInvoices()">
+                    <i class="bi bi-file-earmark-text"></i> Добавить из накладной
+                </button>
+            </div>
         </div>
-        <div class="card-body">
-            <p class="text-muted">Функционал в разработке...</p>
+
+        <div class="table-container">
+            <table class="table table-hover table-sm" id="searchTable">
+                <thead class="table-light">
+                    <tr>
+                        <th><input type="checkbox" id="selectAllSearch" onclick="toggleSelectAll('search')"></th>
+                        <th>Артикул</th>
+                        <th>Размер</th>
+                        <th>GTIN</th>
+                        <th>Штрихкод</th>
+                        <th>Количество</th>
+                    </tr>
+                </thead>
+                <tbody id="searchResults">
+                    <tr>
+                        <td colspan="6" class="text-center text-muted py-4">
+                            Введите артикул для поиска
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="mt-3 d-flex justify-content-between align-items-center">
+            <span class="text-muted" id="searchCount">Найдено: 0</span>
+            <button type="button" class="btn btn-primary btn-action" onclick="addToOrder()">
+                <i class="bi bi-plus-circle"></i> Добавить в заказ
+            </button>
+        </div>
+    </div>
+
+    <!-- Выбранные позиции -->
+    <div class="selected-section">
+        <h5 class="section-title"><i class="bi bi-list-check"></i> Выбранные позиции</h5>
+
+        <div class="table-container">
+            <table class="table table-hover table-sm" id="selectedTable">
+                <thead class="table-light">
+                    <tr>
+                        <th><input type="checkbox" id="selectAllSelected" onclick="toggleSelectAll('selected')"></th>
+                        <th>Артикул</th>
+                        <th>Размер</th>
+                        <th>GTIN</th>
+                        <th>Штрихкод</th>
+                        <th>Количество</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody id="selectedItems">
+                    <tr id="emptySelectedRow">
+                        <td colspan="7" class="text-center text-muted py-4">
+                            Нет выбранных позиций
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="mt-3 d-flex justify-content-between align-items-center">
+            <div>
+                <span class="total-info">Всего позиций: <strong id="totalPositions">0</strong></span>
+                <span class="total-info ms-4">Всего единиц: <strong id="totalQuantity">0</strong></span>
+            </div>
+            <div>
+                <button type="button" class="btn btn-danger me-2" onclick="clearSelected()">
+                    <i class="bi bi-trash"></i> Очистить
+                </button>
+                <button type="button" class="btn btn-success btn-action" onclick="createOrder()">
+                    <i class="bi bi-check-circle"></i> Создать заказ
+                </button>
+            </div>
         </div>
     </div>
 </div>
+
+<!-- Модальное окно выбора накладной -->
+<div class="modal fade" id="invoiceModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-file-earmark-text"></i> Выбор накладной</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="table-responsive" style="max-height: 400px;">
+                    <table class="table table-hover">
+                        <thead class="table-light" style="position: sticky; top: 0;">
+                            <tr>
+                                <th>Номер накладной</th>
+                                <th>Дата</th>
+                                <th>Кол-во единиц</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody id="invoicesList">
+                            <tr>
+                                <td colspan="4" class="text-center py-4">
+                                    <div class="spinner-border text-primary" role="status">
+                                        <span class="visually-hidden">Загрузка...</span>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Хранилище выбранных позиций
+    let selectedItems = {};
+    let invoicesData = [];
+
+    // Поиск товаров при вводе
+    let searchTimeout;
+    document.getElementById('articleSearch').addEventListener('input', function() {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(() => searchGoods(this.value), 300);
+    });
+
+    // Поиск товаров по артикулу
+    async function searchGoods(article) {
+        if (!article || article.length < 2) {
+            document.getElementById('searchResults').innerHTML = `
+                <tr>
+                    <td colspan="6" class="text-center text-muted py-4">
+                        Введите минимум 2 символа для поиска
+                    </td>
+                </tr>`;
+            document.getElementById('searchCount').textContent = 'Найдено: 0';
+            return;
+        }
+
+        try {
+            const response = await fetch(`/marking/api/search-goods?article=${encodeURIComponent(article)}`);
+            const data = await response.json();
+
+            if (data.success && data.data.length > 0) {
+                renderSearchResults(data.data);
+            } else {
+                document.getElementById('searchResults').innerHTML = `
+                    <tr>
+                        <td colspan="6" class="text-center text-muted py-4">
+                            Товары не найдены
+                        </td>
+                    </tr>`;
+                document.getElementById('searchCount').textContent = 'Найдено: 0';
+            }
+        } catch (error) {
+            console.error('Ошибка поиска:', error);
+            alert('Ошибка при поиске товаров');
+        }
+    }
+
+    // Отрисовка результатов поиска
+    function renderSearchResults(goods) {
+        const tbody = document.getElementById('searchResults');
+        tbody.innerHTML = goods.map(good => `
+            <tr data-id="${good.id}" data-article="${good.article}" data-size="${good.size}"
+                data-gtin="${good.gtin}" data-barcode="${good.barcode}">
+                <td><input type="checkbox" class="search-checkbox"></td>
+                <td>${good.article}</td>
+                <td>${good.size}</td>
+                <td>${good.gtin}</td>
+                <td>${good.barcode}</td>
+                <td>
+                    <input type="number" class="form-control form-control-sm quantity-input"
+                           value="0" min="0" onchange="updateRowSelection(this)">
+                </td>
+            </tr>
+        `).join('');
+
+        document.getElementById('searchCount').textContent = `Найдено: ${goods.length}`;
+    }
+
+    // Обновление выделения строки при изменении количества
+    function updateRowSelection(input) {
+        const row = input.closest('tr');
+        const checkbox = row.querySelector('.search-checkbox');
+        const value = parseInt(input.value) || 0;
+
+        if (value > 0) {
+            checkbox.checked = true;
+            row.classList.add('selected-row');
+        }
+    }
+
+    // Выбрать/снять все
+    function toggleSelectAll(type) {
+        const tableId = type === 'search' ? 'searchTable' : 'selectedTable';
+        const checkboxId = type === 'search' ? 'selectAllSearch' : 'selectAllSelected';
+        const checked = document.getElementById(checkboxId).checked;
+
+        document.querySelectorAll(`#${tableId} tbody input[type="checkbox"]`).forEach(cb => {
+            cb.checked = checked;
+            cb.closest('tr').classList.toggle('selected-row', checked);
+        });
+    }
+
+    // Добавить в заказ
+    function addToOrder() {
+        const rows = document.querySelectorAll('#searchResults tr');
+        let added = 0;
+
+        rows.forEach(row => {
+            const checkbox = row.querySelector('.search-checkbox');
+            const quantityInput = row.querySelector('.quantity-input');
+
+            if (!checkbox || !quantityInput) return;
+
+            const quantity = parseInt(quantityInput.value) || 0;
+            if (quantity <= 0) return;
+
+            const key = `${row.dataset.gtin}-${row.dataset.barcode}`;
+
+            if (selectedItems[key]) {
+                selectedItems[key].quantity += quantity;
+            } else {
+                selectedItems[key] = {
+                    article: row.dataset.article,
+                    size: row.dataset.size,
+                    gtin: row.dataset.gtin,
+                    barcode: row.dataset.barcode,
+                    quantity: quantity
+                };
+            }
+
+            // Сбрасываем количество и чекбокс
+            quantityInput.value = 0;
+            checkbox.checked = false;
+            row.classList.remove('selected-row');
+            added++;
+        });
+
+        if (added > 0) {
+            renderSelectedItems();
+        } else {
+            alert('Выберите позиции и укажите количество');
+        }
+    }
+
+    // Отрисовка выбранных позиций
+    function renderSelectedItems() {
+        const tbody = document.getElementById('selectedItems');
+        const items = Object.values(selectedItems);
+
+        if (items.length === 0) {
+            tbody.innerHTML = `
+                <tr id="emptySelectedRow">
+                    <td colspan="7" class="text-center text-muted py-4">
+                        Нет выбранных позиций
+                    </td>
+                </tr>`;
+            updateTotals();
+            return;
+        }
+
+        tbody.innerHTML = items.map((item, index) => `
+            <tr data-key="${item.gtin}-${item.barcode}">
+                <td><input type="checkbox" class="selected-checkbox"></td>
+                <td>${item.article}</td>
+                <td>${item.size}</td>
+                <td>${item.gtin}</td>
+                <td>${item.barcode}</td>
+                <td>
+                    <input type="number" class="form-control form-control-sm quantity-input"
+                           value="${item.quantity}" min="1"
+                           onchange="updateSelectedQuantity(this, '${item.gtin}-${item.barcode}')">
+                </td>
+                <td>
+                    <button type="button" class="btn btn-sm btn-outline-danger"
+                            onclick="removeItem('${item.gtin}-${item.barcode}')">
+                        <i class="bi bi-x"></i>
+                    </button>
+                </td>
+            </tr>
+        `).join('');
+
+        updateTotals();
+    }
+
+    // Обновить количество в выбранной позиции
+    function updateSelectedQuantity(input, key) {
+        const quantity = parseInt(input.value) || 0;
+        if (quantity <= 0) {
+            removeItem(key);
+        } else {
+            selectedItems[key].quantity = quantity;
+            updateTotals();
+        }
+    }
+
+    // Удалить позицию
+    function removeItem(key) {
+        delete selectedItems[key];
+        renderSelectedItems();
+    }
+
+    // Очистить все выбранные
+    function clearSelected() {
+        if (Object.keys(selectedItems).length === 0) return;
+
+        if (confirm('Очистить все выбранные позиции?')) {
+            selectedItems = {};
+            renderSelectedItems();
+        }
+    }
+
+    // Обновить итоги
+    function updateTotals() {
+        const items = Object.values(selectedItems);
+        const positions = items.length;
+        const quantity = items.reduce((sum, item) => sum + item.quantity, 0);
+
+        document.getElementById('totalPositions').textContent = positions;
+        document.getElementById('totalQuantity').textContent = quantity;
+    }
+
+    // Загрузить накладные
+    async function loadInvoices() {
+        const modal = new bootstrap.Modal(document.getElementById('invoiceModal'));
+        modal.show();
+
+        try {
+            const response = await fetch('/marking/api/invoices');
+            const data = await response.json();
+
+            if (data.success) {
+                invoicesData = data.data;
+                renderInvoices(data.data);
+            } else {
+                document.getElementById('invoicesList').innerHTML = `
+                    <tr>
+                        <td colspan="4" class="text-center text-danger py-4">
+                            ${data.error || 'Ошибка загрузки накладных'}
+                        </td>
+                    </tr>`;
+            }
+        } catch (error) {
+            console.error('Ошибка загрузки накладных:', error);
+            document.getElementById('invoicesList').innerHTML = `
+                <tr>
+                    <td colspan="4" class="text-center text-danger py-4">
+                        Ошибка при загрузке накладных
+                    </td>
+                </tr>`;
+        }
+    }
+
+    // Отрисовка накладных
+    function renderInvoices(invoices) {
+        const tbody = document.getElementById('invoicesList');
+
+        if (invoices.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="4" class="text-center text-muted py-4">
+                        Нет накладных
+                    </td>
+                </tr>`;
+            return;
+        }
+
+        tbody.innerHTML = invoices.map((inv, index) => {
+            const date = new Date(inv.date);
+            const dateStr = date.toLocaleDateString('ru-RU') + ' ' + date.toLocaleTimeString('ru-RU', {hour: '2-digit', minute: '2-digit'});
+            return `
+                <tr>
+                    <td>${inv.number}</td>
+                    <td>${dateStr}</td>
+                    <td>${inv.total_quantity}</td>
+                    <td>
+                        <button type="button" class="btn btn-sm btn-primary" onclick="selectInvoice(${index})">
+                            Выбрать
+                        </button>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+    }
+
+    // Выбор накладной
+    async function selectInvoice(index) {
+        const invoice = invoicesData[index];
+        if (!invoice) return;
+
+        // Закрываем модальное окно
+        bootstrap.Modal.getInstance(document.getElementById('invoiceModal')).hide();
+
+        // Получаем штрихкоды из накладной
+        const barcodes = invoice.items.map(item => item['Штрихкод']);
+        const quantities = {};
+        invoice.items.forEach(item => {
+            quantities[String(item['Штрихкод'])] = item['Количество'];
+        });
+
+        try {
+            // Получаем товары по штрихкодам
+            const response = await fetch('/marking/api/goods-by-barcodes', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({barcodes: barcodes})
+            });
+            const data = await response.json();
+
+            if (data.success) {
+                let added = 0;
+                for (const [barcode, good] of Object.entries(data.data)) {
+                    const key = `${good.gtin}-${good.barcode}`;
+                    const quantity = quantities[barcode] || 0;
+
+                    if (quantity > 0) {
+                        if (selectedItems[key]) {
+                            selectedItems[key].quantity += quantity;
+                        } else {
+                            selectedItems[key] = {
+                                article: good.article,
+                                size: good.size,
+                                gtin: good.gtin,
+                                barcode: good.barcode,
+                                quantity: quantity
+                            };
+                        }
+                        added++;
+                    }
+                }
+
+                renderSelectedItems();
+
+                if (added > 0) {
+                    alert(`Добавлено ${added} позиций из накладной ${invoice.number}`);
+                } else {
+                    alert('Не найдено товаров с GTIN для добавления');
+                }
+            }
+        } catch (error) {
+            console.error('Ошибка обработки накладной:', error);
+            alert('Ошибка при обработке накладной');
+        }
+    }
+
+    // Создать заказ
+    async function createOrder() {
+        const items = Object.values(selectedItems);
+
+        if (items.length === 0) {
+            alert('Нет позиций в заказе');
+            return;
+        }
+
+        if (!confirm(`Создать заказ на ${items.length} позиций (${items.reduce((s, i) => s + i.quantity, 0)} единиц)?`)) {
+            return;
+        }
+
+        try {
+            const response = await fetch('/marking/api/create-kiz-order', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({items: items})
+            });
+            const data = await response.json();
+
+            if (data.success) {
+                alert(`${data.message}\nПапка: ${data.folder}`);
+                selectedItems = {};
+                renderSelectedItems();
+            } else {
+                alert(`Ошибка: ${data.error}`);
+            }
+        } catch (error) {
+            console.error('Ошибка создания заказа:', error);
+            alert('Ошибка при создании заказа');
+        }
+    }
+</script>
 {% endblock %}

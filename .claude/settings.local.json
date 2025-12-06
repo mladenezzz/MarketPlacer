@@ -13,7 +13,14 @@
       "Bash(cmd //c \"del /F app.db\")",
       "Bash(findstr:*)",
       "Bash(git branch:*)",
-      "Bash(git checkout:*)"
+      "Bash(git checkout:*)",
+      "Bash(dir \"C:\\Users\\OfficeLT\\VsCodeProjects\\MarketPlaceApp\" /s /b)",
+      "Bash(net use \\192.168.0.35d /user:Mike Lvl23party)",
+      "Bash(net use)",
+      "Bash(py -m pip install:*)",
+      "Bash(.venvScriptsactivate)",
+      "Bash(source .venv/Scripts/activate)",
+      "Bash(source:*)"
     ],
     "deny": [],
     "ask": []
