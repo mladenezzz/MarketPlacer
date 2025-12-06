@@ -258,7 +258,7 @@ document.addEventListener('DOMContentLoaded', function() {
     document.querySelectorAll('.copy-link-btn').forEach(function(btn) {
         btn.addEventListener('click', function() {
             const userId = this.dataset.userId;
-            fetch(`/vless/${userId}/link`)
+            fetch(`/server/vless/${userId}/link`)
                 .then(response => response.json())
                 .then(data => {
                     navigator.clipboard.writeText(data.link).then(() => {
@@ -285,7 +285,7 @@ document.addEventListener('DOMContentLoaded', function() {
     document.querySelectorAll('.show-qr-btn').forEach(function(btn) {
         btn.addEventListener('click', function() {
             const userId = this.dataset.userId;
-            fetch(`/vless/${userId}/link`)
+            fetch(`/server/vless/${userId}/link`)
                 .then(response => response.json())
                 .then(data => {
                     document.getElementById('qrUserName').textContent = data.name;
