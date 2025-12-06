@@ -193,6 +193,9 @@
                 </div>
             </div>
             <div class="modal-footer">
+                <button type="button" class="btn btn-primary" id="saveQrBtn" style="display: none;">
+                    <i class="bi bi-download"></i> Сохранить QR-код
+                </button>
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
             </div>
         </div>
@@ -317,7 +320,9 @@ document.addEventListener('DOMContentLoaded', function() {
     // Показ QR-кода
     const qrModal = document.getElementById('qrModal');
     const qrContainer = document.getElementById('qrcode');
+    const saveQrBtn = document.getElementById('saveQrBtn');
     let qrCode = null;
+    let currentUserName = '';
 
     document.querySelectorAll('.show-qr-btn').forEach(function(btn) {
         btn.addEventListener('click', function() {
@@ -325,6 +330,7 @@ document.addEventListener('DOMContentLoaded', function() {
             fetch(`/server/vless/${userId}/link`)
                 .then(response => response.json())
                 .then(data => {
+                    currentUserName = data.name;
                     document.getElementById('qrUserName').textContent = data.name;
 
                     // Очищаем предыдущий QR-код
@@ -340,10 +346,37 @@ document.addEventListener('DOMContentLoaded', function() {
                         correctLevel: QRCode.CorrectLevel.M
                     });
 
+                    // Показываем кнопку сохранения
+                    saveQrBtn.style.display = 'inline-block';
+
                     // Показываем модальное окно
                     new bootstrap.Modal(qrModal).show();
                 });
         });
+    });
+
+    // Сохранение QR-кода
+    saveQrBtn.addEventListener('click', function() {
+        const canvas = qrContainer.querySelector('canvas');
+        if (canvas) {
+            // Конвертируем canvas в blob
+            canvas.toBlob(function(blob) {
+                // Создаем ссылку для скачивания
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `${currentUserName}_qr.png`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            });
+        }
+    });
+
+    // Скрываем кнопку при закрытии модального окна
+    qrModal.addEventListener('hidden.bs.modal', function() {
+        saveQrBtn.style.display = 'none';
     });
 });
 </script>
