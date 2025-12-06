@@ -258,10 +258,19 @@ document.addEventListener('DOMContentLoaded', function() {
     document.querySelectorAll('.copy-link-btn').forEach(function(btn) {
         btn.addEventListener('click', function() {
             const userId = this.dataset.userId;
+            console.log('Fetching link for user:', userId);
             fetch(`/server/vless/${userId}/link`)
-                .then(response => response.json())
+                .then(response => {
+                    console.log('Response status:', response.status);
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.json();
+                })
                 .then(data => {
+                    console.log('Received data:', data);
                     navigator.clipboard.writeText(data.link).then(() => {
+                        console.log('Link copied to clipboard');
                         // Показать уведомление
                         const originalHtml = btn.innerHTML;
                         btn.innerHTML = '<i class="bi bi-check"></i>';
@@ -272,7 +281,14 @@ document.addEventListener('DOMContentLoaded', function() {
                             btn.classList.remove('btn-success');
                             btn.classList.add('btn-info');
                         }, 2000);
+                    }).catch(err => {
+                        console.error('Clipboard error:', err);
+                        alert('Ошибка копирования в буфер обмена: ' + err.message);
                     });
+                })
+                .catch(error => {
+                    console.error('Fetch error:', error);
+                    alert('Ошибка получения ссылки: ' + error.message);
                 });
         });
     });
