@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+
+{% block title %}Добавить VLESS пользователя - MarketPlacer{% endblock %}
+
+{% block content %}
+<div class="content-wrapper">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="mb-0">
+                            <i class="bi bi-person-plus"></i> Добавить пользователя
+                        </h3>
+                    </div>
+                    <div class="card-body">
+                        <form method="POST" action="{{ url_for('vpn.add_vless_user') }}">
+                            <div class="mb-3">
+                                <label for="name" class="form-label">Имя пользователя</label>
+                                <input type="text" class="form-control" id="name" name="name" required
+                                       placeholder="Например: Иван или iPhone-Петя">
+                                <div class="form-text">Используйте понятное имя для идентификации устройства/пользователя</div>
+                            </div>
+
+                            <div class="mb-4">
+                                <label class="form-label">Режим доступа</label>
+
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="radio" name="access_mode" id="mode_full" value="full">
+                                    <label class="form-check-label" for="mode_full">
+                                        <span class="badge bg-success me-2">Полный</span>
+                                        Интернет через VPS + доступ к локальной сети
+                                    </label>
+                                </div>
+
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="radio" name="access_mode" id="mode_lan" value="lan_only">
+                                    <label class="form-check-label" for="mode_lan">
+                                        <span class="badge bg-warning text-dark me-2">Только LAN</span>
+                                        Только доступ к локальной сети, интернет через провайдера
+                                    </label>
+                                </div>
+
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="access_mode" id="mode_proxy" value="proxy_only" checked>
+                                    <label class="form-check-label" for="mode_proxy">
+                                        <span class="badge bg-primary me-2">Только Интернет</span>
+                                        Только интернет через VPS, без доступа к локальной сети
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div class="mb-4">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="auto_sync" id="auto_sync" checked>
+                                    <label class="form-check-label" for="auto_sync">
+                                        <i class="bi bi-arrow-repeat"></i> Автоматически синхронизировать с VPS
+                                    </label>
+                                </div>
+                                <div class="form-text">После создания пользователя конфигурация Xray будет обновлена на сервере</div>
+                            </div>
+
+                            <div class="d-flex gap-2">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="bi bi-plus-lg"></i> Создать
+                                </button>
+                                <a href="{{ url_for('vpn.vless_users') }}" class="btn btn-outline-secondary">
+                                    <i class="bi bi-x-lg"></i> Отмена
+                                </a>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
