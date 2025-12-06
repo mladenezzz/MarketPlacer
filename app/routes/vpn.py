@@ -87,7 +87,6 @@ def add_vless_user():
     if request.method == 'POST':
         name = request.form.get('name', '').strip()
         access_mode = request.form.get('access_mode', 'proxy_only')
-        auto_sync = request.form.get('auto_sync') == 'on'
 
         if not name:
             flash('Имя пользователя обязательно.', 'danger')
@@ -113,15 +112,12 @@ def add_vless_user():
         db.session.add(vpn_user)
         db.session.commit()
 
-        flash(f'Пользователь "{name}" успешно создан.', 'success')
-
-        # Автоматическая синхронизация если включена
-        if auto_sync:
-            success, message = sync_xray_config()
-            if success:
-                flash('Конфигурация VPS обновлена.', 'success')
-            else:
-                flash(f'Ошибка синхронизации: {message}', 'warning')
+        # Синхронизируем с VPS
+        success, message = sync_xray_config()
+        if success:
+            flash(f'Пользователь "{name}" создан и добавлен на VPS.', 'success')
+        else:
+            flash(f'Пользователь "{name}" создан, но ошибка синхронизации: {message}', 'warning')
 
         return redirect(url_for('vpn.vless_users'))
 

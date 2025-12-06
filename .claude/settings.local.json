@@ -1,9 +1,12 @@
 {
   "permissions": {
     "allow": [
-      "Bash(timeout:*)",
-      "Bash(findstr:*)",
-      "Bash(dir:*)"
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$(cat <<''EOF''\nfeat: add VLESS/Reality VPN user management\n\n- Add VPNUser model for storing VPN users with access modes\n- Add VPN routes for user CRUD, sync with VPS, import/export\n- Add VPS service with SSH support (Ed25519, RSA, ECDSA keys)\n- Add templates for VPN user management UI\n- Add VPN sync on datacollector startup\n- Support three access modes: full, lan_only, proxy_only\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")",
+      "Bash(git push:*)",
+      "Bash(python:*)",
+      "Bash(pip install:*)",
+      "Bash(git commit:*)"
     ],
     "deny": [],
     "ask": []
