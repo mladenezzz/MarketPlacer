@@ -8,12 +8,14 @@ from app.models.product import Product, Warehouse
 from app.models.wildberries import WBSale, WBOrder, WBIncome, WBIncomeItem, WBStock, WBGood
 from app.models.ozon import OzonStock, OzonSale, OzonOrder, OzonSupplyOrder, OzonSupplyItem
 from app.models.sync import CollectionLog, SyncState
+from app.models.vpn import VPNUser
 
 __all__ = [
     'db', 'User', 'Token',
     'Product', 'Warehouse',
     'WBSale', 'WBOrder', 'WBIncome', 'WBIncomeItem', 'WBStock', 'WBGood',
     'OzonStock', 'OzonSale', 'OzonOrder', 'OzonSupplyOrder', 'OzonSupplyItem',
-    'CollectionLog', 'SyncState'
+    'CollectionLog', 'SyncState',
+    'VPNUser'
 ]
 

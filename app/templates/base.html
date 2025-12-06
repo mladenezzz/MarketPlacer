@@ -234,6 +234,17 @@
                                 <li><a class="dropdown-item" href="{{ url_for('main.buyouts') }}"><i class="bi bi-cart-check"></i> Выкупы</a></li>
                             </ul>
                         </li>
+                        {% if current_user.is_admin() %}
+                        <!-- Меню Сервер -->
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="bi bi-hdd-rack"></i> Сервер
+                            </a>
+                            <ul class="dropdown-menu">
+                                <li><a class="dropdown-item" href="{{ url_for('vpn.vless_users') }}"><i class="bi bi-shield-lock"></i> VLESS/Reality</a></li>
+                            </ul>
+                        </li>
+                        {% endif %}
                     {% endif %}
                 </ul>
 

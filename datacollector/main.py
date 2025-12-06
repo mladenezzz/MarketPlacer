@@ -13,6 +13,8 @@ from datacollector.queue_manager import TaskQueue, Task, TaskPriority
 from datacollector.worker import WorkerPool
 from app.models import Token, WBStock, OzonStock
 from app.models.sync import ManualTask
+from app.models.vpn import VPNUser
+from app.services.vps_service import VPSService
 
 logging.basicConfig(
     level=logging.DEBUG,
@@ -78,6 +80,75 @@ def initialize_collectors():
         session.close()
 
     logger.info("Initialization complete")
+
+
+def sync_vpn_users():
+    """Sync VPN users from VPS to database"""
+    logger.info("Syncing VPN users from VPS...")
+
+    engine = create_engine(DataCollectorConfig.DATABASE_URI)
+    Session = sessionmaker(bind=engine)
+    session = Session()
+
+    try:
+        # Connect to VPS and get config
+        vps = VPSService(
+            host=DataCollectorConfig.VPS_HOST,
+            port=DataCollectorConfig.VPS_SSH_PORT,
+            username=DataCollectorConfig.VPS_SSH_USER,
+            password=DataCollectorConfig.VPS_SSH_PASSWORD,
+            private_key=DataCollectorConfig.VPS_SSH_KEY
+        )
+
+        with vps:
+            config = vps.get_xray_config()
+
+        if not config:
+            logger.warning("Could not read Xray config from VPS")
+            return
+
+        # Get existing UUIDs in database
+        existing_uuids = {u.uuid for u in session.query(VPNUser).all()}
+
+        # Parse clients from config
+        imported = 0
+        for inbound in config.get('inbounds', []):
+            if inbound.get('protocol') == 'vless':
+                for client in inbound.get('settings', {}).get('clients', []):
+                    client_uuid = client.get('id')
+                    if client_uuid in existing_uuids:
+                        continue
+
+                    email = client.get('email', '')
+                    if '@' in email:
+                        name, mode = email.rsplit('@', 1)
+                        name = name.replace('_', ' ').title()
+                        if mode not in ('full', 'lan_only', 'proxy_only'):
+                            mode = 'proxy_only'
+                    else:
+                        name = email or f"User-{client_uuid[:8]}"
+                        mode = 'proxy_only'
+
+                    vpn_user = VPNUser(
+                        name=name,
+                        uuid=client_uuid,
+                        email=email or f"{client_uuid[:8]}@imported",
+                        access_mode=mode
+                    )
+                    session.add(vpn_user)
+                    imported += 1
+
+        if imported > 0:
+            session.commit()
+            logger.info(f"Imported {imported} VPN users from VPS")
+        else:
+            logger.info("All VPN users already in database")
+
+    except Exception as e:
+        logger.error(f"Error syncing VPN users: {e}")
+        session.rollback()
+    finally:
+        session.close()
 
 
 def check_and_load_today_stocks():
@@ -390,6 +461,9 @@ def main():
 
     # Initialize collectors
     initialize_collectors()
+
+    # Sync VPN users from VPS
+    sync_vpn_users()
 
     # Check and load today's stocks if needed
     check_and_load_today_stocks()
