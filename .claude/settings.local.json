@@ -1,26 +1,17 @@
 {
   "permissions": {
     "allow": [
-      "Bash(git add:*)",
-      "Bash(git commit -m \"$(cat <<''EOF''\nfeat: add VLESS/Reality VPN user management\n\n- Add VPNUser model for storing VPN users with access modes\n- Add VPN routes for user CRUD, sync with VPS, import/export\n- Add VPS service with SSH support (Ed25519, RSA, ECDSA keys)\n- Add templates for VPN user management UI\n- Add VPN sync on datacollector startup\n- Support three access modes: full, lan_only, proxy_only\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")",
-      "Bash(git push:*)",
-      "Bash(python:*)",
-      "Bash(pip install:*)",
-      "Bash(git commit:*)",
-      "Bash(git rm:*)",
-      "Bash(tasklist:*)",
-      "Bash(taskkill:*)",
-      "Bash(cmd //c \"del /F app.db\")",
-      "Bash(findstr:*)",
-      "Bash(git branch:*)",
-      "Bash(git checkout:*)",
-      "Bash(dir \"C:\\Users\\OfficeLT\\VsCodeProjects\\MarketPlaceApp\" /s /b)",
-      "Bash(net use \\192.168.0.35d /user:Mike Lvl23party)",
-      "Bash(net use)",
-      "Bash(py -m pip install:*)",
-      "Bash(.venvScriptsactivate)",
-      "Bash(source .venv/Scripts/activate)",
-      "Bash(source:*)"
+      "Bash(git config --global --add safe.directory '%(prefix)///192.168.0.44/MarketPlacer/')",
+      "Bash(git merge:*)",
+      "Bash(git stash:*)",
+      "Bash(python -m venv:*)",
+      "Bash(venvScriptspip install pywin32 psutil)",
+      "Bash(venv/Scripts/pip.exe install:*)",
+      "Bash(cat:*)",
+      "Bash(powershell -Command \"(Get-Content interceptor.py) -replace ''gs10.02.1'', ''gs10.06.0'' | Set-Content interceptor.py\")",
+      "Bash(venv/Scripts/pyinstaller.exe:*)",
+      "Bash(powershell -Command \"New-ItemProperty -Path ''HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Run'' -Name ''PrintInterceptor'' -Value ''\"\"C:\\Users\\Mike01\\VSCodeProjects\\print_interceptor\\dist\\PrintInterceptor.exe\"\"'' -PropertyType String -Force\")",
+      "Bash(venv/Scripts/python.exe:*)"
     ],
     "deny": [],
     "ask": []

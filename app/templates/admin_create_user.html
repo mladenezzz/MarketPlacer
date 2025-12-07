@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+
+{% block title %}Создать пользователя - MarketPlacer{% endblock %}
+
+{% block content %}
+<div class="content-wrapper">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="mb-0">
+                            <i class="bi bi-person-plus"></i> Создать пользователя
+                        </h3>
+                    </div>
+                    <div class="card-body">
+                        <form method="POST" action="{{ url_for('admin.create_user') }}">
+                            {{ form.hidden_tag() }}
+
+                            <div class="mb-3">
+                                {{ form.username.label(class="form-label fw-bold") }}
+                                {{ form.username(class="form-control" + (" is-invalid" if form.username.errors else "")) }}
+                                {% if form.username.errors %}
+                                    <div class="invalid-feedback">
+                                        {% for error in form.username.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+
+                            <div class="mb-3">
+                                {{ form.password.label(class="form-label fw-bold") }}
+                                {{ form.password(class="form-control" + (" is-invalid" if form.password.errors else "")) }}
+                                {% if form.password.errors %}
+                                    <div class="invalid-feedback">
+                                        {% for error in form.password.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+
+                            <div class="mb-3">
+                                {{ form.password_confirm.label(class="form-label fw-bold") }}
+                                {{ form.password_confirm(class="form-control" + (" is-invalid" if form.password_confirm.errors else "")) }}
+                                {% if form.password_confirm.errors %}
+                                    <div class="invalid-feedback">
+                                        {% for error in form.password_confirm.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+
+                            <div class="mb-4">
+                                {{ form.role.label(class="form-label fw-bold") }}
+                                {{ form.role(class="form-select" + (" is-invalid" if form.role.errors else "")) }}
+                                {% if form.role.errors %}
+                                    <div class="invalid-feedback">
+                                        {% for error in form.role.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                                <small class="form-text text-muted">
+                                    <i class="bi bi-info-circle"></i> Роль определяет доступ к разделам системы
+                                </small>
+                            </div>
+
+                            <div class="d-grid gap-2">
+                                {{ form.submit(class="btn btn-primary btn-lg") }}
+                                <a href="{{ url_for('admin.users') }}" class="btn btn-outline-secondary">
+                                    <i class="bi bi-x-circle"></i> Отмена
+                                </a>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

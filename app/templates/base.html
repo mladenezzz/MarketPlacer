@@ -225,6 +225,15 @@
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav me-auto">
                     {% if current_user.is_authenticated %}
+                        {% if current_user.has_access_to('dashboard') %}
+                        <!-- Главная страница -->
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('main.index') }}">
+                                <i class="bi bi-house"></i> Главная
+                            </a>
+                        </li>
+                        {% endif %}
+                        {% if current_user.has_access_to('statistics') %}
                         <!-- Меню Статистика -->
                         <li class="nav-item dropdown">
                             <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
@@ -234,6 +243,8 @@
                                 <li><a class="dropdown-item" href="{{ url_for('main.buyouts') }}"><i class="bi bi-cart-check"></i> Выкупы</a></li>
                             </ul>
                         </li>
+                        {% endif %}
+                        {% if current_user.has_access_to('marking') %}
                         <!-- Меню Маркировка -->
                         <li class="nav-item dropdown">
                             <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
@@ -244,8 +255,9 @@
                                 <li><a class="dropdown-item" href="{{ url_for('marking.kiz_search') }}"><i class="bi bi-search"></i> Поиск КИЗ</a></li>
                             </ul>
                         </li>
-                        {% if current_user.is_admin() %}
-                        <!-- Меню Сервер -->
+                        {% endif %}
+                        {% if current_user.has_access_to('server') %}
+                        <!-- Меню Сервер (только для админов) -->
                         <li class="nav-item dropdown">
                             <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                                 <i class="bi bi-hdd-rack"></i> Сервер
@@ -269,14 +281,16 @@
                             <ul class="dropdown-menu dropdown-menu-end">
                                 <li><a class="dropdown-item" href="{{ url_for('main.profile') }}"><i class="bi bi-person"></i> Мой профиль</a></li>
                                 <li><a class="dropdown-item" href="{{ url_for('main.dashboard') }}"><i class="bi bi-speedometer2"></i> Панель управления</a></li>
-                                {% if current_user.is_admin() %}
+                                {% if current_user.has_access_to('users') %}
                                     <li><hr class="dropdown-divider"></li>
                                     <li><a class="dropdown-item text-danger" href="{{ url_for('admin.users') }}">
                                         <i class="bi bi-shield-fill-check"></i> Управление пользователями
                                     </a></li>
                                 {% endif %}
+                                {% if current_user.has_access_to('tokens') %}
                                 <li><hr class="dropdown-divider"></li>
-                                <li><a class="dropdown-item" href="{{ url_for('tokens.list_tokens') }}"><i class="bi bi-key"></i> Настройки</a></li>
+                                <li><a class="dropdown-item" href="{{ url_for('tokens.list_tokens') }}"><i class="bi bi-key"></i> Токены маркетплейсов</a></li>
+                                {% endif %}
                                 <li><hr class="dropdown-divider"></li>
                                 <li><a class="dropdown-item" href="{{ url_for('auth.logout') }}">
                                     <i class="bi bi-box-arrow-right"></i> Выход
