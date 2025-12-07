@@ -237,15 +237,21 @@ def buyouts():
     date_from_str = request.args.get('date_from')
     date_to_str = request.args.get('date_to')
 
-    date_from = None
-    date_to = None
+    # По умолчанию показываем данные за сегодня
+    today = datetime.now().date()
+    date_from = today
+    date_to = today
 
     if date_from_str and date_to_str:
         try:
-            date_from = datetime.strptime(date_from_str, '%Y-%m-%d')
-            date_to = datetime.strptime(date_to_str, '%Y-%m-%d')
+            date_from = datetime.strptime(date_from_str, '%Y-%m-%d').date()
+            date_to = datetime.strptime(date_to_str, '%Y-%m-%d').date()
         except ValueError:
-            pass  # Игнорируем неверный формат дат
+            pass  # Используем значения по умолчанию (сегодня)
+    elif date_from_str == '' and date_to_str == '':
+        # Явный сброс дат - показываем все время
+        date_from = None
+        date_to = None
 
     # Получаем все активные токены
     user_tokens = Token.query.filter_by(is_active=True).order_by(Token.marketplace, Token.name).all()
@@ -278,7 +284,6 @@ def buyouts():
     # Общий словарь для всех артикулов (из Ozon и WB)
     # {(article, size): {'ozon_delivered': 0, 'ozon_cancelled': 0, 'ozon_stock': 0}}
     all_products_stats = {}
-    today = datetime.now().date()
 
     # Получаем данные Ozon
     if ozon_token_ids:
@@ -447,7 +452,11 @@ def buyouts():
     ]
 
     return render_template('buyouts.html', tokens=tokens_list, ozon_products=ozon_products,
-                          ozon_tokens=ozon_tokens, wb_tokens=wb_tokens, wb_stocks_by_token=wb_stocks_by_token)
+                          ozon_tokens=ozon_tokens, wb_tokens=wb_tokens, wb_stocks_by_token=wb_stocks_by_token,
+                          date_from=date_from.strftime('%Y-%m-%d') if date_from else '',
+                          date_to=date_to.strftime('%Y-%m-%d') if date_to else '',
+                          date_from_display=date_from.strftime('%d.%m.%Y') if date_from else '',
+                          date_to_display=date_to.strftime('%d.%m.%Y') if date_to else '')
 
 
 @main_bp.route('/api/orders/<int:token_id>/range')
