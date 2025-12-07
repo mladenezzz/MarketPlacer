@@ -125,12 +125,9 @@ class SalesService:
             }
 
     @staticmethod
-    def get_all_sales_today_by_user(user_id: int) -> Dict:
+    def get_all_sales_today() -> Dict:
         """
-        Получить агрегированные данные о продажах на сегодня для всех токенов пользователя
-
-        Args:
-            user_id: ID пользователя
+        Получить агрегированные данные о продажах на сегодня для всех активных токенов
 
         Returns:
             Dict с агрегированной информацией:
@@ -152,8 +149,8 @@ class SalesService:
             }
         """
         try:
-            # Получаем все токены пользователя
-            tokens = Token.query.filter_by(user_id=user_id).all()
+            # Получаем все активные токены
+            tokens = Token.query.filter_by(is_active=True).all()
 
             today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
 

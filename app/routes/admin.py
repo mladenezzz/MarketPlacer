@@ -1,8 +1,8 @@
-from flask import Blueprint, render_template, redirect, url_for, flash
+from flask import Blueprint, render_template, redirect, url_for, flash, request
 from flask_login import login_required, current_user
 from functools import wraps
 from app.models import db, User
-from app.forms import ChangeRoleForm
+from app.forms import ChangeRoleForm, CreateUserForm
 
 admin_bp = Blueprint('admin', __name__, url_prefix='/admin')
 
@@ -86,13 +86,56 @@ def block_user(user_id):
 def unblock_user(user_id):
     """Разблокировка пользователя"""
     user = User.query.get_or_404(user_id)
-    
+
     if not user.is_blocked:
         flash(f'Пользователь {user.username} не заблокирован.', 'info')
     else:
         user.is_blocked = False
         db.session.commit()
         flash(f'Пользователь {user.username} успешно разблокирован.', 'success')
-    
+
+    return redirect(url_for('admin.users'))
+
+
+@admin_bp.route('/users/create', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def create_user():
+    """Создание нового пользователя администратором"""
+    form = CreateUserForm()
+
+    if form.validate_on_submit():
+        user = User(
+            username=form.username.data,
+            role=form.role.data
+        )
+        user.set_password(form.password.data)
+
+        db.session.add(user)
+        db.session.commit()
+
+        flash(f'Пользователь "{user.username}" успешно создан с ролью "{user.get_role_display()}".', 'success')
+        return redirect(url_for('admin.users'))
+
+    return render_template('admin_create_user.html', form=form)
+
+
+@admin_bp.route('/users/<int:user_id>/delete', methods=['POST'])
+@login_required
+@admin_required
+def delete_user(user_id):
+    """Удаление пользователя"""
+    user = User.query.get_or_404(user_id)
+
+    # Запретить удаление самого себя
+    if user.id == current_user.id:
+        flash('Вы не можете удалить сами себя.', 'warning')
+        return redirect(url_for('admin.users'))
+
+    username = user.username
+    db.session.delete(user)
+    db.session.commit()
+
+    flash(f'Пользователь "{username}" успешно удален.', 'success')
     return redirect(url_for('admin.users'))
 

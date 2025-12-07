@@ -1,10 +1,11 @@
-from flask import Blueprint, render_template, jsonify, request
+from flask import Blueprint, render_template, jsonify, request, redirect, url_for
 from flask_login import login_required, current_user
 from datetime import datetime, timezone
 from app.models import Token, OzonOrder, OzonStock, db
 from app.models.wildberries import WBStock, WBGood, WBOrder
 from app.models.product import Product
 from app.services.sales_service import SalesService
+from app.decorators import section_required
 from sqlalchemy import distinct, func
 
 main_bp = Blueprint('main', __name__)
@@ -13,29 +14,41 @@ main_bp = Blueprint('main', __name__)
 @main_bp.route('/')
 def index():
     """Главная страница"""
-    # Если пользователь авторизован, получаем список токенов без запросов к API
+    # Если пользователь авторизован, проверяем доступ к главной странице
     if current_user.is_authenticated:
-        # Получаем токены пользователя
-        user_tokens = Token.query.filter_by(user_id=current_user.id).order_by(Token.marketplace, Token.name).all()
-        
+        # Если у пользователя нет доступа к dashboard, перенаправляем на доступный раздел
+        if not current_user.has_access_to('dashboard'):
+            # Перенаправляем на статистику (выкупы) если есть доступ
+            if current_user.has_access_to('statistics'):
+                return redirect(url_for('main.buyouts'))
+            # Иначе на маркировку
+            elif current_user.has_access_to('marking'):
+                return redirect(url_for('marking.batch_order'))
+            # Если нет доступа никуда - показываем профиль
+            else:
+                return redirect(url_for('main.profile'))
+
+        # Получаем все активные токены
+        user_tokens = Token.query.filter_by(is_active=True).order_by(Token.marketplace, Token.name).all()
+
         # Формируем базовую информацию о токенах без API запросов
         tokens_info = []
         for token in user_tokens:
             # Фильтруем только Wildberries и Ozon
             if token.marketplace not in ['wildberries', 'ozon']:
                 continue
-                
+
             token_name = token.name if token.name else token.get_marketplace_display()
             tokens_info.append({
                 'token_id': token.id,
                 'token_name': token_name,
                 'marketplace': token.get_marketplace_display()
             })
-        
-        return render_template('index.html', 
+
+        return render_template('index.html',
                              tokens_info=tokens_info,
                              has_tokens=len(user_tokens) > 0)
-    
+
     return render_template('index.html')
 
 
@@ -43,11 +56,15 @@ def index():
 @login_required
 def get_token_orders(token_id):
     """API endpoint для получения данных о заказах по токену из базы данных"""
-    # Проверяем, что токен принадлежит текущему пользователю
-    token = Token.query.filter_by(id=token_id, user_id=current_user.id).first()
+    # Проверяем доступ к dashboard
+    if not current_user.has_access_to('dashboard'):
+        return jsonify({'success': False, 'error': 'Нет доступа'}), 403
+
+    # Проверяем, что токен существует и активен
+    token = Token.query.filter_by(id=token_id, is_active=True).first()
 
     if not token:
-        return jsonify({'success': False, 'error': 'Токен не найден'}), 404
+        return jsonify({'success': False, 'error': 'Токен не найден или неактивен'}), 404
 
     # Получаем данные о заказах из базы данных
     # Для WB берем из wb_orders, для Ozon - из ozon_sales
@@ -60,11 +77,15 @@ def get_token_orders(token_id):
 @login_required
 def get_token_sales(token_id):
     """API endpoint для получения данных о продажах по токену из базы данных"""
-    # Проверяем, что токен принадлежит текущему пользователю
-    token = Token.query.filter_by(id=token_id, user_id=current_user.id).first()
+    # Проверяем доступ к dashboard
+    if not current_user.has_access_to('dashboard'):
+        return jsonify({'success': False, 'error': 'Нет доступа'}), 403
+
+    # Проверяем, что токен существует и активен
+    token = Token.query.filter_by(id=token_id, is_active=True).first()
 
     if not token:
-        return jsonify({'success': False, 'error': 'Токен не найден'}), 404
+        return jsonify({'success': False, 'error': 'Токен не найден или неактивен'}), 404
 
     # Получаем данные о продажах из базы данных
     sales_info = SalesService.get_today_sales_by_token(token_id)
@@ -225,8 +246,8 @@ def buyouts():
         except ValueError:
             pass  # Игнорируем неверный формат дат
 
-    # Получаем все токены пользователя
-    user_tokens = Token.query.filter_by(user_id=current_user.id).order_by(Token.marketplace, Token.name).all()
+    # Получаем все активные токены
+    user_tokens = Token.query.filter_by(is_active=True).order_by(Token.marketplace, Token.name).all()
 
     # Формируем список токенов для отображения
     tokens_list = []
@@ -432,11 +453,11 @@ def buyouts():
 @login_required
 def get_token_orders_range(token_id):
     """API endpoint для получения данных о заказах за период"""
-    # Проверяем, что токен принадлежит текущему пользователю
-    token = Token.query.filter_by(id=token_id, user_id=current_user.id).first()
+    # Проверяем, что токен существует и активен
+    token = Token.query.filter_by(id=token_id, is_active=True).first()
 
     if not token:
-        return jsonify({'success': False, 'error': 'Токен не найден'}), 404
+        return jsonify({'success': False, 'error': 'Токен не найден или неактивен'}), 404
 
     # Получаем параметры дат из query string
     date_from_str = request.args.get('date_from')
@@ -462,11 +483,11 @@ def get_token_orders_range(token_id):
 @login_required
 def get_token_sales_range(token_id):
     """API endpoint для получения данных о продажах за период"""
-    # Проверяем, что токен принадлежит текущему пользователю
-    token = Token.query.filter_by(id=token_id, user_id=current_user.id).first()
+    # Проверяем, что токен существует и активен
+    token = Token.query.filter_by(id=token_id, is_active=True).first()
 
     if not token:
-        return jsonify({'success': False, 'error': 'Токен не найден'}), 404
+        return jsonify({'success': False, 'error': 'Токен не найден или неактивен'}), 404
 
     # Получаем параметры дат из query string
     date_from_str = request.args.get('date_from')
@@ -496,8 +517,8 @@ def refresh_all_stocks():
     """
     from app.models.sync import ManualTask
 
-    # Получаем все токены пользователя
-    user_tokens = Token.query.filter_by(user_id=current_user.id).filter(
+    # Получаем все активные токены
+    user_tokens = Token.query.filter_by(is_active=True).filter(
         Token.marketplace.in_(['wildberries', 'ozon'])
     ).all()
 

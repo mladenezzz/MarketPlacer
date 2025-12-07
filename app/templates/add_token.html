@@ -31,7 +31,19 @@
                                     <i class="bi bi-info-circle"></i> Необязательно. Удобно, если у вас несколько токенов для одного маркетплейса
                                 </small>
                             </div>
-                            
+
+                            <div class="mb-3">
+                                {{ form.description.label(class="form-label fw-bold") }}
+                                {{ form.description(class="form-control" + (" is-invalid" if form.description.errors else "")) }}
+                                {% if form.description.errors %}
+                                    <div class="invalid-feedback">
+                                        {% for error in form.description.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+
                             <div class="mb-3">
                                 {{ form.marketplace.label(class="form-label fw-bold") }}
                                 {{ form.marketplace(class="form-select" + (" is-invalid" if form.marketplace.errors else ""), id="marketplace-select") }}

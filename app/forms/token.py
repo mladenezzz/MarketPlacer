@@ -5,12 +5,18 @@ from wtforms.validators import DataRequired, Length, Optional
 
 class TokenForm(FlaskForm):
     """Форма добавления/редактирования токена маркетплейса"""
-    name = StringField('Название токена', 
+    name = StringField('Название токена',
                       validators=[
                           Optional(),
                           Length(max=100, message='Название не должно превышать 100 символов')
                       ],
                       render_kw={'placeholder': 'Например: Основной магазин, Тестовый аккаунт'})
+    description = TextAreaField('Описание',
+                               validators=[
+                                   Optional(),
+                                   Length(max=500, message='Описание не должно превышать 500 символов')
+                               ],
+                               render_kw={'rows': 2, 'placeholder': 'Краткое описание токена (необязательно)'})
     marketplace = SelectField('Маркетплейс', 
                              choices=[
                                  ('wildberries', 'Wildberries'),
