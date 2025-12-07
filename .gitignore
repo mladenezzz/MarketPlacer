@@ -35,6 +35,9 @@ instance/
 .env
 .env.local
 
+# Claude
+CLAUDE.md
+
 # Logs
 *.log
 
