@@ -183,3 +183,233 @@ def create_kiz_order():
 
     except Exception as e:
         return jsonify({'success': False, 'error': f'Ошибка при создании заказа: {str(e)}'})
+
+
+@marking_bp.route('/kiz-search')
+@login_required
+def kiz_search():
+    """Страница поиска КИЗ"""
+    return render_template('marking/kiz_search.html')
+
+
+@marking_bp.route('/api/search-kiz')
+@login_required
+def search_kiz():
+    """API для поиска КИЗ по артикулу или коду маркировки"""
+    query = request.args.get('query', '').strip()
+    search_type = request.args.get('type', 'article')  # 'article' или 'marking_code'
+
+    if not query:
+        return jsonify({'success': True, 'data': []})
+
+    # Путь к папке КМ на SMB шаре
+    km_path = current_app.config['SMB_KIZ_KM_PATH']
+
+    results = []
+
+    try:
+        with SMBService() as smb:
+            if search_type == 'article':
+                # Поиск по артикулу - ищем GTIN через базу данных
+                goods = WBGood.query.filter(
+                    WBGood.vendor_code.ilike(f'{query}%'),
+                    WBGood.gtin.isnot(None)
+                ).all()
+
+                if not goods:
+                    return jsonify({'success': True, 'data': []})
+
+                # Собираем все GTIN для поиска
+                gtins = set()
+                gtin_to_article = {}
+                for good in goods:
+                    gtin = good.gtin
+                    # Нормализуем GTIN до 14 символов
+                    if len(gtin) == 13:
+                        gtin = '0' + gtin
+                    gtins.add(gtin)
+                    gtin_to_article[gtin] = {
+                        'article': good.vendor_code,
+                        'size': good.tech_size or '',
+                        'gtin': good.gtin
+                    }
+
+                # Ищем в папках
+                results = _search_in_km_folders_smb(smb, km_path, gtins, gtin_to_article)
+
+            else:
+                # Поиск по коду маркировки
+                results = _search_marking_code_smb(smb, km_path, query)
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': f'Ошибка поиска: {str(e)}'})
+
+    return jsonify({'success': True, 'data': results})
+
+
+def _search_in_km_folders_smb(smb, km_path, gtins, gtin_to_article):
+    """Поиск GTIN в CSV файлах в папках КМ через SMB"""
+    results = []
+    # gtin -> {folder -> count}
+    found_folders = {}
+
+    try:
+        # Получаем список папок
+        folders = smb.list_files(km_path)
+    except Exception:
+        return results
+
+    for folder_info in folders:
+        if not folder_info['is_directory']:
+            continue
+
+        folder_name = folder_info['filename']
+        folder_path = f"{km_path}/{folder_name}"
+
+        try:
+            # Получаем список файлов в папке
+            files = smb.list_files(folder_path)
+        except Exception:
+            continue
+
+        for file_info in files:
+            file_name = file_info['filename']
+            if file_name.endswith('.csv') and 'Коды_идентификации' in file_name:
+                csv_path = f"{folder_path}/{file_name}"
+
+                try:
+                    # Читаем CSV файл
+                    file_content = smb.read_file(csv_path)
+                    content = file_content.read().decode('utf-8')
+
+                    for line in content.split('\n'):
+                        line = line.strip()
+                        if not line:
+                            continue
+
+                        # Код маркировки начинается с 01 + GTIN (14 символов)
+                        if line.startswith('01') and len(line) >= 16:
+                            gtin_in_code = line[2:16]
+
+                            if gtin_in_code in gtins:
+                                if gtin_in_code not in found_folders:
+                                    found_folders[gtin_in_code] = {}
+                                if folder_name not in found_folders[gtin_in_code]:
+                                    found_folders[gtin_in_code][folder_name] = 0
+                                found_folders[gtin_in_code][folder_name] += 1
+                except Exception:
+                    continue
+
+    # Формируем результаты
+    for gtin, folders_counts in found_folders.items():
+        article_info = gtin_to_article.get(gtin, {})
+        for folder, count in folders_counts.items():
+            results.append({
+                'folder': folder,
+                'article': article_info.get('article', ''),
+                'size': article_info.get('size', ''),
+                'gtin': article_info.get('gtin', gtin),
+                'count': count
+            })
+
+    # Сортируем по папке
+    results.sort(key=lambda x: x['folder'])
+
+    return results
+
+
+def _search_marking_code_smb(smb, km_path, query):
+    """Поиск по части кода маркировки через SMB (регистрозависимый)"""
+    results = []
+    found_items = []
+
+    try:
+        # Получаем список папок
+        folders = smb.list_files(km_path)
+    except Exception:
+        return results
+
+    for folder_info in folders:
+        if not folder_info['is_directory']:
+            continue
+
+        folder_name = folder_info['filename']
+        folder_path = f"{km_path}/{folder_name}"
+
+        try:
+            # Получаем список файлов в папке
+            files = smb.list_files(folder_path)
+        except Exception:
+            continue
+
+        for file_info in files:
+            file_name = file_info['filename']
+            if file_name.endswith('.csv') and 'Коды_идентификации' in file_name:
+                csv_path = f"{folder_path}/{file_name}"
+
+                try:
+                    # Читаем CSV файл
+                    file_content = smb.read_file(csv_path)
+                    content = file_content.read().decode('utf-8')
+
+                    for line_num, line in enumerate(content.split('\n'), start=1):
+                        line = line.strip()
+                        if not line:
+                            continue
+
+                        # Ищем совпадение в любой части кода (регистрозависимый поиск)
+                        if query in line:
+                            gtin = ''
+                            if line.startswith('01') and len(line) >= 16:
+                                gtin = line[2:16]
+
+                            found_items.append({
+                                'folder': folder_name,
+                                'marking_code': line,
+                                'gtin': gtin,
+                                'line_number': line_num
+                            })
+                except Exception:
+                    continue
+
+    # Получаем информацию об артикулах по GTIN
+    gtins = set(item['gtin'] for item in found_items if item['gtin'])
+    gtin_to_article = {}
+
+    if gtins:
+        # Нормализуем GTIN для поиска (убираем ведущий ноль если есть)
+        normalized_gtins = set()
+        for gtin in gtins:
+            normalized_gtins.add(gtin)
+            if gtin.startswith('0'):
+                normalized_gtins.add(gtin[1:])
+
+        goods = WBGood.query.filter(WBGood.gtin.in_(normalized_gtins)).all()
+        for good in goods:
+            gtin = good.gtin
+            if len(gtin) == 13:
+                gtin_to_article['0' + gtin] = {
+                    'article': good.vendor_code,
+                    'size': good.tech_size or ''
+                }
+            gtin_to_article[gtin] = {
+                'article': good.vendor_code,
+                'size': good.tech_size or ''
+            }
+
+    # Формируем результаты
+    for item in found_items:
+        article_info = gtin_to_article.get(item['gtin'], {})
+        results.append({
+            'folder': item['folder'],
+            'marking_code': item['marking_code'],
+            'article': article_info.get('article', ''),
+            'size': article_info.get('size', ''),
+            'gtin': item['gtin'],
+            'line_number': item['line_number']
+        })
+
+    # Сортируем по папке
+    results.sort(key=lambda x: x['folder'])
+
+    return results
