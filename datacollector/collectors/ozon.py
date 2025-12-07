@@ -521,12 +521,24 @@ class OzonCollector(BaseCollector):
                 posting_number=posting_number,
                 sku=sku
             ).first()
-            if existing:
-                continue
 
             # Parse dates
             shipment_date = posting.get('shipment_date')
             in_process_at = posting.get('in_process_at')
+
+            # Get financial data
+            financial_data = posting.get('financial_data', {})
+
+            if existing:
+                # Update existing order with new data
+                existing.status = posting.get('status')
+                existing.quantity = product_data.get('quantity', 1)
+                existing.price = product_data.get('price')
+                if financial_data:
+                    existing.commission_amount = financial_data.get('commission_amount')
+                    existing.commission_percent = financial_data.get('commission_percent')
+                    existing.payout = financial_data.get('payout')
+                continue
 
             order = OzonOrder(
                 token_id=self.token_id,
@@ -544,8 +556,7 @@ class OzonCollector(BaseCollector):
                 status=posting.get('status')
             )
 
-            # Add financial data if available
-            financial_data = posting.get('financial_data', {})
+            # Add financial data for new order
             if financial_data:
                 order.commission_amount = financial_data.get('commission_amount')
                 order.commission_percent = financial_data.get('commission_percent')
