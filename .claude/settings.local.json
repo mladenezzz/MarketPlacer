@@ -11,7 +11,11 @@
       "Bash(powershell -Command \"(Get-Content interceptor.py) -replace ''gs10.02.1'', ''gs10.06.0'' | Set-Content interceptor.py\")",
       "Bash(venv/Scripts/pyinstaller.exe:*)",
       "Bash(powershell -Command \"New-ItemProperty -Path ''HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Run'' -Name ''PrintInterceptor'' -Value ''\"\"C:\\Users\\Mike01\\VSCodeProjects\\print_interceptor\\dist\\PrintInterceptor.exe\"\"'' -PropertyType String -Force\")",
-      "Bash(venv/Scripts/python.exe:*)"
+      "Bash(venv/Scripts/python.exe:*)",
+      "Bash(git checkout:*)",
+      "Bash(grep:*)",
+      "Bash(find:*)",
+      "Bash(git add:*)"
     ],
     "deny": [],
     "ask": []
