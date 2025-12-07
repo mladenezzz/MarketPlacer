@@ -1,12 +1,13 @@
 from flask import Blueprint, render_template, jsonify, request, redirect, url_for
 from flask_login import login_required, current_user
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from app.models import Token, OzonOrder, OzonStock, db
 from app.models.wildberries import WBStock, WBGood, WBOrder
 from app.models.product import Product
 from app.services.sales_service import SalesService
-from app.decorators import section_required
+from app.decorators import section_required, admin_required
 from sqlalchemy import distinct, func
+from collections import defaultdict
 
 main_bp = Blueprint('main', __name__)
 
@@ -543,4 +544,113 @@ def refresh_all_stocks():
         'success': True,
         'message': f'Создано {tasks_created} задач на обновление остатков. Datacollector обработает их в ближайшее время.'
     })
+
+
+def extract_buyer_id(posting_number: str) -> str:
+    """Извлечение ID покупателя из posting_number.
+
+    posting_number имеет формат число-число-число.
+    Первое число - это идентификатор покупателя.
+    """
+    if not posting_number:
+        return ''
+    parts = posting_number.split('-')
+    if len(parts) >= 1:
+        return parts[0]
+    return ''
+
+
+@main_bp.route('/statistics/buyouts-list')
+@login_required
+@admin_required
+def buyouts_list():
+    """Страница со списком выкупов, сгруппированных по покупателям (только для админа)"""
+    # Получаем параметры дат из query string
+    date_from_str = request.args.get('date_from')
+    date_to_str = request.args.get('date_to')
+
+    # По умолчанию - сегодня
+    today = datetime.now().date()
+    date_from = today
+    date_to = today
+
+    if date_from_str:
+        try:
+            date_from = datetime.strptime(date_from_str, '%Y-%m-%d').date()
+        except ValueError:
+            pass
+
+    if date_to_str:
+        try:
+            date_to = datetime.strptime(date_to_str, '%Y-%m-%d').date()
+        except ValueError:
+            pass
+
+    # Получаем все активные Ozon токены
+    ozon_tokens = Token.query.filter_by(is_active=True, marketplace='ozon').all()
+    ozon_token_ids = [t.id for t in ozon_tokens]
+
+    # Словарь токенов по id для быстрого доступа
+    tokens_map = {t.id: t.name or t.get_marketplace_display() for t in ozon_tokens}
+
+    # Получаем заказы за указанный период
+    orders = db.session.query(OzonOrder).filter(
+        OzonOrder.token_id.in_(ozon_token_ids),
+        func.date(OzonOrder.in_process_at) >= date_from,
+        func.date(OzonOrder.in_process_at) <= date_to
+    ).order_by(OzonOrder.in_process_at.desc()).all()
+
+    # Группируем заказы по покупателям (первое число в posting_number)
+    buyers = defaultdict(lambda: {
+        'orders': [],
+        'total_count': 0,
+        'delivered_count': 0,
+        'cancelled_count': 0,
+        'total_amount': 0.0
+    })
+
+    for order in orders:
+        buyer_id = extract_buyer_id(order.posting_number)
+        if not buyer_id:
+            continue
+
+        buyers[buyer_id]['orders'].append({
+            'posting_number': order.posting_number,
+            'offer_id': order.offer_id,
+            'quantity': order.quantity,
+            'price': float(order.price) if order.price else 0.0,
+            'status': order.status,
+            'in_process_at': order.in_process_at,
+            'token_name': tokens_map.get(order.token_id, 'Неизвестно'),
+            'delivery_schema': order.delivery_schema
+        })
+        buyers[buyer_id]['total_count'] += 1
+        if order.status == 'delivered':
+            buyers[buyer_id]['delivered_count'] += 1
+        elif order.status == 'cancelled':
+            buyers[buyer_id]['cancelled_count'] += 1
+        if order.price:
+            buyers[buyer_id]['total_amount'] += float(order.price) * order.quantity
+
+    # Преобразуем в список и сортируем по количеству заказов (от большего к меньшему)
+    buyers_list = []
+    for buyer_id, data in buyers.items():
+        buyers_list.append({
+            'buyer_id': buyer_id,
+            'orders': data['orders'],
+            'total_count': data['total_count'],
+            'delivered_count': data['delivered_count'],
+            'cancelled_count': data['cancelled_count'],
+            'total_amount': round(data['total_amount'], 2)
+        })
+
+    # Сортируем по количеству заказов (покупатели с большим числом заказов сверху)
+    buyers_list.sort(key=lambda x: x['total_count'], reverse=True)
+
+    return render_template('buyouts_list.html',
+                          buyers=buyers_list,
+                          date_from=date_from.strftime('%Y-%m-%d'),
+                          date_to=date_to.strftime('%Y-%m-%d'),
+                          total_buyers=len(buyers_list),
+                          total_orders=len(orders))
 

@@ -241,6 +241,9 @@
                             </a>
                             <ul class="dropdown-menu">
                                 <li><a class="dropdown-item" href="{{ url_for('main.buyouts') }}"><i class="bi bi-cart-check"></i> Выкупы</a></li>
+                                {% if current_user.is_admin() %}
+                                <li><a class="dropdown-item" href="{{ url_for('main.buyouts_list') }}"><i class="bi bi-people"></i> Список выкупов</a></li>
+                                {% endif %}
                             </ul>
                         </li>
                         {% endif %}

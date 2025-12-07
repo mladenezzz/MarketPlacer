@@ -1,0 +1,345 @@
+{% extends "base.html" %}
+
+{% block title %}Список выкупов - MarketPlacer{% endblock %}
+
+{% block content %}
+<div class="container-fluid my-5 px-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="mb-0">
+                        <i class="bi bi-people"></i> Список выкупов по покупателям
+                    </h3>
+                </div>
+                <div class="card-body">
+                    <!-- Фильтр по датам -->
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <label for="date-range-picker" class="form-label">Период:</label>
+                            <input type="text" class="form-control" id="date-range-picker"
+                                   placeholder="Выберите период..."
+                                   style="background-color: white; cursor: pointer;" readonly>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">&nbsp;</label>
+                            <div class="btn-group w-100" role="group">
+                                <button type="button" class="btn btn-outline-secondary" id="set-today">
+                                    <i class="bi bi-calendar-day"></i> Сегодня
+                                </button>
+                                <button type="button" class="btn btn-outline-secondary" id="set-week">
+                                    <i class="bi bi-calendar-week"></i> Неделя
+                                </button>
+                                <button type="button" class="btn btn-outline-secondary" id="set-month">
+                                    <i class="bi bi-calendar-month"></i> Месяц
+                                </button>
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">&nbsp;</label>
+                            <button type="button" class="btn btn-primary w-100" id="apply-filter">
+                                <i class="bi bi-funnel"></i> Применить
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Статистика -->
+                    <div class="row mb-4">
+                        <div class="col-md-3">
+                            <div class="card bg-light">
+                                <div class="card-body text-center py-2">
+                                    <h5 class="mb-0 text-primary">{{ total_buyers }}</h5>
+                                    <small class="text-muted">Покупателей</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card bg-light">
+                                <div class="card-body text-center py-2">
+                                    <h5 class="mb-0 text-info">{{ total_orders }}</h5>
+                                    <small class="text-muted">Всего заказов</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card bg-light">
+                                <div class="card-body text-center py-2">
+                                    {% set multi_buyers = buyers|selectattr('total_count', 'gt', 1)|list|length %}
+                                    <h5 class="mb-0 text-warning">{{ multi_buyers }}</h5>
+                                    <small class="text-muted">С несколькими заказами</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card bg-light">
+                                <div class="card-body text-center py-2">
+                                    {% if total_buyers > 0 %}
+                                        {% set avg = (total_orders / total_buyers)|round(1) %}
+                                    {% else %}
+                                        {% set avg = 0 %}
+                                    {% endif %}
+                                    <h5 class="mb-0 text-success">{{ avg }}</h5>
+                                    <small class="text-muted">Среднее заказов на покупателя</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {% if buyers %}
+                    <!-- Поиск -->
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <div class="input-group">
+                                <span class="input-group-text">
+                                    <i class="bi bi-search"></i>
+                                </span>
+                                <input type="text" class="form-control" id="searchInput"
+                                       placeholder="Поиск по ID покупателя или артикулу...">
+                            </div>
+                        </div>
+                        <div class="col-md-6 text-end">
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="checkbox" id="showMultiOnly">
+                                <label class="form-check-label" for="showMultiOnly">
+                                    Только с несколькими заказами
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Аккордеон с покупателями -->
+                    <div class="accordion" id="buyersAccordion">
+                        {% for buyer in buyers %}
+                        <div class="accordion-item buyer-item" data-buyer-id="{{ buyer.buyer_id }}"
+                             data-order-count="{{ buyer.total_count }}">
+                            <h2 class="accordion-header">
+                                <button class="accordion-button collapsed" type="button"
+                                        data-bs-toggle="collapse"
+                                        data-bs-target="#buyer_{{ loop.index }}"
+                                        aria-expanded="false">
+                                    <div class="d-flex w-100 justify-content-between align-items-center">
+                                        <div>
+                                            <strong>ID покупателя: {{ buyer.buyer_id }}</strong>
+                                            {% if buyer.total_count > 1 %}
+                                            <span class="badge bg-warning ms-2">
+                                                {{ buyer.total_count }} заказов
+                                            </span>
+                                            {% else %}
+                                            <span class="badge bg-secondary ms-2">
+                                                {{ buyer.total_count }} заказ
+                                            </span>
+                                            {% endif %}
+                                        </div>
+                                        <div class="me-3">
+                                            <span class="badge bg-success me-2">
+                                                <i class="bi bi-check-circle"></i> {{ buyer.delivered_count }}
+                                            </span>
+                                            <span class="badge bg-danger me-2">
+                                                <i class="bi bi-x-circle"></i> {{ buyer.cancelled_count }}
+                                            </span>
+                                            <span class="text-muted">
+                                                {{ "%.2f"|format(buyer.total_amount) }} руб.
+                                            </span>
+                                        </div>
+                                    </div>
+                                </button>
+                            </h2>
+                            <div id="buyer_{{ loop.index }}" class="accordion-collapse collapse"
+                                 data-bs-parent="#buyersAccordion">
+                                <div class="accordion-body">
+                                    <div class="table-responsive">
+                                        <table class="table table-sm table-hover mb-0">
+                                            <thead>
+                                                <tr>
+                                                    <th>Номер отправления</th>
+                                                    <th>Артикул</th>
+                                                    <th>Кол-во</th>
+                                                    <th>Цена</th>
+                                                    <th>Статус</th>
+                                                    <th>Схема</th>
+                                                    <th>Дата</th>
+                                                    <th>Магазин</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {% for order in buyer.orders %}
+                                                <tr>
+                                                    <td>
+                                                        <code>{{ order.posting_number }}</code>
+                                                    </td>
+                                                    <td>{{ order.offer_id }}</td>
+                                                    <td>{{ order.quantity }}</td>
+                                                    <td>{{ "%.2f"|format(order.price) }}</td>
+                                                    <td>
+                                                        {% if order.status == 'delivered' %}
+                                                        <span class="badge bg-success">Доставлен</span>
+                                                        {% elif order.status == 'cancelled' %}
+                                                        <span class="badge bg-danger">Отменен</span>
+                                                        {% elif order.status == 'delivering' %}
+                                                        <span class="badge bg-info">Доставляется</span>
+                                                        {% else %}
+                                                        <span class="badge bg-secondary">{{ order.status }}</span>
+                                                        {% endif %}
+                                                    </td>
+                                                    <td>
+                                                        {% if order.delivery_schema == 'FBS' %}
+                                                        <span class="badge bg-primary">FBS</span>
+                                                        {% elif order.delivery_schema == 'FBO' %}
+                                                        <span class="badge bg-info">FBO</span>
+                                                        {% else %}
+                                                        <span class="badge bg-secondary">{{ order.delivery_schema or '-' }}</span>
+                                                        {% endif %}
+                                                    </td>
+                                                    <td>
+                                                        {% if order.in_process_at %}
+                                                        {{ order.in_process_at.strftime('%d.%m.%Y %H:%M') }}
+                                                        {% else %}
+                                                        -
+                                                        {% endif %}
+                                                    </td>
+                                                    <td>{{ order.token_name }}</td>
+                                                </tr>
+                                                {% endfor %}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle"></i>
+                        Нет заказов за выбранный период.
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .accordion-button:not(.collapsed) {
+        background-color: rgba(79, 70, 229, 0.1);
+    }
+    .accordion-button::after {
+        margin-left: auto;
+    }
+    .accordion-button .d-flex {
+        flex: 1;
+    }
+    .table-sm th, .table-sm td {
+        padding: 0.4rem;
+        font-size: 0.875rem;
+    }
+    .buyer-item.hidden {
+        display: none;
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Функция для форматирования даты для API (YYYY-MM-DD)
+    function formatDateForAPI(date) {
+        const day = String(date.getDate()).padStart(2, '0');
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const year = date.getFullYear();
+        return `${year}-${month}-${day}`;
+    }
+
+    // Инициализация Air Datepicker
+    const picker = new AirDatepicker('#date-range-picker', {
+        range: true,
+        multipleDatesSeparator: ' - ',
+        dateFormat: 'dd.MM.yyyy',
+        autoClose: true,
+        maxDate: new Date(),
+        selectedDates: [
+            new Date('{{ date_from }}'),
+            new Date('{{ date_to }}')
+        ]
+    });
+
+    // Установка сегодняшней даты
+    document.getElementById('set-today').addEventListener('click', function() {
+        const today = new Date();
+        picker.clear();
+        picker.selectDate([today, today]);
+    });
+
+    // Установка недели
+    document.getElementById('set-week').addEventListener('click', function() {
+        const today = new Date();
+        const weekAgo = new Date();
+        weekAgo.setDate(today.getDate() - 6);
+        picker.clear();
+        picker.selectDate([weekAgo, today]);
+    });
+
+    // Установка месяца
+    document.getElementById('set-month').addEventListener('click', function() {
+        const today = new Date();
+        const monthAgo = new Date();
+        monthAgo.setMonth(today.getMonth() - 1);
+        picker.clear();
+        picker.selectDate([monthAgo, today]);
+    });
+
+    // Применение фильтра
+    document.getElementById('apply-filter').addEventListener('click', function() {
+        const dates = picker.selectedDates;
+        if (dates.length >= 1) {
+            const dateFrom = formatDateForAPI(dates[0]);
+            const dateTo = dates.length > 1 ? formatDateForAPI(dates[1]) : dateFrom;
+            const url = new URL(window.location.href);
+            url.searchParams.set('date_from', dateFrom);
+            url.searchParams.set('date_to', dateTo);
+            window.location.href = url.toString();
+        }
+    });
+
+    // Поиск
+    const searchInput = document.getElementById('searchInput');
+    const showMultiOnly = document.getElementById('showMultiOnly');
+    const buyerItems = document.querySelectorAll('.buyer-item');
+
+    function filterBuyers() {
+        const searchText = searchInput.value.toLowerCase().trim();
+        const multiOnly = showMultiOnly.checked;
+
+        buyerItems.forEach(item => {
+            const buyerId = item.dataset.buyerId.toLowerCase();
+            const orderCount = parseInt(item.dataset.orderCount);
+
+            // Проверяем текст в таблице заказов
+            const ordersTable = item.querySelector('.accordion-body');
+            const ordersText = ordersTable ? ordersTable.textContent.toLowerCase() : '';
+
+            const matchesSearch = !searchText ||
+                                  buyerId.includes(searchText) ||
+                                  ordersText.includes(searchText);
+            const matchesMulti = !multiOnly || orderCount > 1;
+
+            if (matchesSearch && matchesMulti) {
+                item.classList.remove('hidden');
+            } else {
+                item.classList.add('hidden');
+            }
+        });
+    }
+
+    if (searchInput) {
+        searchInput.addEventListener('input', filterBuyers);
+    }
+    if (showMultiOnly) {
+        showMultiOnly.addEventListener('change', filterBuyers);
+    }
+});
+</script>
+{% endblock %}
