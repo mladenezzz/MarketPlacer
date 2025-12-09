@@ -7,91 +7,80 @@
     {% if current_user.is_authenticated %}
         {% if has_tokens %}
 
-        <!-- Фильтр по датам -->
-        <div class="row mb-4">
+        <!-- Компактный фильтр по датам -->
+        <div class="row mb-3">
             <div class="col-12">
-                <div class="card">
-                    <div class="card-header bg-secondary text-white">
-                        <h5 class="mb-0">
-                            <i class="bi bi-calendar3"></i> Период для отображения данных
-                        </h5>
+                <div class="d-flex flex-wrap align-items-center gap-3 p-3" style="background: rgba(255,255,255,0.7); border-radius: 12px; border: 1px solid rgba(199, 210, 254, 0.3);">
+                    <div class="d-flex align-items-center gap-2">
+                        <i class="bi bi-calendar3" style="color: #8b5cf6;"></i>
+                        <input type="text" class="form-control form-control-sm" id="date-range-picker" placeholder="Выберите период..." style="width: 200px; cursor: pointer;" readonly>
                     </div>
-                    <div class="card-body">
-                        <div class="row align-items-end">
-                            <div class="col-md-6">
-                                <label for="date-range-picker" class="form-label">Выберите дату или период:</label>
-                                <input type="text" class="form-control" id="date-range-picker" placeholder="Выберите даты..." style="background-color: white; cursor: pointer;" readonly>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="btn-group w-100" role="group">
-                                    <button type="button" class="btn btn-outline-secondary" id="reset-to-today">
-                                        <i class="bi bi-calendar-day"></i> Сегодня
-                                    </button>
-                                    <button type="button" class="btn btn-outline-secondary" id="reset-to-week">
-                                        <i class="bi bi-calendar-week"></i> Неделя
-                                    </button>
-                                    <button type="button" class="btn btn-outline-secondary" id="reset-to-month">
-                                        <i class="bi bi-calendar-month"></i> Месяц
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
+                    <div class="btn-group btn-group-sm" role="group">
+                        <button type="button" class="btn btn-outline-secondary" id="reset-to-today">Сегодня</button>
+                        <button type="button" class="btn btn-outline-secondary" id="reset-to-week">Неделя</button>
+                        <button type="button" class="btn btn-outline-secondary" id="reset-to-month">Месяц</button>
+                    </div>
+                    <div class="ms-auto text-muted small">
+                        <i class="bi bi-arrow-clockwise"></i> <span id="last-update-time">-</span>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- Статистика заказов -->
-        <div class="row mb-4">
-            <div class="col-12">
-                <div class="card">
-                    <div class="card-header bg-primary text-white">
+        <!-- Общая статистика - компактные карточки -->
+        <div class="row g-3 mb-3">
+            <div class="col-6 col-md-3">
+                <div class="card bg-success h-100">
+                    <div class="card-body py-3 text-center">
+                        <div class="small text-uppercase mb-1" style="opacity: 0.8; font-weight: 500;">Сумма заказов</div>
+                        <div class="h4 mb-0 fw-bold" id="total-sum">-</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="card bg-info h-100">
+                    <div class="card-body py-3 text-center">
+                        <div class="small text-uppercase mb-1" style="opacity: 0.8; font-weight: 500;">Кол-во заказов</div>
+                        <div class="h4 mb-0 fw-bold" id="total-count">-</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="card bg-warning h-100">
+                    <div class="card-body py-3 text-center">
+                        <div class="small text-uppercase mb-1" style="opacity: 0.8; font-weight: 500;">Сумма продаж</div>
+                        <div class="h4 mb-0 fw-bold" id="total-sales-sum">-</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="card bg-danger h-100">
+                    <div class="card-body py-3 text-center">
+                        <div class="small text-uppercase mb-1" style="opacity: 0.8; font-weight: 500;">Кол-во продаж</div>
+                        <div class="h4 mb-0 fw-bold" id="total-sales-count">-</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Заказы и Продажи в двух колонках -->
+        <div class="row g-3">
+            <!-- Заказы -->
+            <div class="col-lg-6">
+                <div class="card h-100">
+                    <div class="card-header bg-primary py-2">
                         <div class="d-flex justify-content-between align-items-center">
-                            <h4 class="mb-0">
-                                <i class="bi bi-calendar-check"></i> Заказы на сегодня
-                                <span id="current-date" class="ms-2"></span>
-                            </h4>
-                            <div class="text-end">
-                                <small>Последнее обновление:</small><br>
-                                <span id="last-update-time">-</span>
-                            </div>
+                            <span><i class="bi bi-cart-check me-2"></i>Заказы <span id="current-date" class="small opacity-75"></span></span>
                         </div>
                     </div>
-                    <div class="card-body">
-                        <!-- Общая статистика -->
-                        <div class="row mb-4">
-                            <div class="col-md-6">
-                                <div class="card bg-success text-white">
-                                    <div class="card-body text-center">
-                                        <h5 class="card-title">
-                                            <i class="bi bi-cash-stack"></i> Общая сумма
-                                        </h5>
-                                        <h2 class="display-4" id="total-sum">-</h2>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="card bg-info text-white">
-                                    <div class="card-body text-center">
-                                        <h5 class="card-title">
-                                            <i class="bi bi-cart-check"></i> Количество заказов
-                                        </h5>
-                                        <h2 class="display-4" id="total-count">-</h2>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Детальная информация по каждому токену -->
-                        <h5 class="mb-3">Детализация по токенам:</h5>
+                    <div class="card-body p-0">
                         <div class="table-responsive">
-                            <table class="table table-hover table-bordered">
-                                <thead class="table-light">
+                            <table class="table table-hover mb-0">
+                                <thead>
                                     <tr>
-                                        <th>Маркетплейс</th>
-                                        <th>Название токена</th>
-                                        <th>Количество заказов</th>
-                                        <th>Сумма заказов</th>
+                                        <th>Токен</th>
+                                        <th class="text-center" style="width: 80px;">Кол-во</th>
+                                        <th class="text-end" style="width: 120px;">Сумма</th>
                                     </tr>
                                 </thead>
                                 <tbody id="orders-table-body">
@@ -99,22 +88,14 @@
                                     <tr data-token-id="{{ token.token_id }}">
                                         <td>
                                             {% if token.marketplace == 'Wildberries' %}
-                                                <span class="badge bg-purple">{{ token.marketplace }}</span>
+                                                <span class="badge bg-purple me-1">WB</span>
                                             {% elif token.marketplace == 'Ozon' %}
-                                                <span class="badge bg-primary">{{ token.marketplace }}</span>
-                                            {% elif token.marketplace == 'Telegram' %}
-                                                <span class="badge bg-info">{{ token.marketplace }}</span>
-                                            {% else %}
-                                                <span class="badge bg-secondary">{{ token.marketplace }}</span>
+                                                <span class="badge bg-primary me-1">OZ</span>
                                             {% endif %}
+                                            <span class="small">{{ token.token_name }}</span>
                                         </td>
-                                        <td>{{ token.token_name }}</td>
-                                        <td class="text-center order-count">
-                                            <span class="text-muted">-</span>
-                                        </td>
-                                        <td class="text-end order-total">
-                                            <span class="text-muted">-</span>
-                                        </td>
+                                        <td class="text-center order-count">-</td>
+                                        <td class="text-end order-total fw-medium">-</td>
                                     </tr>
                                     {% endfor %}
                                 </tbody>
@@ -123,59 +104,24 @@
                     </div>
                 </div>
             </div>
-        </div>
 
-        <!-- Статистика продаж на сегодня -->
-        <div class="row mb-4">
-            <div class="col-12">
-                <div class="card">
-                    <div class="card-header bg-success text-white">
+            <!-- Продажи -->
+            <div class="col-lg-6">
+                <div class="card h-100">
+                    <div class="card-header bg-success py-2">
                         <div class="d-flex justify-content-between align-items-center">
-                            <h4 class="mb-0">
-                                <i class="bi bi-bag-check"></i> Продажи на сегодня
-                                <span id="current-date-sales" class="ms-2"></span>
-                            </h4>
-                            <div class="text-end">
-                                <small>Последнее обновление:</small><br>
-                                <span id="last-update-time-sales">-</span>
-                            </div>
+                            <span><i class="bi bi-bag-check me-2"></i>Продажи <span id="current-date-sales" class="small opacity-75"></span></span>
+                            <span id="last-update-time-sales" class="small opacity-75" style="display:none;">-</span>
                         </div>
                     </div>
-                    <div class="card-body">
-                        <!-- Общая статистика -->
-                        <div class="row mb-4">
-                            <div class="col-md-6">
-                                <div class="card bg-warning text-white">
-                                    <div class="card-body text-center">
-                                        <h5 class="card-title">
-                                            <i class="bi bi-currency-exchange"></i> Общая сумма
-                                        </h5>
-                                        <h2 class="display-4" id="total-sales-sum">-</h2>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="card bg-danger text-white">
-                                    <div class="card-body text-center">
-                                        <h5 class="card-title">
-                                            <i class="bi bi-receipt"></i> Количество продаж
-                                        </h5>
-                                        <h2 class="display-4" id="total-sales-count">-</h2>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <!-- Детальная информация по каждому токену -->
-                        <h5 class="mb-3">Детализация по токенам:</h5>
+                    <div class="card-body p-0">
                         <div class="table-responsive">
-                            <table class="table table-hover table-bordered">
-                                <thead class="table-light">
+                            <table class="table table-hover mb-0">
+                                <thead>
                                     <tr>
-                                        <th>Маркетплейс</th>
-                                        <th>Название токена</th>
-                                        <th>Количество продаж</th>
-                                        <th>Сумма продаж</th>
+                                        <th>Токен</th>
+                                        <th class="text-center" style="width: 80px;">Кол-во</th>
+                                        <th class="text-end" style="width: 120px;">Сумма</th>
                                     </tr>
                                 </thead>
                                 <tbody id="sales-table-body">
@@ -183,22 +129,14 @@
                                     <tr data-token-id="{{ token.token_id }}">
                                         <td>
                                             {% if token.marketplace == 'Wildberries' %}
-                                                <span class="badge bg-purple">{{ token.marketplace }}</span>
+                                                <span class="badge bg-purple me-1">WB</span>
                                             {% elif token.marketplace == 'Ozon' %}
-                                                <span class="badge bg-primary">{{ token.marketplace }}</span>
-                                            {% elif token.marketplace == 'Telegram' %}
-                                                <span class="badge bg-info">{{ token.marketplace }}</span>
-                                            {% else %}
-                                                <span class="badge bg-secondary">{{ token.marketplace }}</span>
+                                                <span class="badge bg-primary me-1">OZ</span>
                                             {% endif %}
+                                            <span class="small">{{ token.token_name }}</span>
                                         </td>
-                                        <td>{{ token.token_name }}</td>
-                                        <td class="text-center sales-count">
-                                            <span class="text-muted">-</span>
-                                        </td>
-                                        <td class="text-end sales-total">
-                                            <span class="text-muted">-</span>
-                                        </td>
+                                        <td class="text-center sales-count">-</td>
+                                        <td class="text-end sales-total fw-medium">-</td>
                                     </tr>
                                     {% endfor %}
                                 </tbody>
@@ -369,8 +307,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 };
 
                 // Обновляем ячейки таблицы
-                countCell.innerHTML = `<span class="badge bg-info">${data.count}</span>`;
-                totalCell.innerHTML = `<strong>${data.total.toFixed(2)} ₽</strong>`;
+                countCell.innerHTML = data.count;
+                totalCell.innerHTML = `${data.total.toFixed(2)} ₽`;
             } else {
                 // При ошибке сохраняем статус ошибки, но не заменяем данные
                 if (!tokenOrdersData[tokenId] || !tokenOrdersData[tokenId].success) {
@@ -426,8 +364,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 };
 
                 // Обновляем ячейки таблицы
-                countCell.innerHTML = `<span class="badge bg-info">${data.count}</span>`;
-                totalCell.innerHTML = `<strong>${data.total.toFixed(2)} ₽</strong>`;
+                countCell.innerHTML = data.count;
+                totalCell.innerHTML = `${data.total.toFixed(2)} ₽`;
             } else {
                 // При ошибке сохраняем статус ошибки, но не заменяем данные
                 if (!tokenSalesData[tokenId] || !tokenSalesData[tokenId].success) {
