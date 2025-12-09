@@ -53,20 +53,51 @@ class WBOrder(db.Model):
     product_id = db.Column(db.Integer, db.ForeignKey('products.id'), nullable=True)
     warehouse_id = db.Column(db.Integer, db.ForeignKey('warehouses.id'), nullable=True)
 
+    # Основные идентификаторы
+    srid = db.Column(db.String(200), nullable=False, unique=True)
+    g_number = db.Column(db.String(200), nullable=True)
+
+    # Даты
     date = db.Column(db.DateTime, nullable=False)
     last_change_date = db.Column(db.DateTime, nullable=True)
-    g_number = db.Column(db.String(200), nullable=True)
-    srid = db.Column(db.String(200), nullable=False, unique=True)
 
+    # Информация о товаре (из API)
+    supplier_article = db.Column(db.String(200), nullable=True)
+    nm_id = db.Column(db.BigInteger, nullable=True)
+    barcode = db.Column(db.String(200), nullable=True)
+    category = db.Column(db.String(200), nullable=True)
+    subject = db.Column(db.String(200), nullable=True)
+    brand = db.Column(db.String(200), nullable=True)
+    tech_size = db.Column(db.String(50), nullable=True)
+
+    # Склад
+    warehouse_name = db.Column(db.String(200), nullable=True)
+    warehouse_type = db.Column(db.String(100), nullable=True)
+
+    # География
+    country_name = db.Column(db.String(200), nullable=True)
+    oblast_okrug_name = db.Column(db.String(200), nullable=True)
+    region_name = db.Column(db.String(200), nullable=True)
+
+    # Цены
     total_price = db.Column(db.Numeric(10, 2), nullable=True)
     discount_percent = db.Column(db.Integer, nullable=True)
     spp = db.Column(db.Numeric(10, 2), nullable=True)
     finished_price = db.Column(db.Numeric(10, 2), nullable=True)
+    price_with_disc = db.Column(db.Numeric(10, 2), nullable=True)
 
+    # Поставка
+    income_id = db.Column(db.BigInteger, nullable=True)
+    is_supply = db.Column(db.Boolean, nullable=True)
+    is_realization = db.Column(db.Boolean, nullable=True)
+
+    # Отмена
     is_cancel = db.Column(db.Boolean, default=False)
     cancel_date = db.Column(db.DateTime, nullable=True)
 
-    region_name = db.Column(db.String(200), nullable=True)
+    # Стикер
+    sticker = db.Column(db.String(200), nullable=True)
+
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     token = db.relationship('Token', backref=db.backref('wb_orders', lazy=True))
