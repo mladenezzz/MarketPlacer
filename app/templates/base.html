@@ -309,6 +309,35 @@
             color: #164e63 !important;
         }
 
+        /* Логотипы маркетплейсов */
+        .mp-logo {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 28px;
+            height: 28px;
+            border-radius: 6px;
+            margin-right: 6px;
+            vertical-align: middle;
+        }
+        .mp-logo-wb {
+            background: linear-gradient(135deg, #cb11ab 0%, #7b2d8e 100%);
+        }
+        .mp-logo-ozon {
+            background: linear-gradient(135deg, #005bff 0%, #0041b8 100%);
+        }
+        .mp-logo svg {
+            width: 18px;
+            height: 18px;
+        }
+        .mp-logo-wb svg path {
+            fill: none;
+            stroke: white;
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
         /* Скроллбар */
         ::-webkit-scrollbar { width: 8px; height: 8px; }
         ::-webkit-scrollbar-track { background: rgba(241, 245, 249, 0.5); }
