@@ -214,6 +214,11 @@ document.addEventListener('DOMContentLoaded', function() {
         return `${hours}:${minutes}:${seconds}`;
     }
 
+    // Функция для форматирования суммы с разделителями тысяч (без копеек)
+    function formatMoney(value) {
+        return Math.round(value).toLocaleString('ru-RU') + ' ₽';
+    }
+
     // Обновляем текущую дату в заголовках
     function updateCurrentDate() {
         let dateStr;
@@ -265,7 +270,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         const totalSumElem = document.getElementById('total-sum');
         const totalCountElem = document.getElementById('total-count');
-        if (totalSumElem) totalSumElem.textContent = totalSum.toFixed(2) + ' ₽';
+        if (totalSumElem) totalSumElem.textContent = formatMoney(totalSum);
         if (totalCountElem) totalCountElem.textContent = totalCount;
     }
 
@@ -282,7 +287,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
 
-        document.getElementById('total-sales-sum').textContent = totalSum.toFixed(2) + ' ₽';
+        document.getElementById('total-sales-sum').textContent = formatMoney(totalSum);
         document.getElementById('total-sales-count').textContent = totalCount;
     }
 
@@ -316,7 +321,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 // Обновляем ячейки таблицы
                 countCell.innerHTML = data.count;
-                totalCell.innerHTML = `${data.total.toFixed(2)} ₽`;
+                totalCell.innerHTML = formatMoney(data.total);
             } else {
                 // При ошибке сохраняем статус ошибки, но не заменяем данные
                 if (!tokenOrdersData[tokenId] || !tokenOrdersData[tokenId].success) {
@@ -373,7 +378,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 // Обновляем ячейки таблицы
                 countCell.innerHTML = data.count;
-                totalCell.innerHTML = `${data.total.toFixed(2)} ₽`;
+                totalCell.innerHTML = formatMoney(data.total);
             } else {
                 // При ошибке сохраняем статус ошибки, но не заменяем данные
                 if (!tokenSalesData[tokenId] || !tokenSalesData[tokenId].success) {
