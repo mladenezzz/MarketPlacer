@@ -551,12 +551,10 @@ def get_last_sync_time():
     ).scalar()
 
     if last_sync:
-        # Конвертируем в московское время (UTC+3)
-        moscow_time = last_sync + timedelta(hours=3)
         return jsonify({
             'success': True,
-            'last_sync': moscow_time.strftime('%H:%M:%S'),
-            'last_sync_full': moscow_time.strftime('%d.%m.%Y %H:%M:%S')
+            'last_sync': last_sync.strftime('%H:%M:%S'),
+            'last_sync_full': last_sync.strftime('%d.%m.%Y %H:%M:%S')
         })
 
     return jsonify({'success': False, 'last_sync': None})
