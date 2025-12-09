@@ -1225,6 +1225,11 @@ document.addEventListener('DOMContentLoaded', function() {
         const workbook = new ExcelJS.Workbook();
         const worksheet = workbook.addWorksheet('Статистика выкупов');
 
+        // Настраиваем ширину колонок заранее
+        const colWidths = [{ width: 15 }, { width: 8 }];
+        visibleColumns.forEach(() => colWidths.push({ width: 10 }));
+        worksheet.columns = colWidths;
+
         // Формируем 3 строки заголовков
         // Строка 1: Маркетплейс
         const headerRow1 = ['', ''];
@@ -1264,15 +1269,6 @@ document.addEventListener('DOMContentLoaded', function() {
             });
 
             worksheet.addRow(rowData);
-        });
-
-        // Настраиваем ширину колонок
-        worksheet.columns = [
-            { width: 15 },  // Артикул
-            { width: 8 }    // Размер
-        ];
-        visibleColumns.forEach(() => {
-            worksheet.columns.push({ width: 10 });
         });
 
         // Применяем выравнивание по центру для всех ячеек кроме первых двух колонок
