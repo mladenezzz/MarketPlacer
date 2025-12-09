@@ -88,9 +88,13 @@
                                     <tr data-token-id="{{ token.token_id }}">
                                         <td>
                                             {% if token.marketplace == 'Wildberries' %}
-                                                <span class="badge bg-purple me-1">WB</span>
+                                                <span class="mp-logo mp-logo-wb" title="Wildberries">
+                                                    <svg viewBox="0 0 24 24"><path d="M4 6.5L6.5 17.5L9.5 9L12 17.5L15 9L17.5 17.5L20 6.5"/></svg>
+                                                </span>
                                             {% elif token.marketplace == 'Ozon' %}
-                                                <span class="badge bg-primary me-1">OZ</span>
+                                                <span class="mp-logo mp-logo-ozon" title="Ozon">
+                                                    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8" fill="none" stroke="white" stroke-width="2.5"/></svg>
+                                                </span>
                                             {% endif %}
                                             <span class="small">{{ token.token_name }}</span>
                                         </td>
@@ -129,9 +133,13 @@
                                     <tr data-token-id="{{ token.token_id }}">
                                         <td>
                                             {% if token.marketplace == 'Wildberries' %}
-                                                <span class="badge bg-purple me-1">WB</span>
+                                                <span class="mp-logo mp-logo-wb" title="Wildberries">
+                                                    <svg viewBox="0 0 24 24"><path d="M4 6.5L6.5 17.5L9.5 9L12 17.5L15 9L17.5 17.5L20 6.5"/></svg>
+                                                </span>
                                             {% elif token.marketplace == 'Ozon' %}
-                                                <span class="badge bg-primary me-1">OZ</span>
+                                                <span class="mp-logo mp-logo-ozon" title="Ozon">
+                                                    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8" fill="none" stroke="white" stroke-width="2.5"/></svg>
+                                                </span>
                                             {% endif %}
                                             <span class="small">{{ token.token_name }}</span>
                                         </td>
