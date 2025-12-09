@@ -228,7 +228,7 @@ class WildberriesCollector(BaseCollector):
             logger.error(f"Error collecting sales: {e}")
 
     def collect_orders(self, session, initial: bool = False):
-        """Collect orders data with pagination using flag=1 (daily iteration)"""
+        """Collect orders data using flag=0 (all data from date)"""
         started_at = datetime.now(timezone.utc)
         try:
             sync_state = self.get_sync_state(session, self.token_id, 'orders')
@@ -242,41 +242,54 @@ class WildberriesCollector(BaseCollector):
                 else:
                     start_date = datetime(2019, 1, 1, tzinfo=timezone.utc)
             else:
-                start_date = sync_state.last_successful_sync
-                # Ensure timezone awareness
-                if start_date.tzinfo is None:
-                    start_date = start_date.replace(tzinfo=timezone.utc)
+                # Берём данные за последние 3 недели для обновления отмен
+                start_date = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(weeks=3)
 
             logger.info(f"Collecting orders from {start_date.strftime('%Y-%m-%d')}")
 
-            # Use flag=1 to get all data for each date
+            time.sleep(60)
+
+            # Используем flag=0 для получения всех данных от даты
+            orders_data = self.api.statistics.get_data(
+                endpoint="orders",
+                date_from=start_date.strftime('%Y-%m-%dT%H:%M:%S'),
+                flag=0  # Все данные от указанной даты
+            )
+
             saved_count = 0
-            current_date = start_date.replace(hour=0, minute=0, second=0, microsecond=0)
-            end_date = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+            updated_count = 0
 
-            while current_date <= end_date:
-                logger.info(f"  Fetching orders for date: {current_date.strftime('%Y-%m-%d')}")
-                time.sleep(60)
+            if orders_data:
+                logger.info(f"Received {len(orders_data)} orders from API")
 
-                orders_data = self.api.statistics.get_data(
-                    endpoint="orders",
-                    date_from=current_date.strftime('%Y-%m-%d'),
-                    flag=1  # Get all data for this specific date
-                )
+                for order_data in orders_data:
+                    srid = order_data.get('srid')
+                    existing = session.query(WBOrder).filter_by(srid=srid).first()
 
-                if orders_data:
-                    logger.info(f"  Received {len(orders_data)} orders for {current_date.strftime('%Y-%m-%d')}")
+                    # Парсим даты
+                    last_change_str = order_data.get('lastChangeDate')
+                    last_change = None
+                    if last_change_str:
+                        last_change = datetime.fromisoformat(last_change_str.replace('Z', '+00:00'))
 
-                    for order_data in orders_data:
-                        existing = session.query(WBOrder).filter_by(srid=order_data.get('srid')).first()
-                        if existing:
-                            continue
+                    cancel_date = None
+                    if order_data.get('cancelDate'):
+                        cancel_date = datetime.fromisoformat(order_data.get('cancelDate').replace('Z', '+00:00'))
 
-                        last_change_str = order_data.get('lastChangeDate')
-                        last_change = None
-                        if last_change_str:
-                            last_change = datetime.fromisoformat(last_change_str.replace('Z', '+00:00'))
-
+                    if existing:
+                        # Обновляем существующую запись (статус отмены и другие поля)
+                        existing.is_cancel = order_data.get('isCancel', False)
+                        existing.cancel_date = cancel_date
+                        existing.last_change_date = last_change
+                        # Обновляем цены на случай изменений
+                        existing.total_price = order_data.get('totalPrice')
+                        existing.discount_percent = order_data.get('discountPercent')
+                        existing.spp = order_data.get('spp')
+                        existing.finished_price = order_data.get('finishedPrice')
+                        existing.price_with_disc = order_data.get('priceWithDisc')
+                        updated_count += 1
+                    else:
+                        # Создаём новую запись
                         product = self.get_or_create_product(session, self.token_id, self.marketplace, order_data)
                         warehouse = self.get_or_create_warehouse(session, self.marketplace, order_data.get('warehouseName'))
 
@@ -284,30 +297,52 @@ class WildberriesCollector(BaseCollector):
                             token_id=self.token_id,
                             product_id=product.id,
                             warehouse_id=warehouse.id if warehouse else None,
+                            # Основные идентификаторы
+                            srid=srid,
+                            g_number=order_data.get('gNumber'),
+                            # Даты
                             date=datetime.fromisoformat(order_data.get('date').replace('Z', '+00:00')),
                             last_change_date=last_change,
-                            g_number=order_data.get('gNumber'),
-                            srid=order_data.get('srid'),
+                            # Информация о товаре
+                            supplier_article=order_data.get('supplierArticle'),
+                            nm_id=order_data.get('nmId'),
+                            barcode=order_data.get('barcode'),
+                            category=order_data.get('category'),
+                            subject=order_data.get('subject'),
+                            brand=order_data.get('brand'),
+                            tech_size=order_data.get('techSize'),
+                            # Склад
+                            warehouse_name=order_data.get('warehouseName'),
+                            warehouse_type=order_data.get('warehouseType'),
+                            # География
+                            country_name=order_data.get('countryName'),
+                            oblast_okrug_name=order_data.get('oblastOkrugName'),
+                            region_name=order_data.get('regionName'),
+                            # Цены
                             total_price=order_data.get('totalPrice'),
                             discount_percent=order_data.get('discountPercent'),
                             spp=order_data.get('spp'),
                             finished_price=order_data.get('finishedPrice'),
+                            price_with_disc=order_data.get('priceWithDisc'),
+                            # Поставка
+                            income_id=order_data.get('incomeID'),
+                            is_supply=order_data.get('isSupply'),
+                            is_realization=order_data.get('isRealization'),
+                            # Отмена
                             is_cancel=order_data.get('isCancel', False),
-                            cancel_date=datetime.fromisoformat(order_data.get('cancelDate').replace('Z', '+00:00')) if order_data.get('cancelDate') else None,
-                            region_name=order_data.get('regionName')
+                            cancel_date=cancel_date,
+                            # Стикер
+                            sticker=order_data.get('sticker'),
                         )
                         session.add(order)
                         saved_count += 1
-                else:
-                    logger.info(f"  No orders for {current_date.strftime('%Y-%m-%d')}")
-
-                # Move to next day
-                current_date += timedelta(days=1)
+            else:
+                logger.info("No orders from API")
 
             session.commit()
             self.update_sync_state(session, self.token_id, 'orders', success=True)
             self.log_collection(session, self.token_id, self.marketplace, 'orders', 'success', saved_count, started_at=started_at)
-            logger.info(f"Saved {saved_count} orders")
+            logger.info(f"Orders: saved {saved_count}, updated {updated_count}")
 
         except Exception as e:
             session.rollback()
