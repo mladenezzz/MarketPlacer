@@ -523,7 +523,12 @@ def get_token_sales_range(token_id):
 @main_bp.route('/api/sync/last-update')
 @login_required
 def get_last_sync_time():
-    """API endpoint для получения времени последней синхронизации данных"""
+    """API endpoint для получения времени последней синхронизации данных.
+
+    Возвращает самое старое время синхронизации среди:
+    - WB orders, WB sales
+    - Ozon orders, Ozon sales
+    """
     # Получаем все активные токены WB и Ozon
     token_ids = db.session.query(Token.id).filter(
         Token.is_active == True,
@@ -534,12 +539,15 @@ def get_last_sync_time():
     if not token_ids:
         return jsonify({'success': False, 'last_sync': None})
 
-    # Ищем самую свежую успешную синхронизацию по endpoint 'orders'
+    # Ищем самую старую успешную синхронизацию среди всех endpoints
+    # WB: orders, sales; Ozon: ozon_orders, ozon_sales
+    endpoints = ['orders', 'sales', 'ozon_orders', 'ozon_sales']
+
     last_sync = db.session.query(
-        func.max(SyncState.last_successful_sync)
+        func.min(SyncState.last_successful_sync)
     ).filter(
         SyncState.token_id.in_(token_ids),
-        SyncState.endpoint == 'orders'
+        SyncState.endpoint.in_(endpoints)
     ).scalar()
 
     if last_sync:
