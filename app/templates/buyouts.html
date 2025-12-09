@@ -414,8 +414,8 @@
 {% endblock %}
 
 {% block extra_js %}
-<!-- SheetJS для экспорта в Excel -->
-<script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+<!-- ExcelJS для экспорта в Excel с форматированием -->
+<script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const filterInput = document.getElementById('articleFilter');
@@ -1214,37 +1214,32 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    function exportToExcel() {
+    async function exportToExcel() {
         const table = document.querySelector('table');
         if (!table) return;
 
         // Получаем видимые колонки на основе чекбоксов (в порядке токенов)
         const visibleColumns = getVisibleColumns();
 
-        // Собираем данные для Excel
-        const data = [];
+        // Создаем рабочую книгу Excel
+        const workbook = new ExcelJS.Workbook();
+        const worksheet = workbook.addWorksheet('Статистика выкупов');
 
         // Формируем 3 строки заголовков
         // Строка 1: Маркетплейс
         const headerRow1 = ['', ''];
-        visibleColumns.forEach(col => {
-            headerRow1.push(col.marketplaceName);
-        });
-        data.push(headerRow1);
+        visibleColumns.forEach(col => headerRow1.push(col.marketplaceName));
+        worksheet.addRow(headerRow1);
 
         // Строка 2: Имя токена
         const headerRow2 = ['', ''];
-        visibleColumns.forEach(col => {
-            headerRow2.push(col.tokenName);
-        });
-        data.push(headerRow2);
+        visibleColumns.forEach(col => headerRow2.push(col.tokenName));
+        worksheet.addRow(headerRow2);
 
         // Строка 3: Тип колонки
         const headerRow3 = ['Артикул', 'Размер'];
-        visibleColumns.forEach(col => {
-            headerRow3.push(col.colLabel);
-        });
-        data.push(headerRow3);
+        visibleColumns.forEach(col => headerRow3.push(col.colLabel));
+        worksheet.addRow(headerRow3);
 
         // Собираем данные из строк таблицы
         const rows = table.querySelectorAll('tbody tr');
@@ -1268,19 +1263,26 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             });
 
-            data.push(rowData);
+            worksheet.addRow(rowData);
         });
 
-        // Создаем рабочую книгу Excel
-        const wb = XLSX.utils.book_new();
-        const ws = XLSX.utils.aoa_to_sheet(data);
-
         // Настраиваем ширину колонок
-        const colWidths = [{ wch: 15 }, { wch: 8 }];
-        visibleColumns.forEach(() => colWidths.push({ wch: 10 }));
-        ws['!cols'] = colWidths;
+        worksheet.columns = [
+            { width: 15 },  // Артикул
+            { width: 8 }    // Размер
+        ];
+        visibleColumns.forEach(() => {
+            worksheet.columns.push({ width: 10 });
+        });
 
-        XLSX.utils.book_append_sheet(wb, ws, 'Статистика выкупов');
+        // Применяем выравнивание по центру для всех ячеек кроме первых двух колонок
+        worksheet.eachRow((row, rowNum) => {
+            row.eachCell((cell, colNum) => {
+                if (colNum > 2) {
+                    cell.alignment = { horizontal: 'center', vertical: 'middle' };
+                }
+            });
+        });
 
         // Формируем имя файла с датой
         const now = new Date();
@@ -1288,8 +1290,15 @@ document.addEventListener('DOMContentLoaded', function() {
         const timeStr = now.toTimeString().slice(0, 8).replace(/:/g, '-');
         const filename = `buyouts_${dateStr}_${timeStr}.xlsx`;
 
-        // Сохраняем файл (автоматически в папку Загрузки)
-        XLSX.writeFile(wb, filename);
+        // Сохраняем файл
+        const buffer = await workbook.xlsx.writeBuffer();
+        const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        a.click();
+        URL.revokeObjectURL(url);
     }
 
     function getVisibleColumns() {
