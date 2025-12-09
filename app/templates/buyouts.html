@@ -1224,13 +1224,27 @@ document.addEventListener('DOMContentLoaded', function() {
         // Собираем данные для Excel
         const data = [];
 
-        // Формируем заголовок с многострочным текстом (Маркетплейс\nТокен\nТип)
-        const headerRow = ['Артикул', 'Размер'];
+        // Формируем 3 строки заголовков
+        // Строка 1: Маркетплейс
+        const headerRow1 = ['', ''];
         visibleColumns.forEach(col => {
-            // Многострочный заголовок: Маркетплейс, Токен, Тип колонки
-            headerRow.push(`${col.marketplaceName}\n${col.tokenName}\n${col.colLabel}`);
+            headerRow1.push(col.marketplaceName);
         });
-        data.push(headerRow);
+        data.push(headerRow1);
+
+        // Строка 2: Имя токена
+        const headerRow2 = ['', ''];
+        visibleColumns.forEach(col => {
+            headerRow2.push(col.tokenName);
+        });
+        data.push(headerRow2);
+
+        // Строка 3: Тип колонки
+        const headerRow3 = ['Артикул', 'Размер'];
+        visibleColumns.forEach(col => {
+            headerRow3.push(col.colLabel);
+        });
+        data.push(headerRow3);
 
         // Собираем данные из строк таблицы
         const rows = table.querySelectorAll('tbody tr');
@@ -1262,22 +1276,9 @@ document.addEventListener('DOMContentLoaded', function() {
         const ws = XLSX.utils.aoa_to_sheet(data);
 
         // Настраиваем ширину колонок
-        const colWidths = [{ wch: 20 }, { wch: 10 }];
-        visibleColumns.forEach(() => colWidths.push({ wch: 12 }));
+        const colWidths = [{ wch: 15 }, { wch: 8 }];
+        visibleColumns.forEach(() => colWidths.push({ wch: 10 }));
         ws['!cols'] = colWidths;
-
-        // Устанавливаем высоту первой строки для многострочного заголовка
-        ws['!rows'] = [{ hpt: 45 }];
-
-        // Применяем перенос текста к заголовкам
-        const range = XLSX.utils.decode_range(ws['!ref']);
-        for (let col = 0; col <= range.e.c; col++) {
-            const cellAddress = XLSX.utils.encode_cell({ r: 0, c: col });
-            if (ws[cellAddress]) {
-                if (!ws[cellAddress].s) ws[cellAddress].s = {};
-                ws[cellAddress].s.alignment = { wrapText: true, vertical: 'center' };
-            }
-        }
 
         XLSX.utils.book_append_sheet(wb, ws, 'Статистика выкупов');
 
