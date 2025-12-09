@@ -282,10 +282,10 @@ class SalesService:
         """Получить заказы Wildberries на сегодня из таблицы wb_orders"""
         try:
             # Запрос к таблице wb_orders
-            # Используем finished_price - цена с учетом всех скидок (то что платит покупатель)
+            # Используем price_with_disc - цена со скидкой WB (до вычета СПП)
             orders_query = db.session.query(
                 func.count(WBOrder.id).label('count'),
-                func.sum(WBOrder.finished_price).label('total')
+                func.sum(WBOrder.price_with_disc).label('total')
             ).filter(
                 WBOrder.token_id == token_id,
                 WBOrder.date >= today_start
@@ -409,7 +409,7 @@ class SalesService:
         try:
             orders_query = db.session.query(
                 func.count(WBOrder.id).label('count'),
-                func.sum(WBOrder.finished_price).label('total')
+                func.sum(WBOrder.price_with_disc).label('total')
             ).filter(
                 WBOrder.token_id == token_id,
                 WBOrder.date >= date_from,
