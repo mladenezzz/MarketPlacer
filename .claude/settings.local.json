@@ -1,23 +1,39 @@
 {
   "permissions": {
     "allow": [
-      "Bash(git config --global --add safe.directory '%(prefix)///192.168.0.44/MarketPlacer/')",
-      "Bash(git merge:*)",
-      "Bash(git stash:*)",
-      "Bash(python -m venv:*)",
-      "Bash(venvScriptspip install pywin32 psutil)",
-      "Bash(venv/Scripts/pip.exe install:*)",
+      "Bash(venvScriptspython.exe check_orders.py)",
+      "Bash(z:/venv/Scripts/python.exe:*)",
+      "Bash(powershell -Command:*)",
       "Bash(cat:*)",
-      "Bash(powershell -Command \"(Get-Content interceptor.py) -replace ''gs10.02.1'', ''gs10.06.0'' | Set-Content interceptor.py\")",
-      "Bash(venv/Scripts/pyinstaller.exe:*)",
-      "Bash(powershell -Command \"New-ItemProperty -Path ''HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Run'' -Name ''PrintInterceptor'' -Value ''\"\"C:\\Users\\Mike01\\VSCodeProjects\\print_interceptor\\dist\\PrintInterceptor.exe\"\"'' -PropertyType String -Force\")",
-      "Bash(venv/Scripts/python.exe:*)",
-      "Bash(git checkout:*)",
+      "Bash(wc:*)",
       "Bash(grep:*)",
       "Bash(find:*)",
-      "Bash(git add:*)"
+      "Bash(z:venvScriptspython.exe test_ozon_stocks.py)",
+      "Bash(tr:*)",
+      "Bash(cut:*)",
+      "Bash(python:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(C:UsersMike01VSCodeProjectsMarketPlacervenvScriptspython.exe test_orders.py)",
+      "Bash(git checkout:*)",
+      "Bash(git reset:*)",
+      "Bash(git fetch:*)",
+      "Bash(gh pr list:*)",
+      "Bash(git for-each-ref:*)"
     ],
     "deny": [],
     "ask": []
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cat CLAUDE.md"
+          }
+        ]
+      }
+    ]
   }
 }

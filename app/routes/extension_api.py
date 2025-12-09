@@ -93,8 +93,10 @@ def get_product_info():
         }), 400
 
     try:
-        # Формируем offer_id для поиска в OZON таблицах
+        # Формируем варианты offer_id для поиска
+        # В базе может быть: "12345/75", "'12345/75", "12345/7.5" и т.д.
         offer_id = f"{article}/{size}" if size else article
+        offer_id_with_quote = f"'{article}/{size}" if size else f"'{article}"
 
         # Получаем все активные OZON токены
         ozon_tokens = Token.query.filter_by(
@@ -112,31 +114,41 @@ def get_product_info():
         # 1. Остатки на сегодня
         today = datetime.now(timezone.utc).date()
 
-        # Ищем по offer_id (формат article/size)
+        # Ищем по offer_id с учётом разных форматов (LIKE для гибкости)
+        # offer_id в базе содержит полный артикул типа "12345/75" или "'12345/75"
         stock_query = db.session.query(
             func.sum(OzonStock.fbo_present + OzonStock.fbs_present).label('total_stock')
         ).filter(
             OzonStock.token_id.in_(ozon_token_ids),
-            OzonStock.offer_id == offer_id,
+            db.or_(
+                OzonStock.offer_id == offer_id,
+                OzonStock.offer_id == offer_id_with_quote,
+                OzonStock.offer_id.like(f"%{article}/{size}") if size else OzonStock.offer_id.like(f"%{article}")
+            ),
             func.date(OzonStock.date) == today
         ).first()
 
         stock = int(stock_query.total_stock or 0) if stock_query and stock_query.total_stock else 0
 
-        # 2. Статистика заказов (delivered, cancelled)
+        # 2. Статистика заказов (все статусы)
         orders_stats = db.session.query(
             func.count(OzonOrder.id).label('total'),
             func.sum(db.case((OzonOrder.status == 'delivered', 1), else_=0)).label('delivered'),
-            func.sum(db.case((OzonOrder.status == 'cancelled', 1), else_=0)).label('cancelled')
+            func.sum(db.case((OzonOrder.status == 'cancelled', 1), else_=0)).label('cancelled'),
+            func.sum(db.case((OzonOrder.status.in_(['delivering', 'awaiting_deliver', 'awaiting_packaging']), 1), else_=0)).label('delivering')
         ).filter(
             OzonOrder.token_id.in_(ozon_token_ids),
-            OzonOrder.offer_id == offer_id,
-            OzonOrder.status.in_(['delivered', 'cancelled', 'delivering'])
+            db.or_(
+                OzonOrder.offer_id == offer_id,
+                OzonOrder.offer_id == offer_id_with_quote,
+                OzonOrder.offer_id.like(f"%{article}/{size}") if size else OzonOrder.offer_id.like(f"%{article}")
+            )
         ).first()
 
         total_orders = int(orders_stats.total or 0) if orders_stats else 0
         delivered = int(orders_stats.delivered or 0) if orders_stats else 0
         cancelled = int(orders_stats.cancelled or 0) if orders_stats else 0
+        delivering = int(orders_stats.delivering or 0) if orders_stats else 0
 
         # 3. Процент выкупа
         buyout_base = delivered + cancelled
@@ -160,6 +172,7 @@ def get_product_info():
             'orders_total': total_orders,
             'delivered': delivered,
             'cancelled': cancelled,
+            'delivering': delivering,
             'buyout_percent': buyout_percent
         })
 

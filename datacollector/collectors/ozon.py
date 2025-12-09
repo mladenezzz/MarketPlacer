@@ -5,6 +5,7 @@ import requests
 from datetime import datetime, timedelta, timezone
 from dateutil.relativedelta import relativedelta
 from datacollector.collectors.base import BaseCollector
+from datacollector.api_validator import APIValidator
 from app.models import OzonStock, OzonSale, OzonOrder, OzonSupplyOrder, OzonSupplyItem
 
 logger = logging.getLogger(__name__)
@@ -116,6 +117,10 @@ class OzonCollector(BaseCollector):
                 raise Exception(f"Failed to create report: {response.status_code}")
 
             data = response.json()
+
+            # Validate API response schema
+            APIValidator.validate_ozon_report_create(data)
+
             report_code = data.get('result', {}).get('code')
 
             if not report_code:
@@ -138,6 +143,10 @@ class OzonCollector(BaseCollector):
 
                 if response.status_code == 200:
                     info_data = response.json()
+
+                    # Validate API response schema
+                    APIValidator.validate_ozon_report_info(info_data)
+
                     result = info_data.get('result', {})
                     status = result.get('status')
 
@@ -175,8 +184,16 @@ class OzonCollector(BaseCollector):
 
             logger.info(f"  Downloaded report with {len(data_rows)} products")
 
-            # Find FBO stock column (column 18: "Остаток на складе Ozon FBO, шт.")
-            fbo_stock_col_idx = 17  # Column 18 (0-indexed)
+            # Find FBO stock column by name (Ozon may change column positions)
+            fbo_stock_col_idx = None
+            for idx, header in enumerate(headers):
+                if 'FBO' in header and 'шт' in header:
+                    fbo_stock_col_idx = idx
+                    logger.info(f"  Found FBO stock column at index {idx}: {header}")
+                    break
+
+            if fbo_stock_col_idx is None:
+                raise Exception(f"FBO stock column not found in headers: {headers}")
 
             # Save to database
             saved_count = 0
@@ -422,6 +439,10 @@ class OzonCollector(BaseCollector):
 
             if response.status_code == 200:
                 data = response.json()
+
+                # Validate API response schema
+                APIValidator.validate_ozon_fbs_list(data)
+
                 result = data.get('result', {})
                 postings = result.get('postings', [])
 
@@ -472,6 +493,10 @@ class OzonCollector(BaseCollector):
 
             if response.status_code == 200:
                 data = response.json()
+
+                # Validate API response schema
+                APIValidator.validate_ozon_fbo_list(data)
+
                 result = data.get('result', [])
 
                 if not result:
@@ -626,6 +651,10 @@ class OzonCollector(BaseCollector):
                     if response.status_code == 200:
                         request_successful = True
                         data = response.json()
+
+                        # Validate API response schema
+                        APIValidator.validate_ozon_finance(data)
+
                         result = data.get('result', {})
                         operations = result.get('operations', [])
 
@@ -752,7 +781,12 @@ class OzonCollector(BaseCollector):
                 logger.error(f"Ozon supply-order/list API error {response_order_list.status_code}: {response_order_list.text}")
                 raise Exception(f"Failed to get order list: {response_order_list.status_code}")
 
-            orderid_list = response_order_list.json().get('order_ids', [])
+            response_data = response_order_list.json()
+
+            # Validate API response schema
+            APIValidator.validate_ozon_supply_list(response_data)
+
+            orderid_list = response_data.get('order_ids', [])
             logger.info(f"API returned {len(orderid_list)} supply order IDs")
 
             # Step 2: Filter out orders that already exist in database
@@ -786,7 +820,12 @@ class OzonCollector(BaseCollector):
                 response_order_get = requests.post(url_get, headers=self.headers, json=payload_order_get, timeout=30)
 
                 if response_order_get.status_code == 200:
-                    batch_orders = response_order_get.json().get('orders', [])
+                    get_response_data = response_order_get.json()
+
+                    # Validate API response schema
+                    APIValidator.validate_ozon_supply_get(get_response_data)
+
+                    batch_orders = get_response_data.get('orders', [])
                     all_orders.extend(batch_orders)
                     logger.info(f"  Loaded batch {i//batch_size + 1}: {len(batch_orders)} NEW orders")
                 else:
@@ -877,6 +916,10 @@ class OzonCollector(BaseCollector):
                         break
 
                     bundle_response = response_order_bundle.json()
+
+                    # Validate API response schema
+                    APIValidator.validate_ozon_bundle(bundle_response)
+
                     items = bundle_response.get('items', [])
                     bundle_items.extend(items)
 

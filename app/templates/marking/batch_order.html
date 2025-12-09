@@ -18,8 +18,11 @@
         background: white;
     }
     .quantity-input {
-        width: 80px;
+        width: 60px;
         text-align: center;
+    }
+    .quantity-group {
+        width: 100px;
     }
     .selected-row {
         background-color: #e3f2fd !important;
@@ -181,6 +184,67 @@
     let selectedItems = {};
     let invoicesData = [];
 
+    // Функция для получения порядка размера
+    function getSizeOrder(size) {
+        const sizeOrder = {
+            'S': 0, 'M': 1, 'L': 2, 'XL': 3, 'XXL': 4,
+            '6': 10, '6.5': 11, '7': 12, '7.5': 13,
+            '8': 14, '8.5': 15, '9': 16, '9.5': 17,
+            '10': 18, '10.5': 19, '11': 20, '11.5': 21,
+            '12': 22, '12.5': 23
+        };
+        return sizeOrder[size] !== undefined ? sizeOrder[size] : 999;
+    }
+
+    // Естественная сортировка для артикулов (2089090018, 2089090018-1, 2089090018-2, 2089090018-11)
+    function naturalCompare(a, b) {
+        // Разбиваем на базовую часть и суффикс после дефиса
+        const aHasDash = a.includes('-');
+        const bHasDash = b.includes('-');
+        const aBase = aHasDash ? a.substring(0, a.lastIndexOf('-')) : a;
+        const bBase = bHasDash ? b.substring(0, b.lastIndexOf('-')) : b;
+        const aSuffix = aHasDash ? a.substring(a.lastIndexOf('-') + 1) : '';
+        const bSuffix = bHasDash ? b.substring(b.lastIndexOf('-') + 1) : '';
+
+        // Сначала сравниваем базовые части
+        if (aBase !== bBase) {
+            // Сравниваем базовые части как числа если возможно
+            const aBaseNum = parseInt(aBase, 10);
+            const bBaseNum = parseInt(bBase, 10);
+            if (!isNaN(aBaseNum) && !isNaN(bBaseNum)) {
+                return aBaseNum - bBaseNum;
+            }
+            return aBase.localeCompare(bBase);
+        }
+
+        // Базовые части равны - артикул без дефиса идёт первым
+        if (!aHasDash && bHasDash) return -1;
+        if (aHasDash && !bHasDash) return 1;
+
+        // Оба имеют дефис - сравниваем суффиксы как числа
+        const aSuffixNum = parseInt(aSuffix, 10);
+        const bSuffixNum = parseInt(bSuffix, 10);
+        if (!isNaN(aSuffixNum) && !isNaN(bSuffixNum)) {
+            return aSuffixNum - bSuffixNum;
+        }
+        return aSuffix.localeCompare(bSuffix);
+    }
+
+    // Сортировка по артикулу и размеру
+    function sortByArticleAndSize(items) {
+        return items.sort((a, b) => {
+            const aArticle = a.article.toLowerCase();
+            const bArticle = b.article.toLowerCase();
+            let result = naturalCompare(aArticle, bArticle);
+            if (result === 0) {
+                const aSize = getSizeOrder(a.size);
+                const bSize = getSizeOrder(b.size);
+                return aSize - bSize;
+            }
+            return result;
+        });
+    }
+
     // Поиск товаров при вводе
     let searchTimeout;
     document.getElementById('articleSearch').addEventListener('input', function() {
@@ -225,7 +289,11 @@
     // Отрисовка результатов поиска
     function renderSearchResults(goods) {
         const tbody = document.getElementById('searchResults');
-        tbody.innerHTML = goods.map(good => `
+
+        // Сортируем по артикулу и размеру
+        const sortedGoods = sortByArticleAndSize([...goods]);
+
+        tbody.innerHTML = sortedGoods.map(good => `
             <tr data-id="${good.id}" data-article="${good.article}" data-size="${good.size}"
                 data-gtin="${good.gtin}" data-barcode="${good.barcode}">
                 <td><input type="checkbox" class="search-checkbox"></td>
@@ -234,8 +302,13 @@
                 <td>${good.gtin}</td>
                 <td>${good.barcode}</td>
                 <td>
-                    <input type="number" class="form-control form-control-sm quantity-input"
-                           value="0" min="0" onchange="updateRowSelection(this)">
+                    <div class="input-group input-group-sm quantity-group">
+                        <input type="number" class="form-control form-control-sm quantity-input"
+                               value="0" min="0" onchange="updateRowSelection(this)" onfocus="this.select()">
+                        <button type="button" class="btn btn-outline-primary btn-sm" onclick="addSingleItem(this)" title="Добавить в заказ">
+                            <i class="bi bi-plus"></i>
+                        </button>
+                    </div>
                 </td>
             </tr>
         `).join('');
@@ -253,6 +326,40 @@
             checkbox.checked = true;
             row.classList.add('selected-row');
         }
+    }
+
+    // Добавить одну позицию в заказ (по кнопке +)
+    function addSingleItem(button) {
+        const row = button.closest('tr');
+        const quantityInput = row.querySelector('.quantity-input');
+        const quantity = parseInt(quantityInput.value) || 0;
+
+        if (quantity <= 0) {
+            quantityInput.focus();
+            return;
+        }
+
+        const key = `${row.dataset.gtin}-${row.dataset.barcode}`;
+
+        if (selectedItems[key]) {
+            selectedItems[key].quantity += quantity;
+        } else {
+            selectedItems[key] = {
+                article: row.dataset.article,
+                size: row.dataset.size,
+                gtin: row.dataset.gtin,
+                barcode: row.dataset.barcode,
+                quantity: quantity
+            };
+        }
+
+        // Сбрасываем количество и чекбокс
+        quantityInput.value = 0;
+        const checkbox = row.querySelector('.search-checkbox');
+        if (checkbox) checkbox.checked = false;
+        row.classList.remove('selected-row');
+
+        renderSelectedItems();
     }
 
     // Выбрать/снять все
@@ -325,7 +432,10 @@
             return;
         }
 
-        tbody.innerHTML = items.map((item, index) => `
+        // Сортируем по артикулу и размеру
+        const sortedItems = sortByArticleAndSize([...items]);
+
+        tbody.innerHTML = sortedItems.map((item, index) => `
             <tr data-key="${item.gtin}-${item.barcode}">
                 <td><input type="checkbox" class="selected-checkbox"></td>
                 <td>${item.article}</td>
@@ -335,7 +445,8 @@
                 <td>
                     <input type="number" class="form-control form-control-sm quantity-input"
                            value="${item.quantity}" min="1"
-                           onchange="updateSelectedQuantity(this, '${item.gtin}-${item.barcode}')">
+                           onchange="updateSelectedQuantity(this, '${item.gtin}-${item.barcode}')"
+                           onfocus="this.select()">
                 </td>
                 <td>
                     <button type="button" class="btn btn-sm btn-outline-danger"

@@ -8,9 +8,12 @@
 
   // Конфигурация
   const CONFIG = {
+    // Используем HTTP - браузер может блокировать из-за mixed content
+    // Если не работает, нужно настроить HTTPS на сервере
     API_BASE: 'http://192.168.0.44:5000/api/extension',
-    // Паттерн артикула: цифры/что-угодно
-    ARTICLE_PATTERN: /^\d+\/[\w\d.,]+$/,
+    // Паттерн артикула: цифры (возможно с дефисами)/что-угодно
+    // Примеры: 3035090018/658, 2089090018-14/11, 3009030003/M
+    ARTICLE_PATTERN: /^[\d-]+\/[\w\d.,]+$/,
     // Задержка перед показом тултипа (мс)
     HOVER_DELAY: 300,
     // Интервал сканирования новых элементов (мс)
@@ -30,19 +33,21 @@
   const productDataCache = new Map();
 
   /**
-   * Загрузка списка артикулов из API
+   * Загрузка списка артикулов из API (через background script)
    */
   async function loadArticles() {
     try {
-      const response = await fetch(`${CONFIG.API_BASE}/articles`);
-      const data = await response.json();
+      const data = await chrome.runtime.sendMessage({ action: 'fetchArticles' });
 
-      if (data.success && data.articles) {
+      if (data && data.success && data.articles) {
         articlesCache = new Set(data.articles);
         cacheLoaded = true;
         console.log(`[OZON Extension] Загружено ${data.count} артикулов`);
         // После загрузки кеша сканируем страницу
         scanPage();
+      } else {
+        console.error('[OZON Extension] Ошибка загрузки артикулов:', data?.error || 'Unknown error');
+        setTimeout(loadArticles, 5000);
       }
     } catch (error) {
       console.error('[OZON Extension] Ошибка загрузки артикулов:', error);
@@ -53,23 +58,27 @@
 
   /**
    * Парсинг текста в артикул и размер
+   * Примеры:
+   *   3035090018/658 -> article: 3035090018, size: 658
+   *   2089090018-14/11 -> article: 2089090018-14, size: 11
+   *   3009030003/M -> article: 3009030003, size: M
    */
   function parseArticle(text) {
     if (!text || typeof text !== 'string') return null;
 
     text = text.trim();
 
-    // Проверяем паттерн: цифры/что-то
+    // Проверяем паттерн: цифры (возможно с дефисами)/что-то
     if (!CONFIG.ARTICLE_PATTERN.test(text)) return null;
 
     const parts = text.split('/');
     if (parts.length !== 2) return null;
 
-    const article = parts[0];
+    const article = parts[0];  // Артикул полностью, включая дефис (2089090018-14)
     const size = parts[1];
 
-    // Артикул должен быть числом
-    if (!/^\d+$/.test(article)) return null;
+    // Артикул должен содержать только цифры и дефисы, и начинаться с цифры
+    if (!/^\d[\d-]*$/.test(article)) return null;
 
     return { article, size, full: text };
   }
@@ -82,7 +91,7 @@
   }
 
   /**
-   * Получение данных о товаре
+   * Получение данных о товаре (через background script)
    */
   async function getProductInfo(article, size) {
     const cacheKey = `${article}/${size}`;
@@ -93,15 +102,17 @@
     }
 
     try {
-      const url = `${CONFIG.API_BASE}/product-info?article=${encodeURIComponent(article)}&size=${encodeURIComponent(size)}`;
-      const response = await fetch(url);
-      const data = await response.json();
+      const data = await chrome.runtime.sendMessage({
+        action: 'fetchProductInfo',
+        article: article,
+        size: size
+      });
 
-      if (data.success) {
+      if (data && data.success) {
         productDataCache.set(cacheKey, data);
         return data;
       } else {
-        return { error: data.error || 'Ошибка получения данных' };
+        return { error: data?.error || 'Ошибка получения данных' };
       }
     } catch (error) {
       console.error('[OZON Extension] Ошибка запроса:', error);
@@ -171,6 +182,10 @@
         <div class="mp-tooltip-row">
           <span class="mp-tooltip-label">% выкупа:</span>
           <span class="mp-tooltip-value ${percentClass}">${data.buyout_percent}%</span>
+        </div>
+        <div class="mp-tooltip-row">
+          <span class="mp-tooltip-label">Доставляется:</span>
+          <span class="mp-tooltip-value orders">${data.delivering || 0}</span>
         </div>
       `;
     }
