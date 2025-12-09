@@ -148,13 +148,7 @@
                                 </button>
                             </div>
                         </div>
-                        <div class="col-md-2">
-                            <label class="form-label">&nbsp;</label>
-                            <button type="button" class="btn btn-primary w-100" id="apply-filter">
-                                <i class="bi bi-funnel"></i> Применить
-                            </button>
-                        </div>
-                        <div class="col-md-2">
+                        <div class="col-md-4">
                             <label class="form-label">&nbsp;</label>
                             <button type="button" class="btn btn-outline-primary w-100" id="refresh-stocks">
                                 <i class="bi bi-arrow-clockwise"></i> Обновить остатки
@@ -1010,8 +1004,9 @@ document.addEventListener('DOMContentLoaded', function() {
             url.searchParams.set('date_from', formatDateForAPI(dateFrom));
             url.searchParams.set('date_to', formatDateForAPI(dateTo));
         } else {
-            url.searchParams.delete('date_from');
-            url.searchParams.delete('date_to');
+            // Передаём пустые параметры, чтобы бэкенд понял что это "все время"
+            url.searchParams.set('date_from', '');
+            url.searchParams.set('date_to', '');
         }
         window.location.href = url.toString();
     }
@@ -1019,22 +1014,6 @@ document.addEventListener('DOMContentLoaded', function() {
     // Текущие даты из сервера
     const serverDateFrom = '{{ date_from }}';
     const serverDateTo = '{{ date_to }}';
-
-    // Инициализация Air Datepicker
-    const pickerConfig = {
-        range: true,
-        multipleDatesSeparator: ' - ',
-        dateFormat: 'dd.MM.yyyy',
-        autoClose: true,
-        maxDate: new Date()
-    };
-
-    // Если есть сохраненные даты с сервера, устанавливаем их
-    if (serverDateFrom && serverDateTo) {
-        pickerConfig.selectedDates = [new Date(serverDateFrom), new Date(serverDateTo)];
-    }
-
-    const picker = new AirDatepicker('#date-range-picker', pickerConfig);
 
     // Функция применения фильтра
     function applyDateFilter() {
@@ -1049,37 +1028,57 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // Обработчик кнопки "Применить"
-    document.getElementById('apply-filter').addEventListener('click', applyDateFilter);
+    // Инициализация Air Datepicker
+    const pickerConfig = {
+        range: true,
+        multipleDatesSeparator: ' - ',
+        dateFormat: 'dd.MM.yyyy',
+        autoClose: false,
+        maxDate: new Date(),
+        buttons: [
+            {
+                content: 'Применить',
+                className: 'btn btn-primary btn-sm',
+                onClick: (dp) => {
+                    applyDateFilter();
+                    dp.hide();
+                }
+            }
+        ]
+    };
 
-    // Обработчик кнопки "Сегодня"
+    // Если есть сохраненные даты с сервера, устанавливаем их
+    if (serverDateFrom && serverDateTo) {
+        pickerConfig.selectedDates = [new Date(serverDateFrom), new Date(serverDateTo)];
+    }
+
+    const picker = new AirDatepicker('#date-range-picker', pickerConfig);
+
+    // Обработчик кнопки "Сегодня" - сразу применяет
     document.getElementById('set-today').addEventListener('click', function() {
         const today = new Date();
-        picker.clear();
-        picker.selectDate([today, today]);
+        reloadWithDates(today, today);
     });
 
-    // Обработчик кнопки "Все время"
+    // Обработчик кнопки "Все время" - сразу применяет
     document.getElementById('reset-dates').addEventListener('click', function() {
-        picker.clear();
+        reloadWithDates(null, null);
     });
 
-    // Обработчик кнопки "Неделя"
+    // Обработчик кнопки "Неделя" - сразу применяет
     document.getElementById('reset-to-week').addEventListener('click', function() {
         const today = new Date();
         const weekAgo = new Date();
         weekAgo.setDate(today.getDate() - 6);
-        picker.clear();
-        picker.selectDate([weekAgo, today]);
+        reloadWithDates(weekAgo, today);
     });
 
-    // Обработчик кнопки "Месяц"
+    // Обработчик кнопки "Месяц" - сразу применяет
     document.getElementById('reset-to-month').addEventListener('click', function() {
         const today = new Date();
         const monthAgo = new Date();
         monthAgo.setMonth(today.getMonth() - 1);
-        picker.clear();
-        picker.selectDate([monthAgo, today]);
+        reloadWithDates(monthAgo, today);
     });
 
     // Обработчик кнопки "Обновить остатки"
@@ -1219,16 +1218,17 @@ document.addEventListener('DOMContentLoaded', function() {
         const table = document.querySelector('table');
         if (!table) return;
 
-        // Получаем видимые колонки на основе чекбоксов
+        // Получаем видимые колонки на основе чекбоксов (в порядке токенов)
         const visibleColumns = getVisibleColumns();
 
         // Собираем данные для Excel
         const data = [];
 
-        // Формируем заголовок
+        // Формируем заголовок с многострочным текстом (Маркетплейс\nТокен\nТип)
         const headerRow = ['Артикул', 'Размер'];
         visibleColumns.forEach(col => {
-            headerRow.push(col.label);
+            // Многострочный заголовок: Маркетплейс, Токен, Тип колонки
+            headerRow.push(`${col.marketplaceName}\n${col.tokenName}\n${col.colLabel}`);
         });
         data.push(headerRow);
 
@@ -1259,12 +1259,25 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Создаем рабочую книгу Excel
         const wb = XLSX.utils.book_new();
-        const ws = XLSX.utils.aoa_to_array ? XLSX.utils.aoa_to_sheet(data) : XLSX.utils.aoa_to_sheet(data);
+        const ws = XLSX.utils.aoa_to_sheet(data);
 
         // Настраиваем ширину колонок
         const colWidths = [{ wch: 20 }, { wch: 10 }];
-        visibleColumns.forEach(() => colWidths.push({ wch: 15 }));
+        visibleColumns.forEach(() => colWidths.push({ wch: 12 }));
         ws['!cols'] = colWidths;
+
+        // Устанавливаем высоту первой строки для многострочного заголовка
+        ws['!rows'] = [{ hpt: 45 }];
+
+        // Применяем перенос текста к заголовкам
+        const range = XLSX.utils.decode_range(ws['!ref']);
+        for (let col = 0; col <= range.e.c; col++) {
+            const cellAddress = XLSX.utils.encode_cell({ r: 0, c: col });
+            if (ws[cellAddress]) {
+                if (!ws[cellAddress].s) ws[cellAddress].s = {};
+                ws[cellAddress].s.alignment = { wrapText: true, vertical: 'center' };
+            }
+        }
 
         XLSX.utils.book_append_sheet(wb, ws, 'Статистика выкупов');
 
@@ -1289,42 +1302,55 @@ document.addEventListener('DOMContentLoaded', function() {
             'percent': '% выкупа'
         };
 
-        // Проверяем чекбоксы для каждого токена
-        columnCheckboxes.forEach(checkbox => {
-            if (!checkbox.checked) return;
+        // Получаем порядок токенов из списка (учитывает drag-and-drop)
+        const tokenOrder = [];
+        if (tokenList) {
+            tokenList.querySelectorAll('.token-item').forEach(item => {
+                tokenOrder.push({
+                    id: item.dataset.tokenId,
+                    marketplace: item.dataset.marketplace
+                });
+            });
+        }
 
-            const tokenId = checkbox.dataset.tokenId;
-            const marketplace = checkbox.dataset.marketplace;
-            const colType = checkbox.dataset.colType;
+        // Для каждого токена в правильном порядке добавляем его видимые колонки
+        tokenOrder.forEach(token => {
+            const tokenId = token.id;
+            const marketplace = token.marketplace;
 
             // Получаем имя токена
             const tokenItem = document.querySelector(`.token-item[data-token-id="${tokenId}"]`);
             const tokenName = tokenItem ? tokenItem.querySelector('strong').textContent : '';
+            const marketplaceName = marketplace === 'ozon' ? 'Ozon' : 'WB';
 
-            let dataKey, label;
-            if (marketplace === 'ozon') {
-                // Для Ozon используем стандартные ключи
-                switch (colType) {
-                    case 'stock': dataKey = 'stock'; break;
-                    case 'orders': dataKey = 'total'; break;
-                    case 'delivered': dataKey = 'delivered'; break;
-                    case 'cancelled': dataKey = 'cancelled'; break;
-                    case 'percent': dataKey = 'percent'; break;
+            // Проверяем каждый тип колонки для этого токена
+            colTypes.forEach(colType => {
+                const checkbox = document.querySelector(`.column-checkbox[data-token-id="${tokenId}"][data-col-type="${colType}"]`);
+                if (!checkbox || !checkbox.checked) return;
+
+                let dataKey;
+                if (marketplace === 'ozon') {
+                    switch (colType) {
+                        case 'stock': dataKey = 'stock'; break;
+                        case 'orders': dataKey = 'total'; break;
+                        case 'delivered': dataKey = 'delivered'; break;
+                        case 'cancelled': dataKey = 'cancelled'; break;
+                        case 'percent': dataKey = 'percent'; break;
+                    }
+                } else if (marketplace === 'wildberries') {
+                    dataKey = `wb_${colType}_${tokenId}`;
                 }
-                label = `Ozon ${tokenName} - ${colLabels[colType]}`;
-            } else if (marketplace === 'wildberries') {
-                // Для WB используем ключи с token_id
-                dataKey = `wb_${colType}_${tokenId}`;
-                label = `WB ${tokenName} - ${colLabels[colType]}`;
-            }
 
-            columns.push({
-                tokenId: tokenId,
-                marketplace: marketplace,
-                colType: colType,
-                dataKey: dataKey,
-                label: label,
-                isPercent: colType === 'percent'
+                columns.push({
+                    tokenId: tokenId,
+                    marketplace: marketplace,
+                    colType: colType,
+                    dataKey: dataKey,
+                    marketplaceName: marketplaceName,
+                    tokenName: tokenName,
+                    colLabel: colLabels[colType],
+                    isPercent: colType === 'percent'
+                });
             });
         });
 
