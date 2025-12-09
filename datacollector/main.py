@@ -11,6 +11,7 @@ from datacollector.collectors.wildberries import WildberriesCollector
 from datacollector.collectors.ozon import OzonCollector
 from datacollector.queue_manager import TaskQueue, Task, TaskPriority
 from datacollector.worker import WorkerPool
+from datacollector.notifier import APIValidationNotifier
 from app.models import Token, WBStock, OzonStock
 from app.models.sync import ManualTask
 from app.models.vpn import VPNUser
@@ -448,6 +449,40 @@ def stocks_scheduler():
     logger.info("Stocks scheduler stopped")
 
 
+def initialize_telegram_notifier():
+    """Initialize Telegram notifier for API validation alerts"""
+    logger.info("Initializing Telegram notifier...")
+
+    engine = create_engine(DataCollectorConfig.DATABASE_URI)
+    Session = sessionmaker(bind=engine)
+    session = Session()
+
+    try:
+        # Получаем Telegram токен из БД
+        telegram_token = session.query(Token).filter_by(
+            marketplace='telegram',
+            is_active=True
+        ).first()
+
+        if telegram_token:
+            # Токен содержит bot_token:chat_id (через client_id)
+            bot_token = telegram_token.token
+            chat_id = telegram_token.client_id
+
+            if bot_token and chat_id:
+                APIValidationNotifier.initialize(bot_token, chat_id)
+                logger.info("Telegram notifier initialized successfully")
+            else:
+                logger.warning("Telegram token found but missing bot_token or chat_id")
+        else:
+            logger.warning("No active Telegram token found, notifications disabled")
+
+    except Exception as e:
+        logger.error(f"Error initializing Telegram notifier: {e}")
+    finally:
+        session.close()
+
+
 def main():
     global task_queue, worker_pool
 
@@ -455,6 +490,9 @@ def main():
 
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
+
+    # Initialize Telegram notifier for API validation alerts
+    initialize_telegram_notifier()
 
     # Initialize task queue
     task_queue = TaskQueue()
