@@ -4,6 +4,7 @@ from datetime import datetime, timezone, timedelta
 from app.models import Token, OzonOrder, OzonStock, db
 from app.models.wildberries import WBStock, WBGood, WBOrder
 from app.models.product import Product
+from app.models.sync import SyncState
 from app.services.sales_service import SalesService
 from app.decorators import section_required, admin_required
 from sqlalchemy import distinct, func
@@ -517,6 +518,40 @@ def get_token_sales_range(token_id):
     sales_info = SalesService.get_sales_by_date_range(token_id, date_from, date_to)
 
     return jsonify(sales_info)
+
+
+@main_bp.route('/api/sync/last-update')
+@login_required
+def get_last_sync_time():
+    """API endpoint для получения времени последней синхронизации данных"""
+    # Получаем все активные токены WB и Ozon
+    token_ids = db.session.query(Token.id).filter(
+        Token.is_active == True,
+        Token.marketplace.in_(['wildberries', 'ozon'])
+    ).all()
+    token_ids = [t[0] for t in token_ids]
+
+    if not token_ids:
+        return jsonify({'success': False, 'last_sync': None})
+
+    # Ищем самую свежую успешную синхронизацию по endpoint 'orders'
+    last_sync = db.session.query(
+        func.max(SyncState.last_successful_sync)
+    ).filter(
+        SyncState.token_id.in_(token_ids),
+        SyncState.endpoint == 'orders'
+    ).scalar()
+
+    if last_sync:
+        # Конвертируем в московское время (UTC+3)
+        moscow_time = last_sync + timedelta(hours=3)
+        return jsonify({
+            'success': True,
+            'last_sync': moscow_time.strftime('%H:%M:%S'),
+            'last_sync_full': moscow_time.strftime('%d.%m.%Y %H:%M:%S')
+        })
+
+    return jsonify({'success': False, 'last_sync': None})
 
 
 @main_bp.route('/api/stocks/refresh', methods=['POST'])

@@ -242,11 +242,23 @@ document.addEventListener('DOMContentLoaded', function() {
         if (currentDateSalesElem) currentDateSalesElem.textContent = dateStr;
     }
 
-    // Обновляем время последнего обновления для заказов
-    function updateLastUpdateTime() {
-        const now = new Date();
-        const lastUpdateElem = document.getElementById('last-update-time');
-        if (lastUpdateElem) lastUpdateElem.textContent = formatTime(now);
+    // Загружаем время последней синхронизации из базы данных
+    async function loadLastSyncTime() {
+        try {
+            const response = await fetch('{{ url_for('main.get_last_sync_time') }}');
+            const data = await response.json();
+            const lastUpdateElem = document.getElementById('last-update-time');
+            if (lastUpdateElem) {
+                if (data.success && data.last_sync) {
+                    lastUpdateElem.textContent = data.last_sync;
+                    lastUpdateElem.title = 'Последняя синхронизация: ' + data.last_sync_full;
+                } else {
+                    lastUpdateElem.textContent = '-';
+                }
+            }
+        } catch (error) {
+            console.error('Ошибка загрузки времени синхронизации:', error);
+        }
     }
 
     // Обновляем время последнего обновления для продаж
@@ -418,9 +430,9 @@ document.addEventListener('DOMContentLoaded', function() {
         // Ждем завершения всех запросов
         await Promise.all(promises);
 
-        // Обновляем общую статистику и время
+        // Обновляем общую статистику и время синхронизации
         updateTotalStats();
-        updateLastUpdateTime();
+        loadLastSyncTime();
     }
 
     // Функция для загрузки данных о продажах для всех токенов
