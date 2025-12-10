@@ -344,6 +344,216 @@
         ::-webkit-scrollbar-thumb { background: linear-gradient(135deg, var(--primary-color), var(--secondary-color)); border-radius: 4px; }
 
         .display-4 { font-size: 2rem; font-weight: 700; }
+
+        /* ========== МОБИЛЬНАЯ АДАПТАЦИЯ ========== */
+
+        /* Планшеты и меньше (< 992px) */
+        @media (max-width: 991.98px) {
+            .navbar-brand {
+                font-size: 1.1rem;
+            }
+
+            body {
+                padding-bottom: 60px;
+            }
+        }
+
+        /* Мобильные устройства (< 768px) */
+        @media (max-width: 767.98px) {
+            body {
+                font-size: 14px;
+                padding-bottom: 50px;
+            }
+
+            .container {
+                padding-left: 12px;
+                padding-right: 12px;
+            }
+
+            /* Карточки */
+            .card {
+                border-radius: 12px;
+            }
+
+            .card-header {
+                padding: 0.75rem 1rem;
+                border-radius: 12px 12px 0 0 !important;
+            }
+
+            .card-body {
+                padding: 0.875rem;
+            }
+
+            /* Таблицы */
+            .table {
+                font-size: 0.8rem;
+            }
+
+            .table thead th {
+                padding: 0.5rem;
+                font-size: 0.75rem;
+            }
+
+            .table td {
+                padding: 0.5rem;
+            }
+
+            /* Кнопки */
+            .btn {
+                padding: 0.5rem 1rem;
+                font-size: 0.85rem;
+            }
+
+            .btn-sm {
+                padding: 0.35rem 0.75rem;
+                font-size: 0.8rem;
+            }
+
+            /* Формы */
+            .form-control {
+                font-size: 16px; /* Предотвращает зум на iOS */
+                padding: 0.5rem 0.75rem;
+            }
+
+            .form-control-sm {
+                font-size: 16px;
+            }
+
+            /* Логотипы маркетплейсов */
+            .mp-logo {
+                width: 24px;
+                height: 24px;
+                margin-right: 4px;
+            }
+
+            .mp-logo svg {
+                width: 14px;
+                height: 14px;
+            }
+
+            /* Футер */
+            footer p {
+                font-size: 0.7rem;
+                padding: 0.5rem 1.5rem !important;
+            }
+
+            /* Статистические карточки */
+            .card.bg-success .card-body,
+            .card.bg-info .card-body,
+            .card.bg-warning .card-body,
+            .card.bg-danger .card-body {
+                padding: 0.625rem;
+            }
+
+            .card.bg-success .h4,
+            .card.bg-info .h4,
+            .card.bg-warning .h4,
+            .card.bg-danger .h4 {
+                font-size: 1.1rem;
+            }
+
+            .card.bg-success .small,
+            .card.bg-info .small,
+            .card.bg-warning .small,
+            .card.bg-danger .small {
+                font-size: 0.65rem;
+            }
+
+            /* Бейджи */
+            .badge {
+                font-size: 0.65rem;
+                padding: 0.25em 0.5em;
+            }
+
+            /* Заголовки */
+            h1, .h1 { font-size: 1.5rem; }
+            h2, .h2 { font-size: 1.3rem; }
+            h3, .h3 { font-size: 1.15rem; }
+            h4, .h4 { font-size: 1rem; }
+
+            /* Hero section */
+            .hero-section h1 {
+                font-size: 1.75rem;
+            }
+
+            .hero-section p {
+                font-size: 1rem;
+            }
+
+            /* Feature cards */
+            .feature-card {
+                padding: 1rem;
+                margin: 0.5rem 0;
+            }
+
+            .feature-icon {
+                font-size: 2rem;
+            }
+        }
+
+        /* Маленькие мобильные (< 576px) */
+        @media (max-width: 575.98px) {
+            .container {
+                padding-left: 8px;
+                padding-right: 8px;
+            }
+
+            /* Убираем горизонтальные отступы в карточках */
+            .card-body {
+                padding: 0.75rem 0.625rem;
+            }
+
+            /* Статистические карточки - ещё компактнее */
+            .card.bg-success .h4,
+            .card.bg-info .h4,
+            .card.bg-warning .h4,
+            .card.bg-danger .h4 {
+                font-size: 1rem;
+            }
+
+            .card.bg-success .small,
+            .card.bg-info .small,
+            .card.bg-warning .small,
+            .card.bg-danger .small {
+                font-size: 0.6rem;
+            }
+
+            /* Таблицы - минимальные отступы */
+            .table td, .table th {
+                padding: 0.4rem 0.3rem;
+            }
+
+            /* Скрываем текст "Токен" в таблицах, показываем только лого */
+            .table .token-name-text {
+                display: none;
+            }
+        }
+
+        /* Touch-friendly элементы */
+        @media (hover: none) and (pointer: coarse) {
+            /* Увеличиваем область нажатия */
+            .btn {
+                min-height: 44px;
+                min-width: 44px;
+            }
+
+            .nav-link {
+                padding: 0.75rem 1rem !important;
+            }
+
+            .dropdown-item {
+                padding: 0.75rem 1rem;
+            }
+
+            /* Убираем hover-эффекты для touch */
+            .feature-card:hover {
+                transform: none;
+            }
+
+            .btn-primary:hover {
+                transform: none;
+            }
+        }
     </style>
     
     {% block extra_css %}{% endblock %}
