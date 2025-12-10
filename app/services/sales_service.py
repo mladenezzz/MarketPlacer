@@ -615,7 +615,7 @@ class SalesService:
                 WBSale.date,
                 WBSale.finished_price,
                 WBSale.token_id,
-                WBGood.vendor_code,
+                Product.article,
                 WBGood.tech_size
             ).outerjoin(
                 Product, WBSale.product_id == Product.id
@@ -635,7 +635,7 @@ class SalesService:
                     'token_name': token_info.get('name', 'Неизвестно'),
                     'date': sale.date.isoformat() if sale.date else None,
                     'price': float(sale.finished_price or 0),
-                    'article': sale.vendor_code or '',
+                    'article': sale.article or '',
                     'size': sale.tech_size or ''
                 })
 
