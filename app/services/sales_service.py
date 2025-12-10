@@ -544,37 +544,23 @@ class SalesService:
             }
 
     @staticmethod
-    def get_events_feed(limit: int = 50, last_id: int = None) -> Dict:
+    def get_events_feed(limit: int = 50) -> Dict:
         """
-        Получить ленту событий (заказы и продажи) со всех маркетплейсов.
+        Получить ленту событий (заказы и продажи) со всех маркетплейсов за сегодня.
         События отсортированы по дате (новые сверху).
 
         Args:
             limit: Максимальное количество событий
-            last_id: ID последнего события для пагинации (для обновления ленты)
 
         Returns:
-            Dict с событиями:
-            {
-                'success': bool,
-                'events': [
-                    {
-                        'id': str,           # уникальный ID события (тип_id)
-                        'type': str,         # 'order' или 'sale'
-                        'marketplace': str,  # 'wildberries' или 'ozon'
-                        'token_name': str,   # название токена
-                        'date': str,         # дата в формате ISO
-                        'price': float,      # цена
-                        'offer_id': str,     # артикул товара (если есть)
-                    },
-                    ...
-                ],
-                'error': str
-            }
+            Dict с событиями
         """
         from app.models.wildberries import WBOrder, WBSale
 
         try:
+            # Получаем начало сегодняшнего дня
+            today_start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+
             # Получаем все активные токены WB и Ozon
             tokens = Token.query.filter(
                 Token.is_active == True,
@@ -594,15 +580,17 @@ class SalesService:
 
             events = []
 
-            # Получаем заказы WB
+            # Получаем заказы WB за сегодня
             wb_orders = db.session.query(
                 WBOrder.id,
                 WBOrder.date,
                 WBOrder.price_with_disc,
                 WBOrder.supplier_article,
+                WBOrder.tech_size,
                 WBOrder.token_id
             ).filter(
-                WBOrder.token_id.in_(token_ids)
+                WBOrder.token_id.in_(token_ids),
+                WBOrder.date >= today_start
             ).order_by(WBOrder.date.desc()).limit(limit).all()
 
             for order in wb_orders:
@@ -614,18 +602,21 @@ class SalesService:
                     'token_name': token_info.get('name', 'Неизвестно'),
                     'date': order.date.isoformat() if order.date else None,
                     'price': float(order.price_with_disc or 0),
-                    'offer_id': order.supplier_article or ''
+                    'article': order.supplier_article or '',
+                    'size': order.tech_size or ''
                 })
 
-            # Получаем продажи WB
+            # Получаем продажи WB за сегодня
             wb_sales = db.session.query(
                 WBSale.id,
                 WBSale.date,
                 WBSale.finished_price,
                 WBSale.supplier_article,
+                WBSale.tech_size,
                 WBSale.token_id
             ).filter(
-                WBSale.token_id.in_(token_ids)
+                WBSale.token_id.in_(token_ids),
+                WBSale.date >= today_start
             ).order_by(WBSale.date.desc()).limit(limit).all()
 
             for sale in wb_sales:
@@ -637,10 +628,11 @@ class SalesService:
                     'token_name': token_info.get('name', 'Неизвестно'),
                     'date': sale.date.isoformat() if sale.date else None,
                     'price': float(sale.finished_price or 0),
-                    'offer_id': sale.supplier_article or ''
+                    'article': sale.supplier_article or '',
+                    'size': sale.tech_size or ''
                 })
 
-            # Получаем заказы Ozon
+            # Получаем заказы Ozon за сегодня
             ozon_orders = db.session.query(
                 OzonOrder.id,
                 OzonOrder.in_process_at,
@@ -648,11 +640,18 @@ class SalesService:
                 OzonOrder.offer_id,
                 OzonOrder.token_id
             ).filter(
-                OzonOrder.token_id.in_(token_ids)
+                OzonOrder.token_id.in_(token_ids),
+                OzonOrder.in_process_at >= today_start
             ).order_by(OzonOrder.in_process_at.desc()).limit(limit).all()
 
             for order in ozon_orders:
                 token_info = tokens_map.get(order.token_id, {})
+                # Парсим offer_id для получения артикула и размера (формат: артикул/размер)
+                article, size = '', ''
+                if order.offer_id:
+                    parts = order.offer_id.split('/')
+                    article = parts[0] if parts else ''
+                    size = parts[1] if len(parts) > 1 else ''
                 events.append({
                     'id': f'ozon_order_{order.id}',
                     'type': 'order',
@@ -660,23 +659,31 @@ class SalesService:
                     'token_name': token_info.get('name', 'Неизвестно'),
                     'date': order.in_process_at.isoformat() if order.in_process_at else None,
                     'price': float(order.price or 0),
-                    'offer_id': order.offer_id or ''
+                    'article': article,
+                    'size': size
                 })
 
-            # Получаем продажи Ozon (только OperationAgentDeliveredToCustomer)
+            # Получаем продажи Ozon за сегодня (только OperationAgentDeliveredToCustomer)
             ozon_sales = db.session.query(
                 OzonSale.id,
                 OzonSale.operation_date,
                 OzonSale.accruals_for_sale,
-                OzonSale.posting_posting_number,
+                OzonSale.items_sku,
                 OzonSale.token_id
             ).filter(
                 OzonSale.token_id.in_(token_ids),
-                OzonSale.operation_type == 'OperationAgentDeliveredToCustomer'
+                OzonSale.operation_type == 'OperationAgentDeliveredToCustomer',
+                OzonSale.operation_date >= today_start
             ).order_by(OzonSale.operation_date.desc()).limit(limit).all()
 
             for sale in ozon_sales:
                 token_info = tokens_map.get(sale.token_id, {})
+                # Парсим items_sku для получения артикула и размера
+                article, size = '', ''
+                if sale.items_sku:
+                    parts = sale.items_sku.split('/')
+                    article = parts[0] if parts else ''
+                    size = parts[1] if len(parts) > 1 else ''
                 events.append({
                     'id': f'ozon_sale_{sale.id}',
                     'type': 'sale',
@@ -684,7 +691,8 @@ class SalesService:
                     'token_name': token_info.get('name', 'Неизвестно'),
                     'date': sale.operation_date.isoformat() if sale.operation_date else None,
                     'price': float(sale.accruals_for_sale or 0),
-                    'offer_id': sale.posting_posting_number or ''
+                    'article': article,
+                    'size': size
                 })
 
             # Сортируем все события по дате (новые сверху)

@@ -662,11 +662,18 @@ document.addEventListener('DOMContentLoaded', function() {
         div.className = 'event-item d-flex align-items-center px-3 py-2 border-bottom' + (isNew ? ' event-new' : '');
         div.dataset.eventId = event.id;
 
+        // Формируем строку артикул/размер
+        let articleSize = event.article || '';
+        if (event.size) {
+            articleSize += articleSize ? '/' + event.size : event.size;
+        }
+
         div.innerHTML = `
             <span class="text-muted small me-2" style="min-width: 80px;">${formatEventDate(event.date)}</span>
             ${getMarketplaceIcon(event.marketplace)}
             <span class="small text-muted me-2" style="min-width: 80px;">${event.token_name}</span>
             <span class="badge ${event.type === 'order' ? 'bg-primary' : 'bg-success'} me-2" style="min-width: 55px;">${getOperationType(event.type)}</span>
+            <span class="small me-2" style="min-width: 120px;">${articleSize}</span>
             <span class="fw-medium me-auto">${formatEventPrice(event.price)}</span>
         `;
 
