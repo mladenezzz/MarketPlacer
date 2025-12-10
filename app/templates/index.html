@@ -668,11 +668,16 @@ document.addEventListener('DOMContentLoaded', function() {
             articleSize += articleSize ? '/' + event.size : event.size;
         }
 
+        // Градиенты для бейджей
+        const orderGradient = 'background: linear-gradient(90deg, #5dd9a8 0%, #5ee7f5 50%, #a8b5e3 100%);';
+        const saleGradient = 'background: linear-gradient(90deg, #ffda6a 0%, #feb272 33%, #f086b3 66%, #a98eda 100%);';
+        const badgeStyle = event.type === 'order' ? orderGradient : saleGradient;
+
         div.innerHTML = `
             <span class="text-muted small me-2" style="min-width: 80px;">${formatEventDate(event.date)}</span>
             ${getMarketplaceIcon(event.marketplace)}
             <span class="small text-muted me-2" style="min-width: 80px;">${event.token_name}</span>
-            <span class="badge ${event.type === 'order' ? 'bg-primary' : 'bg-success'} me-2" style="min-width: 55px;">${getOperationType(event.type)}</span>
+            <span class="badge text-white me-2" style="min-width: 55px; ${badgeStyle}">${getOperationType(event.type)}</span>
             <span class="small me-2" style="min-width: 120px;">${articleSize}</span>
             <span class="fw-medium me-auto">${formatEventPrice(event.price)}</span>
         `;
