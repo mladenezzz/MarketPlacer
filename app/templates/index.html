@@ -63,6 +63,30 @@
             </div>
         </div>
 
+        {% if current_user.is_admin() %}
+        <!-- Лента событий (только для админа) -->
+        <div class="row mb-3">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header bg-dark py-2">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span><i class="bi bi-activity me-2"></i>Лента событий</span>
+                            <span class="small opacity-75" id="events-last-update">-</span>
+                        </div>
+                    </div>
+                    <div class="card-body p-0">
+                        <div id="events-feed-container" style="max-height: 300px; overflow-y: auto;">
+                            <div class="text-center p-3 text-muted" id="events-loading">
+                                <i class="bi bi-hourglass-split"></i> Загрузка...
+                            </div>
+                            <div id="events-feed-list"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
         <!-- Заказы и Продажи в двух колонках -->
         <div class="row g-3">
             <!-- Заказы -->
@@ -180,6 +204,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const tokenOrdersData = {};
     const tokenSalesData = {};
     let updateInterval;
+    let eventsUpdateInterval;
+    const knownEventIds = new Set();  // Для отслеживания новых событий
     let currentDateFrom = null;
     let currentDateTo = null;
     let tempDateFrom = null;  // Временная переменная для выбранных дат
@@ -591,14 +617,171 @@ document.addEventListener('DOMContentLoaded', function() {
         loadAllData(true);
     }, 60000);
 
+    {% if current_user.is_admin() %}
+    // ========== ЛЕНТА СОБЫТИЙ (только для админа) ==========
+
+    // Форматирование даты события
+    function formatEventDate(isoDate) {
+        if (!isoDate) return '-';
+        const date = new Date(isoDate);
+        const day = String(date.getDate()).padStart(2, '0');
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const hours = String(date.getHours()).padStart(2, '0');
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        return `${day}.${month} ${hours}:${minutes}`;
+    }
+
+    // Форматирование цены события
+    function formatEventPrice(price) {
+        return Math.round(price).toLocaleString('ru-RU') + ' ₽';
+    }
+
+    // Получить иконку маркетплейса
+    function getMarketplaceIcon(marketplace) {
+        if (marketplace === 'wildberries') {
+            return '<span class="mp-logo mp-logo-wb" title="Wildberries"><svg viewBox="0 0 24 24"><path d="M4 6.5L6.5 17.5L9.5 9L12 17.5L15 9L17.5 17.5L20 6.5"/></svg></span>';
+        } else if (marketplace === 'ozon') {
+            return '<span class="mp-logo mp-logo-ozon" title="Ozon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8" fill="none" stroke="white" stroke-width="2.5"/></svg></span>';
+        }
+        return '';
+    }
+
+    // Получить текст типа операции
+    function getOperationType(type) {
+        return type === 'order' ? 'Заказ' : 'Выкуп';
+    }
+
+    // Получить класс для типа операции
+    function getOperationClass(type) {
+        return type === 'order' ? 'text-primary' : 'text-success';
+    }
+
+    // Создать HTML элемент события
+    function createEventElement(event, isNew = false) {
+        const div = document.createElement('div');
+        div.className = 'event-item d-flex align-items-center px-3 py-2 border-bottom' + (isNew ? ' event-new' : '');
+        div.dataset.eventId = event.id;
+
+        div.innerHTML = `
+            <span class="text-muted small me-2" style="min-width: 80px;">${formatEventDate(event.date)}</span>
+            ${getMarketplaceIcon(event.marketplace)}
+            <span class="small text-muted me-2" style="min-width: 80px;">${event.token_name}</span>
+            <span class="badge ${event.type === 'order' ? 'bg-primary' : 'bg-success'} me-2" style="min-width: 55px;">${getOperationType(event.type)}</span>
+            <span class="fw-medium me-auto">${formatEventPrice(event.price)}</span>
+        `;
+
+        return div;
+    }
+
+    // Загрузить ленту событий
+    async function loadEventsFeed(isUpdate = false) {
+        const container = document.getElementById('events-feed-list');
+        const loadingEl = document.getElementById('events-loading');
+        const lastUpdateEl = document.getElementById('events-last-update');
+
+        if (!container) return;
+
+        try {
+            const response = await fetch('{{ url_for("main.get_events_feed") }}?limit=50');
+            const data = await response.json();
+
+            if (data.success) {
+                // Скрываем индикатор загрузки
+                if (loadingEl) loadingEl.style.display = 'none';
+
+                if (data.events.length === 0) {
+                    container.innerHTML = '<div class="text-center p-3 text-muted">Нет событий</div>';
+                    return;
+                }
+
+                if (!isUpdate) {
+                    // Первая загрузка - просто отображаем все события
+                    container.innerHTML = '';
+                    data.events.forEach(event => {
+                        knownEventIds.add(event.id);
+                        container.appendChild(createEventElement(event, false));
+                    });
+                } else {
+                    // Обновление - добавляем новые события сверху с анимацией
+                    const newEvents = data.events.filter(e => !knownEventIds.has(e.id));
+
+                    if (newEvents.length > 0) {
+                        // Добавляем новые события в начало
+                        newEvents.reverse().forEach(event => {
+                            knownEventIds.add(event.id);
+                            const el = createEventElement(event, true);
+                            container.insertBefore(el, container.firstChild);
+
+                            // Убираем класс анимации через 3 секунды
+                            setTimeout(() => {
+                                el.classList.remove('event-new');
+                            }, 3000);
+                        });
+
+                        // Удаляем старые события, если их больше 50
+                        while (container.children.length > 50) {
+                            const lastChild = container.lastChild;
+                            if (lastChild && lastChild.dataset && lastChild.dataset.eventId) {
+                                knownEventIds.delete(lastChild.dataset.eventId);
+                            }
+                            container.removeChild(lastChild);
+                        }
+                    }
+                }
+
+                // Обновляем время последнего обновления
+                if (lastUpdateEl) {
+                    const now = new Date();
+                    lastUpdateEl.textContent = formatTime(now);
+                }
+            } else {
+                console.error('Ошибка загрузки ленты событий:', data.error);
+            }
+        } catch (error) {
+            console.error('Ошибка загрузки ленты событий:', error);
+        }
+    }
+
+    // Загружаем ленту событий при старте
+    loadEventsFeed(false);
+
+    // Обновляем ленту событий каждые 30 секунд
+    eventsUpdateInterval = setInterval(function() {
+        loadEventsFeed(true);
+    }, 30000);
+    {% endif %}
+
     // Очищаем интервал при уходе со страницы
     window.addEventListener('beforeunload', function() {
         if (updateInterval) {
             clearInterval(updateInterval);
         }
+        {% if current_user.is_admin() %}
+        if (eventsUpdateInterval) {
+            clearInterval(eventsUpdateInterval);
+        }
+        {% endif %}
     });
 });
 </script>
+
+{% if current_user.is_admin() %}
+<style>
+.event-item {
+    transition: background-color 0.3s ease;
+}
+.event-item:hover {
+    background-color: rgba(0, 0, 0, 0.03);
+}
+.event-new {
+    animation: highlight-new 3s ease-out;
+}
+@keyframes highlight-new {
+    0% { background-color: rgba(25, 135, 84, 0.3); }
+    100% { background-color: transparent; }
+}
+</style>
+{% endif %}
 {% endif %}
 {% endblock %}
 
