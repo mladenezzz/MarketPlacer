@@ -610,6 +610,21 @@ def extract_buyer_id(posting_number: str) -> str:
     return ''
 
 
+@main_bp.route('/api/events/feed')
+@login_required
+@admin_required
+def get_events_feed():
+    """API endpoint для получения ленты событий (только для админа)"""
+    limit = request.args.get('limit', 50, type=int)
+
+    # Ограничиваем максимальное количество
+    if limit > 100:
+        limit = 100
+
+    events_data = SalesService.get_events_feed(limit=limit)
+    return jsonify(events_data)
+
+
 @main_bp.route('/statistics/buyouts-list')
 @login_required
 @admin_required
