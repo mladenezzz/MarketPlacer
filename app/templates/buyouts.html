@@ -369,6 +369,37 @@
                                 </tr>
                                 {% endfor %}
                             </tbody>
+                            <tfoot id="totals-row">
+                                <tr class="table-secondary fw-bold">
+                                    <td>Итого</td>
+                                    <td></td>
+                                    <!-- Остатки -->
+                                    <td class="text-center ozon-stock-col" id="total-ozon-stock">0</td>
+                                    {% for wb_token in wb_tokens|default([]) %}
+                                    <td class="text-center wb-stock-col" data-token-id="{{ wb_token.id }}" id="total-wb-stock-{{ wb_token.id }}">0</td>
+                                    {% endfor %}
+                                    <!-- Заказано -->
+                                    <td class="text-center ozon-orders-col" id="total-ozon-orders">0</td>
+                                    {% for wb_token in wb_tokens|default([]) %}
+                                    <td class="text-center wb-orders-col" data-token-id="{{ wb_token.id }}" id="total-wb-orders-{{ wb_token.id }}">0</td>
+                                    {% endfor %}
+                                    <!-- Выкуплено -->
+                                    <td class="text-center ozon-delivered-col" id="total-ozon-delivered">0</td>
+                                    {% for wb_token in wb_tokens|default([]) %}
+                                    <td class="text-center wb-delivered-col" data-token-id="{{ wb_token.id }}" id="total-wb-delivered-{{ wb_token.id }}">0</td>
+                                    {% endfor %}
+                                    <!-- Отменено -->
+                                    <td class="text-center ozon-cancelled-col" id="total-ozon-cancelled">0</td>
+                                    {% for wb_token in wb_tokens|default([]) %}
+                                    <td class="text-center wb-cancelled-col" data-token-id="{{ wb_token.id }}" id="total-wb-cancelled-{{ wb_token.id }}">0</td>
+                                    {% endfor %}
+                                    <!-- % выкупа (среднее) -->
+                                    <td class="text-center ozon-percent-col" id="total-ozon-percent">0%</td>
+                                    {% for wb_token in wb_tokens|default([]) %}
+                                    <td class="text-center wb-percent-col" data-token-id="{{ wb_token.id }}" id="total-wb-percent-{{ wb_token.id }}">0%</td>
+                                    {% endfor %}
+                                </tr>
+                            </tfoot>
                         </table>
                     </div>
                     <p class="text-muted mt-3 mb-0">
@@ -652,6 +683,9 @@ document.addEventListener('DOMContentLoaded', function() {
         if (visibleCount) {
             visibleCount.textContent = visibleRows;
         }
+
+        // Пересчитываем итоги
+        updateTotals();
     }
 
     // Получение видимых колонок для проверки строк
@@ -682,6 +716,85 @@ document.addEventListener('DOMContentLoaded', function() {
         });
 
         return columns;
+    }
+
+    // === Функция для пересчёта итогов ===
+    function updateTotals() {
+        if (!tableBody) return;
+
+        const rows = tableBody.querySelectorAll('tr');
+        const visibleColumns = getVisibleColumnsForRow();
+
+        // Инициализация сумм
+        const sums = {};
+        const counts = {};  // Для подсчёта количества строк для процентов
+
+        visibleColumns.forEach(col => {
+            sums[col.dataKey] = 0;
+            counts[col.dataKey] = 0;
+        });
+
+        // Суммируем по видимым строкам
+        rows.forEach(row => {
+            if (row.style.display === 'none') return;
+
+            visibleColumns.forEach(col => {
+                const value = parseFloat(row.dataset[col.dataKey]) || 0;
+                sums[col.dataKey] += value;
+                if (value > 0 || col.dataKey.includes('percent')) {
+                    counts[col.dataKey]++;
+                }
+            });
+        });
+
+        // Обновляем ячейки итогов
+        // Ozon колонки
+        const ozonStock = document.getElementById('total-ozon-stock');
+        const ozonOrders = document.getElementById('total-ozon-orders');
+        const ozonDelivered = document.getElementById('total-ozon-delivered');
+        const ozonCancelled = document.getElementById('total-ozon-cancelled');
+        const ozonPercent = document.getElementById('total-ozon-percent');
+
+        if (ozonStock) ozonStock.textContent = Math.round(sums['stock'] || 0);
+        if (ozonOrders) ozonOrders.textContent = Math.round(sums['total'] || 0);
+        if (ozonDelivered) ozonDelivered.textContent = Math.round(sums['delivered'] || 0);
+        if (ozonCancelled) ozonCancelled.textContent = Math.round(sums['cancelled'] || 0);
+        if (ozonPercent) {
+            // Для процента выкупа считаем по формуле: выкуплено / заказано * 100
+            const totalOrders = sums['total'] || 0;
+            const totalDelivered = sums['delivered'] || 0;
+            const avgPercent = totalOrders > 0 ? (totalDelivered / totalOrders * 100) : 0;
+            ozonPercent.textContent = avgPercent.toFixed(1) + '%';
+        }
+
+        // WB колонки для каждого токена
+        const wbTokenIds = [];
+        document.querySelectorAll('.wb-stock-col[data-token-id]').forEach(el => {
+            const tokenId = el.dataset.tokenId;
+            if (tokenId && !wbTokenIds.includes(tokenId)) {
+                wbTokenIds.push(tokenId);
+            }
+        });
+
+        wbTokenIds.forEach(tokenId => {
+            const wbStock = document.getElementById(`total-wb-stock-${tokenId}`);
+            const wbOrders = document.getElementById(`total-wb-orders-${tokenId}`);
+            const wbDelivered = document.getElementById(`total-wb-delivered-${tokenId}`);
+            const wbCancelled = document.getElementById(`total-wb-cancelled-${tokenId}`);
+            const wbPercent = document.getElementById(`total-wb-percent-${tokenId}`);
+
+            if (wbStock) wbStock.textContent = Math.round(sums[`wb_stock_${tokenId}`] || 0);
+            if (wbOrders) wbOrders.textContent = Math.round(sums[`wb_orders_${tokenId}`] || 0);
+            if (wbDelivered) wbDelivered.textContent = Math.round(sums[`wb_delivered_${tokenId}`] || 0);
+            if (wbCancelled) wbCancelled.textContent = Math.round(sums[`wb_cancelled_${tokenId}`] || 0);
+            if (wbPercent) {
+                // Для процента выкупа считаем по формуле: выкуплено / заказано * 100
+                const totalOrders = sums[`wb_orders_${tokenId}`] || 0;
+                const totalDelivered = sums[`wb_delivered_${tokenId}`] || 0;
+                const avgPercent = totalOrders > 0 ? (totalDelivered / totalOrders * 100) : 0;
+                wbPercent.textContent = avgPercent.toFixed(1) + '%';
+            }
+        });
     }
 
     // Инициализируем видимость колонок
@@ -1246,8 +1359,23 @@ document.addEventListener('DOMContentLoaded', function() {
         visibleColumns.forEach(col => headerRow3.push(col.colLabel));
         worksheet.addRow(headerRow3);
 
-        // Собираем данные из строк таблицы
+        // Собираем данные из строк таблицы и считаем суммы
         const rows = table.querySelectorAll('tbody tr');
+        const sums = {};
+        const ordersSums = {};  // Для подсчёта заказов (для процентов)
+        const deliveredSums = {};  // Для подсчёта выкупов (для процентов)
+
+        // Инициализируем суммы
+        visibleColumns.forEach(col => {
+            sums[col.dataKey] = 0;
+            if (col.colType === 'orders') {
+                ordersSums[col.marketplace + '_' + col.tokenId] = 0;
+            }
+            if (col.colType === 'delivered') {
+                deliveredSums[col.marketplace + '_' + col.tokenId] = 0;
+            }
+        });
+
         rows.forEach(row => {
             // Пропускаем скрытые строки (отфильтрованные)
             if (row.style.display === 'none') return;
@@ -1264,12 +1392,46 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (col.isPercent) {
                     rowData.push(parseFloat(value) || 0);
                 } else {
-                    rowData.push(parseInt(value) || 0);
+                    const numVal = parseInt(value) || 0;
+                    rowData.push(numVal);
+                    sums[col.dataKey] = (sums[col.dataKey] || 0) + numVal;
+                }
+
+                // Собираем данные для процентов
+                if (col.colType === 'orders') {
+                    ordersSums[col.marketplace + '_' + col.tokenId] += parseInt(value) || 0;
+                }
+                if (col.colType === 'delivered') {
+                    deliveredSums[col.marketplace + '_' + col.tokenId] += parseInt(value) || 0;
                 }
             });
 
             worksheet.addRow(rowData);
         });
+
+        // Добавляем строку итогов
+        const totalsRow = ['Итого', ''];
+        visibleColumns.forEach(col => {
+            if (col.isPercent) {
+                // Для процентов считаем: выкуплено / заказано * 100
+                const key = col.marketplace + '_' + col.tokenId;
+                const totalOrders = ordersSums[key] || 0;
+                const totalDelivered = deliveredSums[key] || 0;
+                const avgPercent = totalOrders > 0 ? (totalDelivered / totalOrders * 100) : 0;
+                totalsRow.push(parseFloat(avgPercent.toFixed(1)));
+            } else {
+                totalsRow.push(sums[col.dataKey] || 0);
+            }
+        });
+        const totalsRowRef = worksheet.addRow(totalsRow);
+
+        // Применяем форматирование к строке итогов
+        totalsRowRef.font = { bold: true };
+        totalsRowRef.fill = {
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: 'FFE9ECEF' }
+        };
 
         // Применяем выравнивание по центру для всех ячеек кроме первых двух колонок
         worksheet.eachRow((row, rowNum) => {
