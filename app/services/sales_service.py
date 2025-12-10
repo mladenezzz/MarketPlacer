@@ -606,14 +606,21 @@ class SalesService:
                     'size': order.tech_size or ''
                 })
 
-            # Получаем продажи WB за сегодня
+            # Получаем продажи WB за сегодня (с джойном на Product для получения артикула)
+            from app.models.product import Product
+            from app.models.wildberries import WBGood
+
             wb_sales = db.session.query(
                 WBSale.id,
                 WBSale.date,
                 WBSale.finished_price,
-                WBSale.supplier_article,
-                WBSale.tech_size,
-                WBSale.token_id
+                WBSale.token_id,
+                WBGood.vendor_code,
+                WBGood.tech_size
+            ).outerjoin(
+                Product, WBSale.product_id == Product.id
+            ).outerjoin(
+                WBGood, Product.barcode == WBGood.barcode
             ).filter(
                 WBSale.token_id.in_(token_ids),
                 WBSale.date >= today_start
@@ -628,7 +635,7 @@ class SalesService:
                     'token_name': token_info.get('name', 'Неизвестно'),
                     'date': sale.date.isoformat() if sale.date else None,
                     'price': float(sale.finished_price or 0),
-                    'article': sale.supplier_article or '',
+                    'article': sale.vendor_code or '',
                     'size': sale.tech_size or ''
                 })
 
@@ -668,7 +675,7 @@ class SalesService:
                 OzonSale.id,
                 OzonSale.operation_date,
                 OzonSale.accruals_for_sale,
-                OzonSale.items_sku,
+                OzonSale.offer_id,
                 OzonSale.token_id
             ).filter(
                 OzonSale.token_id.in_(token_ids),
@@ -678,10 +685,10 @@ class SalesService:
 
             for sale in ozon_sales:
                 token_info = tokens_map.get(sale.token_id, {})
-                # Парсим items_sku для получения артикула и размера
+                # Парсим offer_id для получения артикула и размера (формат: артикул/размер)
                 article, size = '', ''
-                if sale.items_sku:
-                    parts = sale.items_sku.split('/')
+                if sale.offer_id:
+                    parts = sale.offer_id.split('/')
                     article = parts[0] if parts else ''
                     size = parts[1] if len(parts) > 1 else ''
                 events.append({
