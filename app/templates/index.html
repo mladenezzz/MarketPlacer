@@ -814,26 +814,11 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     .event-item {
-        flex-wrap: wrap;
+        display: grid !important;
+        grid-template-columns: 70px 28px 55px 50px 1fr 75px;
+        align-items: center;
         padding: 0.5rem 0.75rem !important;
-        gap: 0.25rem;
-    }
-
-    /* Верхняя строка: дата + маркетплейс + тип */
-    .event-item .event-top-row {
-        display: flex;
-        align-items: center;
-        width: 100%;
-        gap: 0.5rem;
-        margin-bottom: 0.25rem;
-    }
-
-    /* Нижняя строка: артикул + цена */
-    .event-item .event-bottom-row {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        width: 100%;
+        gap: 0.35rem;
     }
 
     .event-item .event-date {
@@ -841,21 +826,28 @@ document.addEventListener('DOMContentLoaded', function() {
         font-size: 0.7rem;
     }
 
+    .event-item .mp-logo {
+        justify-self: center;
+    }
+
     .event-item .event-token {
         font-size: 0.65rem;
-        min-width: 60px !important;
+        min-width: auto !important;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
 
     .event-item .event-badge {
-        min-width: 45px !important;
+        min-width: auto !important;
         font-size: 0.6rem !important;
         padding: 0.2em 0.4em !important;
+        text-align: center;
     }
 
     .event-item .event-article {
         font-size: 0.75rem;
         min-width: auto !important;
-        flex: 1;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
@@ -864,6 +856,7 @@ document.addEventListener('DOMContentLoaded', function() {
     .event-item .event-price {
         font-size: 0.8rem;
         white-space: nowrap;
+        text-align: right;
     }
 }
 
@@ -873,7 +866,29 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     .event-item {
+        grid-template-columns: 65px 24px 50px 45px 1fr 65px;
         padding: 0.4rem 0.5rem !important;
+        gap: 0.25rem;
+    }
+
+    .event-item .event-date {
+        font-size: 0.65rem;
+    }
+
+    .event-item .event-token {
+        font-size: 0.6rem;
+    }
+
+    .event-item .event-badge {
+        font-size: 0.55rem !important;
+    }
+
+    .event-item .event-article {
+        font-size: 0.7rem;
+    }
+
+    .event-item .event-price {
+        font-size: 0.75rem;
     }
 }
 </style>
