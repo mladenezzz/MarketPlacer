@@ -185,14 +185,12 @@ def get_product_info():
 
 @extension_api_bp.route('/wb/product-info')
 def get_wb_product_info():
-    """Получить информацию по товару WB для тултипа (по всем токенам)
+    """Получить информацию по товару WB для тултипа (по всем размерам и токенам)
 
     Query params:
         article: артикул (vendor_code / supplier_article)
-        size: размер (tech_size)
     """
     article = request.args.get('article', '').strip()
-    size = request.args.get('size', '').strip()
 
     if not article:
         return jsonify({
@@ -214,28 +212,33 @@ def get_wb_product_info():
             }), 404
 
         today = datetime.now(timezone.utc).date()
-        size_variants = get_size_variants(size)
 
-        tokens_data = []
+        # Находим все размеры для этого артикула
+        products = WBGood.query.filter(
+            WBGood.vendor_code == article
+        ).order_by(WBGood.tech_size).all()
 
-        for token in wb_tokens:
-            token_id = token.id
-            token_name = token.name or f"Токен {token.id}"
+        if not products:
+            return jsonify({
+                'success': False,
+                'error': 'Товар не найден в базе'
+            }), 404
 
-            # 1. Находим товар в WBGood
-            product_query = WBGood.query.filter(
-                WBGood.vendor_code == article
-            )
-            if size:
-                product_query = product_query.filter(WBGood.tech_size.in_(size_variants))
+        sizes_data = []
 
-            product = product_query.first()
-            product_id = product.id if product else None
+        for product in products:
+            size = product.tech_size or '-'
+            product_id = product.id
 
-            # 2. Остатки на сегодня
-            stock = 0
-            in_way_to_client = 0
-            if product_id:
+            tokens_data = []
+
+            for token in wb_tokens:
+                token_id = token.id
+                token_name = token.name or f"Токен {token.id}"
+
+                # 1. Остатки на сегодня
+                stock = 0
+                in_way_to_client = 0
                 stock_query = db.session.query(
                     func.sum(WBStock.quantity).label('total_stock'),
                     func.sum(WBStock.in_way_to_client).label('in_way')
@@ -249,54 +252,56 @@ def get_wb_product_info():
                     stock = int(stock_query.total_stock or 0)
                     in_way_to_client = int(stock_query.in_way or 0)
 
-            # 3. Статистика заказов
-            orders_query = db.session.query(
-                func.count(WBOrder.id).label('total'),
-                func.sum(db.case((WBOrder.is_cancel == True, 1), else_=0)).label('cancelled')
-            ).filter(
-                WBOrder.token_id == token_id,
-                WBOrder.supplier_article == article
-            )
-            if size:
-                orders_query = orders_query.filter(WBOrder.tech_size.in_(size_variants))
+                # 2. Статистика заказов по размеру
+                orders_query = db.session.query(
+                    func.count(WBOrder.id).label('total'),
+                    func.sum(db.case((WBOrder.is_cancel == True, 1), else_=0)).label('cancelled')
+                ).filter(
+                    WBOrder.token_id == token_id,
+                    WBOrder.supplier_article == article,
+                    WBOrder.tech_size == product.tech_size
+                )
 
-            orders_stats = orders_query.first()
-            total_orders = int(orders_stats.total or 0) if orders_stats else 0
-            cancelled = int(orders_stats.cancelled or 0) if orders_stats else 0
+                orders_stats = orders_query.first()
+                total_orders = int(orders_stats.total or 0) if orders_stats else 0
+                cancelled = int(orders_stats.cancelled or 0) if orders_stats else 0
 
-            # 4. Статистика продаж (выкуплено)
-            sales_query = db.session.query(
-                func.count(WBSale.id).label('delivered')
-            ).filter(
-                WBSale.token_id == token_id
-            )
-            if product_id:
-                sales_query = sales_query.filter(WBSale.product_id == product_id)
+                # 3. Статистика продаж (выкуплено)
+                sales_query = db.session.query(
+                    func.count(WBSale.id).label('delivered')
+                ).filter(
+                    WBSale.token_id == token_id,
+                    WBSale.product_id == product_id
+                )
 
-            sales_stats = sales_query.first()
-            delivered = int(sales_stats.delivered or 0) if sales_stats else 0
+                sales_stats = sales_query.first()
+                delivered = int(sales_stats.delivered or 0) if sales_stats else 0
 
-            # 5. Процент выкупа
-            buyout_base = delivered + cancelled
-            buyout_percent = round((delivered / buyout_base * 100), 1) if buyout_base > 0 else 0
+                # 4. Процент выкупа
+                buyout_base = delivered + cancelled
+                buyout_percent = round((delivered / buyout_base * 100), 1) if buyout_base > 0 else 0
 
-            tokens_data.append({
-                'token_id': token_id,
-                'token_name': token_name,
-                'stock': stock,
-                'in_way_to_client': in_way_to_client,
-                'orders_total': total_orders,
-                'delivered': delivered,
-                'cancelled': cancelled,
-                'buyout_percent': buyout_percent
+                tokens_data.append({
+                    'token_id': token_id,
+                    'token_name': token_name,
+                    'stock': stock,
+                    'in_way_to_client': in_way_to_client,
+                    'orders_total': total_orders,
+                    'delivered': delivered,
+                    'cancelled': cancelled,
+                    'buyout_percent': buyout_percent
+                })
+
+            sizes_data.append({
+                'size': size,
+                'tokens': tokens_data
             })
 
         return jsonify({
             'success': True,
             'article': article,
-            'size': size,
-            'product_exists': any(t['orders_total'] > 0 or t['stock'] > 0 for t in tokens_data),
-            'tokens': tokens_data
+            'sizes': sizes_data,
+            'token_names': [t.name or f"Токен {t.id}" for t in wb_tokens]
         })
 
     except Exception as e:

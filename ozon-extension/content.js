@@ -256,83 +256,55 @@
   }
 
   /**
-   * Отображение тултипа с данными WB (табличный вид с мульти-токенами)
+   * Отображение тултипа с данными WB (все размеры × все токены)
    */
   function showWBTooltipData(data, x, y) {
     const tip = createTooltip();
 
     if (data.error) {
       tip.innerHTML = `<div class="mp-tooltip-error">${data.error}</div>`;
-    } else if (!data.tokens || data.tokens.length === 0) {
-      tip.innerHTML = `<div class="mp-tooltip-error">Нет данных по токенам</div>`;
+    } else if (!data.sizes || data.sizes.length === 0) {
+      tip.innerHTML = `<div class="mp-tooltip-error">Нет данных по размерам</div>`;
     } else {
       // Заголовок
-      let html = `<div class="mp-tooltip-title">${data.article}${data.size ? '/' + data.size : ''}</div>`;
+      let html = `<div class="mp-tooltip-title">${data.article}</div>`;
 
-      // Таблица с токенами
-      html += '<table class="mp-tooltip-table">';
+      const tokenNames = data.token_names || [];
+      const numTokens = tokenNames.length;
 
-      // Заголовки колонок
+      // Таблица: размеры × токены
+      html += '<table class="mp-tooltip-table mp-tooltip-table-wb">';
+
+      // Заголовок таблицы
       html += '<tr class="mp-tooltip-header">';
+      html += '<th>Разм.</th>';
+      tokenNames.forEach(name => {
+        html += `<th colspan="2">${name}</th>`;
+      });
+      html += '</tr>';
+
+      // Подзаголовок: Ост / Зак для каждого токена
+      html += '<tr class="mp-tooltip-subheader">';
       html += '<th></th>';
-      data.tokens.forEach(token => {
-        html += `<th>${token.token_name}</th>`;
-      });
+      for (let i = 0; i < numTokens; i++) {
+        html += '<th>Ост</th><th>Зак</th>';
+      }
       html += '</tr>';
 
-      // Строка: Остаток
-      html += '<tr>';
-      html += '<td class="mp-tooltip-label">Остаток</td>';
-      data.tokens.forEach(token => {
-        html += `<td class="mp-tooltip-value stock">${token.stock}</td>`;
-      });
-      html += '</tr>';
+      // Строки по размерам
+      data.sizes.forEach(sizeData => {
+        html += '<tr>';
+        html += `<td class="mp-tooltip-size">${sizeData.size}</td>`;
 
-      // Строка: К клиенту
-      html += '<tr>';
-      html += '<td class="mp-tooltip-label">К клиенту</td>';
-      data.tokens.forEach(token => {
-        html += `<td class="mp-tooltip-value orders">${token.in_way_to_client}</td>`;
-      });
-      html += '</tr>';
+        sizeData.tokens.forEach(token => {
+          const stockClass = token.stock > 0 ? 'stock' : 'zero';
+          const ordersClass = token.orders_total > 0 ? 'orders' : 'zero';
+          html += `<td class="mp-tooltip-value ${stockClass}">${token.stock}</td>`;
+          html += `<td class="mp-tooltip-value ${ordersClass}">${token.orders_total}</td>`;
+        });
 
-      // Строка: Заказов
-      html += '<tr>';
-      html += '<td class="mp-tooltip-label">Заказов</td>';
-      data.tokens.forEach(token => {
-        html += `<td class="mp-tooltip-value orders">${token.orders_total}</td>`;
+        html += '</tr>';
       });
-      html += '</tr>';
-
-      // Строка: Выкуплено
-      html += '<tr>';
-      html += '<td class="mp-tooltip-label">Выкуплено</td>';
-      data.tokens.forEach(token => {
-        html += `<td class="mp-tooltip-value delivered">${token.delivered}</td>`;
-      });
-      html += '</tr>';
-
-      // Строка: Отменено
-      html += '<tr>';
-      html += '<td class="mp-tooltip-label">Отменено</td>';
-      data.tokens.forEach(token => {
-        html += `<td class="mp-tooltip-value cancelled">${token.cancelled}</td>`;
-      });
-      html += '</tr>';
-
-      // Строка: % выкупа
-      html += '<tr>';
-      html += '<td class="mp-tooltip-label">% выкупа</td>';
-      data.tokens.forEach(token => {
-        let percentClass = 'percent';
-        if (token.buyout_percent >= 80) {
-          percentClass += ' good';
-        } else if (token.buyout_percent < 50) {
-          percentClass += ' bad';
-        }
-        html += `<td class="mp-tooltip-value ${percentClass}">${token.buyout_percent}%</td>`;
-      });
-      html += '</tr>';
 
       html += '</table>';
       tip.innerHTML = html;
