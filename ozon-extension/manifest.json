@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "OZON Product Info",
-  "version": "1.0.1",
-  "description": "Показывает информацию о товарах из базы при наведении на артикул",
+  "name": "MarketPlacer Product Info",
+  "version": "1.1.0",
+  "description": "Показывает информацию о товарах из базы при наведении на артикул (OZON и WB)",
   "permissions": [
     "activeTab"
   ],
@@ -17,6 +17,14 @@
     {
       "matches": [
         "https://seller.ozon.ru/*"
+      ],
+      "js": ["content.js"],
+      "css": ["styles.css"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://seller.wildberries.ru/*"
       ],
       "js": ["content.js"],
       "css": ["styles.css"],

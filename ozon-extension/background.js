@@ -25,6 +25,17 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       .catch(error => sendResponse({ success: false, error: error.message }));
     return true;
   }
+
+  if (request.action === 'fetchWBProductInfo') {
+    const { article, size } = request;
+    const url = `${API_BASE}/wb/product-info?article=${encodeURIComponent(article)}&size=${encodeURIComponent(size || '')}`;
+
+    fetch(url)
+      .then(response => response.json())
+      .then(data => sendResponse(data))
+      .catch(error => sendResponse({ success: false, error: error.message }));
+    return true;
+  }
 });
 
-console.log('[OZON Extension] Background service worker started');
+console.log('[MarketPlacer Extension] Background service worker started');
