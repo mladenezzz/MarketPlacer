@@ -605,6 +605,20 @@
                             </ul>
                         </li>
                         {% endif %}
+                        {% if current_user.has_access_to('statistics') %}
+                        <!-- Меню Wildberries -->
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                <span class="mp-logo mp-logo-wb" style="width: 20px; height: 20px; margin-right: 4px;">
+                                    <svg viewBox="0 0 24 24" style="width: 12px; height: 12px;"><path d="M3 6l3 12h2l2-8 2 8h2l3-12"/></svg>
+                                </span>
+                                Wildberries
+                            </a>
+                            <ul class="dropdown-menu">
+                                <li><a class="dropdown-item" href="{{ url_for('wildberries.article_grouping') }}"><i class="bi bi-collection"></i> Группировка артикулов</a></li>
+                            </ul>
+                        </li>
+                        {% endif %}
                         {% if current_user.has_access_to('server') %}
                         <!-- Меню Сервер (только для админов) -->
                         <li class="nav-item dropdown">
