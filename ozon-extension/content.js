@@ -1,15 +1,25 @@
 /**
- * OZON Product Info Extension
+ * MarketPlacer Product Info Extension
  * Показывает информацию о товарах из базы при наведении на артикул
+ * Поддержка: OZON и Wildberries
  */
 
 (function() {
   'use strict';
 
+  // Определяем текущий маркетплейс
+  const CURRENT_HOST = window.location.hostname;
+  const IS_OZON = CURRENT_HOST.includes('ozon.ru');
+  const IS_WB = CURRENT_HOST.includes('wildberries.ru');
+  const MARKETPLACE = IS_OZON ? 'ozon' : (IS_WB ? 'wb' : null);
+
+  if (!MARKETPLACE) {
+    console.log('[MarketPlacer Extension] Неизвестный маркетплейс, расширение не активировано');
+    return;
+  }
+
   // Конфигурация
   const CONFIG = {
-    // Используем HTTP - браузер может блокировать из-за mixed content
-    // Если не работает, нужно настроить HTTPS на сервере
     API_BASE: 'http://192.168.0.44:5000/api/extension',
     // Паттерн артикула: цифры (возможно с дефисами)/что-угодно
     // Примеры: 3035090018/658, 2089090018-14/11, 3009030003/M
@@ -42,15 +52,15 @@
       if (data && data.success && data.articles) {
         articlesCache = new Set(data.articles);
         cacheLoaded = true;
-        console.log(`[OZON Extension] Загружено ${data.count} артикулов`);
+        console.log(`[MarketPlacer Extension] Загружено ${data.count} артикулов`);
         // После загрузки кеша сканируем страницу
         scanPage();
       } else {
-        console.error('[OZON Extension] Ошибка загрузки артикулов:', data?.error || 'Unknown error');
+        console.error('[MarketPlacer Extension] Ошибка загрузки артикулов:', data?.error || 'Unknown error');
         setTimeout(loadArticles, 5000);
       }
     } catch (error) {
-      console.error('[OZON Extension] Ошибка загрузки артикулов:', error);
+      console.error('[MarketPlacer Extension] Ошибка загрузки артикулов:', error);
       // Повторная попытка через 5 секунд
       setTimeout(loadArticles, 5000);
     }
@@ -91,10 +101,10 @@
   }
 
   /**
-   * Получение данных о товаре (через background script)
+   * Получение данных о товаре OZON (через background script)
    */
-  async function getProductInfo(article, size) {
-    const cacheKey = `${article}/${size}`;
+  async function getOzonProductInfo(article, size) {
+    const cacheKey = `ozon:${article}/${size}`;
 
     // Проверяем кеш
     if (productDataCache.has(cacheKey)) {
@@ -115,9 +125,51 @@
         return { error: data?.error || 'Ошибка получения данных' };
       }
     } catch (error) {
-      console.error('[OZON Extension] Ошибка запроса:', error);
+      console.error('[MarketPlacer Extension] Ошибка запроса:', error);
       return { error: 'Ошибка соединения с сервером' };
     }
+  }
+
+  /**
+   * Получение данных о товаре WB (через background script)
+   */
+  async function getWBProductInfo(article, size) {
+    const cacheKey = `wb:${article}/${size}`;
+
+    // Проверяем кеш
+    if (productDataCache.has(cacheKey)) {
+      return productDataCache.get(cacheKey);
+    }
+
+    try {
+      const data = await chrome.runtime.sendMessage({
+        action: 'fetchWBProductInfo',
+        article: article,
+        size: size
+      });
+
+      if (data && data.success) {
+        productDataCache.set(cacheKey, data);
+        return data;
+      } else {
+        return { error: data?.error || 'Ошибка получения данных' };
+      }
+    } catch (error) {
+      console.error('[MarketPlacer Extension] Ошибка запроса:', error);
+      return { error: 'Ошибка соединения с сервером' };
+    }
+  }
+
+  /**
+   * Получение данных о товаре (универсальная функция)
+   */
+  async function getProductInfo(article, size) {
+    if (MARKETPLACE === 'ozon') {
+      return getOzonProductInfo(article, size);
+    } else if (MARKETPLACE === 'wb') {
+      return getWBProductInfo(article, size);
+    }
+    return { error: 'Неизвестный маркетплейс' };
   }
 
   /**
@@ -145,9 +197,9 @@
   }
 
   /**
-   * Отображение тултипа с данными
+   * Отображение тултипа с данными OZON
    */
-  function showTooltipData(data, x, y) {
+  function showOzonTooltipData(data, x, y) {
     const tip = createTooltip();
 
     if (data.error) {
@@ -192,6 +244,104 @@
 
     positionTooltip(tip, x, y);
     tip.style.display = 'block';
+  }
+
+  /**
+   * Отображение тултипа с данными WB (табличный вид с мульти-токенами)
+   */
+  function showWBTooltipData(data, x, y) {
+    const tip = createTooltip();
+
+    if (data.error) {
+      tip.innerHTML = `<div class="mp-tooltip-error">${data.error}</div>`;
+    } else if (!data.tokens || data.tokens.length === 0) {
+      tip.innerHTML = `<div class="mp-tooltip-error">Нет данных по токенам</div>`;
+    } else {
+      // Заголовок
+      let html = `<div class="mp-tooltip-title">${data.article}/${data.size}</div>`;
+
+      // Таблица с токенами
+      html += '<table class="mp-tooltip-table">';
+
+      // Заголовки колонок
+      html += '<tr class="mp-tooltip-header">';
+      html += '<th></th>';
+      data.tokens.forEach(token => {
+        html += `<th>${token.token_name}</th>`;
+      });
+      html += '</tr>';
+
+      // Строка: Остаток
+      html += '<tr>';
+      html += '<td class="mp-tooltip-label">Остаток</td>';
+      data.tokens.forEach(token => {
+        html += `<td class="mp-tooltip-value stock">${token.stock}</td>`;
+      });
+      html += '</tr>';
+
+      // Строка: К клиенту
+      html += '<tr>';
+      html += '<td class="mp-tooltip-label">К клиенту</td>';
+      data.tokens.forEach(token => {
+        html += `<td class="mp-tooltip-value orders">${token.in_way_to_client}</td>`;
+      });
+      html += '</tr>';
+
+      // Строка: Заказов
+      html += '<tr>';
+      html += '<td class="mp-tooltip-label">Заказов</td>';
+      data.tokens.forEach(token => {
+        html += `<td class="mp-tooltip-value orders">${token.orders_total}</td>`;
+      });
+      html += '</tr>';
+
+      // Строка: Выкуплено
+      html += '<tr>';
+      html += '<td class="mp-tooltip-label">Выкуплено</td>';
+      data.tokens.forEach(token => {
+        html += `<td class="mp-tooltip-value delivered">${token.delivered}</td>`;
+      });
+      html += '</tr>';
+
+      // Строка: Отменено
+      html += '<tr>';
+      html += '<td class="mp-tooltip-label">Отменено</td>';
+      data.tokens.forEach(token => {
+        html += `<td class="mp-tooltip-value cancelled">${token.cancelled}</td>`;
+      });
+      html += '</tr>';
+
+      // Строка: % выкупа
+      html += '<tr>';
+      html += '<td class="mp-tooltip-label">% выкупа</td>';
+      data.tokens.forEach(token => {
+        let percentClass = 'percent';
+        if (token.buyout_percent >= 80) {
+          percentClass += ' good';
+        } else if (token.buyout_percent < 50) {
+          percentClass += ' bad';
+        }
+        html += `<td class="mp-tooltip-value ${percentClass}">${token.buyout_percent}%</td>`;
+      });
+      html += '</tr>';
+
+      html += '</table>';
+      tip.innerHTML = html;
+    }
+
+    positionTooltip(tip, x, y);
+    tip.style.display = 'block';
+  }
+
+  /**
+   * Отображение тултипа с данными (универсальная функция)
+   */
+  function showTooltipData(data, x, y) {
+    if (MARKETPLACE === 'ozon') {
+      showOzonTooltipData(data, x, y);
+    } else if (MARKETPLACE === 'wb') {
+      showWBTooltipData(data, x, y);
+    }
   }
 
   /**
@@ -370,7 +520,7 @@
    * Инициализация расширения
    */
   function init() {
-    console.log('[OZON Extension] Инициализация...');
+    console.log(`[MarketPlacer Extension] Инициализация на ${MARKETPLACE.toUpperCase()}...`);
 
     // Загружаем список артикулов
     loadArticles();
@@ -381,7 +531,7 @@
     // Периодическое сканирование (для динамического контента)
     setInterval(scanPage, CONFIG.SCAN_INTERVAL);
 
-    console.log('[OZON Extension] Готово');
+    console.log('[MarketPlacer Extension] Готово');
   }
 
   // Запуск

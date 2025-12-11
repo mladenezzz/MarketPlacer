@@ -1,8 +1,8 @@
-"""API endpoints для Chrome расширения OZON"""
+"""API endpoints для Chrome расширения OZON и WB"""
 from flask import Blueprint, jsonify, request
 from datetime import datetime, timezone
 from app.models import db, Token, OzonOrder, OzonStock
-from app.models.wildberries import WBGood
+from app.models.wildberries import WBGood, WBOrder, WBSale, WBStock
 from sqlalchemy import func, distinct
 
 extension_api_bp = Blueprint('extension_api', __name__, url_prefix='/api/extension')
@@ -174,6 +174,129 @@ def get_product_info():
             'cancelled': cancelled,
             'delivering': delivering,
             'buyout_percent': buyout_percent
+        })
+
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@extension_api_bp.route('/wb/product-info')
+def get_wb_product_info():
+    """Получить информацию по товару WB для тултипа (по всем токенам)
+
+    Query params:
+        article: артикул (vendor_code / supplier_article)
+        size: размер (tech_size)
+    """
+    article = request.args.get('article', '').strip()
+    size = request.args.get('size', '').strip()
+
+    if not article:
+        return jsonify({
+            'success': False,
+            'error': 'Не указан артикул'
+        }), 400
+
+    try:
+        # Получаем все активные WB токены
+        wb_tokens = Token.query.filter_by(
+            marketplace='wildberries',
+            is_active=True
+        ).all()
+
+        if not wb_tokens:
+            return jsonify({
+                'success': False,
+                'error': 'Нет активных WB токенов'
+            }), 404
+
+        today = datetime.now(timezone.utc).date()
+        size_variants = get_size_variants(size)
+
+        tokens_data = []
+
+        for token in wb_tokens:
+            token_id = token.id
+            token_name = token.name or f"Токен {token.id}"
+
+            # 1. Находим товар в WBGood
+            product_query = WBGood.query.filter(
+                WBGood.vendor_code == article
+            )
+            if size:
+                product_query = product_query.filter(WBGood.tech_size.in_(size_variants))
+
+            product = product_query.first()
+            product_id = product.id if product else None
+
+            # 2. Остатки на сегодня
+            stock = 0
+            in_way_to_client = 0
+            if product_id:
+                stock_query = db.session.query(
+                    func.sum(WBStock.quantity).label('total_stock'),
+                    func.sum(WBStock.in_way_to_client).label('in_way')
+                ).filter(
+                    WBStock.token_id == token_id,
+                    WBStock.product_id == product_id,
+                    func.date(WBStock.date) == today
+                ).first()
+
+                if stock_query:
+                    stock = int(stock_query.total_stock or 0)
+                    in_way_to_client = int(stock_query.in_way or 0)
+
+            # 3. Статистика заказов
+            orders_query = db.session.query(
+                func.count(WBOrder.id).label('total'),
+                func.sum(db.case((WBOrder.is_cancel == True, 1), else_=0)).label('cancelled')
+            ).filter(
+                WBOrder.token_id == token_id,
+                WBOrder.supplier_article == article
+            )
+            if size:
+                orders_query = orders_query.filter(WBOrder.tech_size.in_(size_variants))
+
+            orders_stats = orders_query.first()
+            total_orders = int(orders_stats.total or 0) if orders_stats else 0
+            cancelled = int(orders_stats.cancelled or 0) if orders_stats else 0
+
+            # 4. Статистика продаж (выкуплено)
+            sales_query = db.session.query(
+                func.count(WBSale.id).label('delivered')
+            ).filter(
+                WBSale.token_id == token_id
+            )
+            if product_id:
+                sales_query = sales_query.filter(WBSale.product_id == product_id)
+
+            sales_stats = sales_query.first()
+            delivered = int(sales_stats.delivered or 0) if sales_stats else 0
+
+            # 5. Процент выкупа
+            buyout_base = delivered + cancelled
+            buyout_percent = round((delivered / buyout_base * 100), 1) if buyout_base > 0 else 0
+
+            tokens_data.append({
+                'token_id': token_id,
+                'token_name': token_name,
+                'stock': stock,
+                'in_way_to_client': in_way_to_client,
+                'orders_total': total_orders,
+                'delivered': delivered,
+                'cancelled': cancelled,
+                'buyout_percent': buyout_percent
+            })
+
+        return jsonify({
+            'success': True,
+            'article': article,
+            'size': size,
+            'product_exists': any(t['orders_total'] > 0 or t['stock'] > 0 for t in tokens_data),
+            'tokens': tokens_data
         })
 
     except Exception as e:

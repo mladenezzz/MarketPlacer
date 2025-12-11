@@ -12,7 +12,7 @@
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
   pointer-events: none;
   min-width: 200px;
-  max-width: 300px;
+  max-width: 400px;
   border: 1px solid #3a3a5e;
 }
 
@@ -85,4 +85,38 @@
 
 .mp-article-highlight:hover {
   background-color: rgba(123, 104, 238, 0.1);
+}
+
+/* Таблица для мульти-токенов (WB) */
+.mp-tooltip-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 8px;
+}
+
+.mp-tooltip-table th,
+.mp-tooltip-table td {
+  padding: 4px 8px;
+  text-align: center;
+}
+
+.mp-tooltip-table th {
+  font-weight: 600;
+  color: #7b68ee;
+  border-bottom: 1px solid #3a3a5e;
+  font-size: 12px;
+}
+
+.mp-tooltip-table td.mp-tooltip-label {
+  text-align: left;
+  color: #a0a0b0;
+  font-size: 12px;
+}
+
+.mp-tooltip-table tr:not(:last-child) td {
+  border-bottom: 1px solid #2a2a4e;
+}
+
+.mp-tooltip-header th:first-child {
+  text-align: left;
 }
