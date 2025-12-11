@@ -96,16 +96,6 @@
         text-align: center;
     }
 
-    .total-stock {
-        margin-left: auto;
-        font-weight: 600;
-        color: #1e1b4b;
-        background: linear-gradient(135deg, #c4b5fd 0%, #f0abfc 100%);
-        padding: 0.2rem 0.6rem;
-        border-radius: 4px;
-        font-size: 0.8rem;
-    }
-
     .stats-card {
         background: linear-gradient(135deg, #fae8ff 0%, #ede9fe 100%);
         border: none;
@@ -154,13 +144,6 @@
 
         .vendor-row {
             flex-wrap: wrap;
-        }
-
-        .total-stock {
-            margin-left: 0;
-            margin-top: 0.25rem;
-            width: 100%;
-            text-align: center;
         }
     }
 </style>
@@ -269,9 +252,6 @@
                                 {% endif %}
                             {% endfor %}
                         </div>
-                        <span class="total-stock">
-                            <i class="bi bi-box-seam"></i> {{ vendor.total_stock }} шт
-                        </span>
                     </div>
                     {% endfor %}
                 </div>
