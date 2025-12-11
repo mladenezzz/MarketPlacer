@@ -120,3 +120,35 @@
 .mp-tooltip-header th:first-child {
   text-align: left;
 }
+
+/* WB таблица: размеры × токены */
+.mp-tooltip-table-wb {
+  font-size: 11px;
+}
+
+.mp-tooltip-table-wb th {
+  font-size: 11px;
+  padding: 3px 5px;
+}
+
+.mp-tooltip-table-wb td {
+  padding: 2px 5px;
+  font-size: 11px;
+}
+
+.mp-tooltip-subheader th {
+  font-weight: normal;
+  color: #808090;
+  font-size: 10px;
+  border-bottom: 1px solid #3a3a5e;
+}
+
+.mp-tooltip-size {
+  font-weight: 600;
+  color: #ffffff;
+  text-align: left !important;
+}
+
+.mp-tooltip-value.zero {
+  color: #505060;
+}
