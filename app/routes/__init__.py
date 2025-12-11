@@ -5,6 +5,7 @@ from app.routes.tokens import tokens_bp
 from app.routes.vpn import vpn_bp
 from app.routes.marking import marking_bp
 from app.routes.extension_api import extension_api_bp
+from app.routes.wildberries import wildberries_bp
 
-__all__ = ['main_bp', 'auth_bp', 'admin_bp', 'tokens_bp', 'vpn_bp', 'marking_bp', 'extension_api_bp']
+__all__ = ['main_bp', 'auth_bp', 'admin_bp', 'tokens_bp', 'vpn_bp', 'marking_bp', 'extension_api_bp', 'wildberries_bp']
 

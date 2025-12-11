@@ -1,0 +1,294 @@
+{% extends "base.html" %}
+
+{% block title %}Группировка артикулов WB - MarketPlacer{% endblock %}
+
+{% block extra_css %}
+<style>
+    .article-card {
+        margin-bottom: 1rem;
+    }
+
+    .article-header {
+        background: linear-gradient(135deg, #cb11ab 0%, #7b2d8e 100%);
+        color: white;
+        padding: 0.75rem 1rem;
+        border-radius: 12px 12px 0 0;
+        font-weight: 600;
+        font-size: 1.1rem;
+    }
+
+    .imt-group {
+        border-left: 3px solid #cb11ab;
+        margin: 0.5rem 0;
+        padding-left: 0.75rem;
+        background: rgba(203, 17, 171, 0.03);
+        border-radius: 0 8px 8px 0;
+    }
+
+    .imt-header {
+        font-size: 0.85rem;
+        color: #7b2d8e;
+        font-weight: 600;
+        padding: 0.5rem 0;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .imt-header .badge {
+        background: linear-gradient(135deg, #cb11ab 0%, #7b2d8e 100%);
+        color: white;
+        font-size: 0.7rem;
+    }
+
+    .vendor-row {
+        display: flex;
+        align-items: center;
+        padding: 0.35rem 0.5rem;
+        border-radius: 6px;
+        margin: 0.25rem 0;
+        background: rgba(255, 255, 255, 0.7);
+    }
+
+    .vendor-row:hover {
+        background: rgba(203, 17, 171, 0.08);
+    }
+
+    .vendor-code {
+        font-family: monospace;
+        font-weight: 500;
+        min-width: 140px;
+        color: #334155;
+    }
+
+    .stock-badges {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+    }
+
+    .stock-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        padding: 0.2rem 0.5rem;
+        border-radius: 4px;
+        font-size: 0.75rem;
+        background: rgba(203, 17, 171, 0.1);
+        color: #7b2d8e;
+    }
+
+    .stock-badge .token-name {
+        font-weight: 500;
+        max-width: 60px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .stock-badge .stock-value {
+        font-weight: 600;
+        background: #cb11ab;
+        color: white;
+        padding: 0.1rem 0.35rem;
+        border-radius: 3px;
+        min-width: 24px;
+        text-align: center;
+    }
+
+    .total-stock {
+        margin-left: auto;
+        font-weight: 600;
+        color: #1e1b4b;
+        background: linear-gradient(135deg, #c4b5fd 0%, #f0abfc 100%);
+        padding: 0.2rem 0.6rem;
+        border-radius: 4px;
+        font-size: 0.8rem;
+    }
+
+    .stats-card {
+        background: linear-gradient(135deg, #fae8ff 0%, #ede9fe 100%);
+        border: none;
+        border-radius: 12px;
+    }
+
+    .stats-card .card-body {
+        padding: 1rem;
+    }
+
+    .stat-number {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #7b2d8e;
+    }
+
+    .stat-label {
+        font-size: 0.8rem;
+        color: #64748b;
+    }
+
+    /* Компактный вид на мобильных */
+    @media (max-width: 767.98px) {
+        .article-header {
+            font-size: 1rem;
+            padding: 0.5rem 0.75rem;
+        }
+
+        .vendor-code {
+            min-width: 100px;
+            font-size: 0.8rem;
+        }
+
+        .stock-badges {
+            gap: 0.25rem;
+        }
+
+        .stock-badge {
+            font-size: 0.65rem;
+            padding: 0.15rem 0.35rem;
+        }
+
+        .stock-badge .token-name {
+            max-width: 40px;
+        }
+
+        .vendor-row {
+            flex-wrap: wrap;
+        }
+
+        .total-stock {
+            margin-left: 0;
+            margin-top: 0.25rem;
+            width: 100%;
+            text-align: center;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h2 class="mb-3">
+                <span class="mp-logo mp-logo-wb">
+                    <svg viewBox="0 0 24 24"><path d="M3 6l3 12h2l2-8 2 8h2l3-12"/></svg>
+                </span>
+                Группировка артикулов по карточкам
+            </h2>
+            <p class="text-muted">
+                Артикулы сгруппированы по <code>imt_id</code> — идентификатору карточки товара на Wildberries.
+                Товары с одинаковым imt_id отображаются на одной странице.
+            </p>
+        </div>
+    </div>
+
+    <!-- Статистика -->
+    <div class="row mb-4">
+        <div class="col-6 col-md-3">
+            <div class="card stats-card">
+                <div class="card-body text-center">
+                    <div class="stat-number">{{ total_articles }}</div>
+                    <div class="stat-label">Артикулов</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card stats-card">
+                <div class="card-body text-center">
+                    <div class="stat-number">{{ total_vendor_codes }}</div>
+                    <div class="stat-label">Позиций</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card stats-card">
+                <div class="card-body text-center">
+                    <div class="stat-number">{{ tokens|length }}</div>
+                    <div class="stat-label">Токенов WB</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card stats-card">
+                <div class="card-body text-center">
+                    <div class="stat-number">{{ articles_data|length }}</div>
+                    <div class="stat-label">Групп</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Легенда токенов -->
+    {% if tokens %}
+    <div class="row mb-3">
+        <div class="col-12">
+            <div class="d-flex flex-wrap gap-2 align-items-center">
+                <span class="text-muted me-2">Токены:</span>
+                {% for token in tokens %}
+                <span class="badge" style="background: linear-gradient(135deg, #cb11ab 0%, #7b2d8e 100%);">
+                    {{ token.name or 'Токен ' ~ token.id }}
+                </span>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Список артикулов -->
+    {% if articles_data %}
+        {% for my_article, imt_groups in articles_data.items()|sort %}
+        <div class="card article-card">
+            <div class="article-header">
+                {{ my_article }}
+                <span class="badge bg-light text-dark ms-2">
+                    {{ imt_groups|length }} карточ{{ 'ка' if imt_groups|length == 1 else ('ки' if imt_groups|length < 5 else 'ек') }}
+                </span>
+            </div>
+            <div class="card-body">
+                {% for imt_id, vendors in imt_groups.items()|sort %}
+                <div class="imt-group">
+                    <div class="imt-header">
+                        <i class="bi bi-card-image"></i>
+                        imt_id={{ imt_id }}
+                        <span class="badge">{{ vendors|length }} товар{{ 'ов' if vendors|length > 4 else ('а' if vendors|length > 1 else '') }}</span>
+                    </div>
+                    {% for vendor in vendors %}
+                    <div class="vendor-row">
+                        <span class="vendor-code">{{ vendor.vendor_code }}</span>
+                        <div class="stock-badges">
+                            {% for token in tokens %}
+                                {% set stock = vendor.stocks.get(token.id, 0) %}
+                                {% if stock > 0 %}
+                                <span class="stock-badge">
+                                    <span class="token-name" title="{{ token.name or 'Токен ' ~ token.id }}">
+                                        {{ token.name or 'Токен ' ~ token.id }}
+                                    </span>
+                                    <span class="stock-value">{{ stock }}</span>
+                                </span>
+                                {% endif %}
+                            {% endfor %}
+                        </div>
+                        <span class="total-stock">
+                            <i class="bi bi-box-seam"></i> {{ vendor.total_stock }} шт
+                        </span>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endfor %}
+    {% else %}
+        <div class="alert alert-info">
+            <i class="bi bi-info-circle me-2"></i>
+            Нет данных для отображения. Убедитесь, что:
+            <ul class="mb-0 mt-2">
+                <li>Есть активные токены Wildberries</li>
+                <li>Datacollector загрузил товары с imt_id</li>
+                <li>Есть остатки на складах</li>
+            </ul>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}
