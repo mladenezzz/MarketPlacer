@@ -103,9 +103,25 @@
   }
 
   /**
+   * Получить базовую часть артикула (без суффикса -N для WB)
+   */
+  function getBaseArticle(article) {
+    if (MARKETPLACE === 'wb') {
+      // Убираем суффикс -N (например 2013060166-1 -> 2013060166)
+      return article.replace(/-\d+$/, '');
+    }
+    return article;
+  }
+
+  /**
    * Проверка, есть ли артикул в базе
    */
   function isKnownArticle(article) {
+    if (MARKETPLACE === 'wb') {
+      // Для WB ищем по базовой части артикула
+      const baseArticle = getBaseArticle(article);
+      return articlesCache.has(baseArticle) || articlesCache.has(article);
+    }
     return articlesCache.has(article);
   }
 
@@ -143,7 +159,9 @@
    * Получение данных о товаре WB (через background script)
    */
   async function getWBProductInfo(article, size) {
-    const cacheKey = `wb:${article}/${size}`;
+    // Используем базовый артикул для запроса
+    const baseArticle = getBaseArticle(article);
+    const cacheKey = `wb:${baseArticle}`;
 
     // Проверяем кеш
     if (productDataCache.has(cacheKey)) {
@@ -153,7 +171,7 @@
     try {
       const data = await chrome.runtime.sendMessage({
         action: 'fetchWBProductInfo',
-        article: article,
+        article: baseArticle,
         size: size
       });
 
