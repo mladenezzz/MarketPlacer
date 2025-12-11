@@ -21,9 +21,12 @@
   // Конфигурация
   const CONFIG = {
     API_BASE: 'http://192.168.0.44:5000/api/extension',
-    // Паттерн артикула: цифры (возможно с дефисами)/что-угодно
+    // Паттерн артикула для OZON: цифры (возможно с дефисами)/что-угодно
     // Примеры: 3035090018/658, 2089090018-14/11, 3009030003/M
-    ARTICLE_PATTERN: /^[\d-]+\/[\w\d.,]+$/,
+    ARTICLE_PATTERN_OZON: /^[\d-]+\/[\w\d.,]+$/,
+    // Паттерн артикула для WB: цифры с возможным дефисом и суффиксом
+    // Примеры: 2013060166-1, 2013040628, 2013070222-2
+    ARTICLE_PATTERN_WB: /^\d{7,}(-\d+)?$/,
     // Задержка перед показом тултипа (мс)
     HOVER_DELAY: 300,
     // Интервал сканирования новых элементов (мс)
@@ -68,29 +71,35 @@
 
   /**
    * Парсинг текста в артикул и размер
-   * Примеры:
-   *   3035090018/658 -> article: 3035090018, size: 658
-   *   2089090018-14/11 -> article: 2089090018-14, size: 11
-   *   3009030003/M -> article: 3009030003, size: M
+   * OZON: 3035090018/658 -> article: 3035090018, size: 658
+   * WB: 2013060166-1 -> article: 2013060166-1, size: null
    */
   function parseArticle(text) {
     if (!text || typeof text !== 'string') return null;
 
     text = text.trim();
 
-    // Проверяем паттерн: цифры (возможно с дефисами)/что-то
-    if (!CONFIG.ARTICLE_PATTERN.test(text)) return null;
+    if (MARKETPLACE === 'ozon') {
+      // OZON: формат артикул/размер
+      if (!CONFIG.ARTICLE_PATTERN_OZON.test(text)) return null;
 
-    const parts = text.split('/');
-    if (parts.length !== 2) return null;
+      const parts = text.split('/');
+      if (parts.length !== 2) return null;
 
-    const article = parts[0];  // Артикул полностью, включая дефис (2089090018-14)
-    const size = parts[1];
+      const article = parts[0];
+      const size = parts[1];
 
-    // Артикул должен содержать только цифры и дефисы, и начинаться с цифры
-    if (!/^\d[\d-]*$/.test(article)) return null;
+      if (!/^\d[\d-]*$/.test(article)) return null;
 
-    return { article, size, full: text };
+      return { article, size, full: text };
+    } else if (MARKETPLACE === 'wb') {
+      // WB: формат просто артикул (с возможным -суффиксом)
+      if (!CONFIG.ARTICLE_PATTERN_WB.test(text)) return null;
+
+      return { article: text, size: null, full: text };
+    }
+
+    return null;
   }
 
   /**
@@ -258,7 +267,7 @@
       tip.innerHTML = `<div class="mp-tooltip-error">Нет данных по токенам</div>`;
     } else {
       // Заголовок
-      let html = `<div class="mp-tooltip-title">${data.article}/${data.size}</div>`;
+      let html = `<div class="mp-tooltip-title">${data.article}${data.size ? '/' + data.size : ''}</div>`;
 
       // Таблица с токенами
       html += '<table class="mp-tooltip-table">';
@@ -472,7 +481,8 @@
 
           // Проверяем, похож ли текст на артикул
           const text = node.textContent.trim();
-          if (CONFIG.ARTICLE_PATTERN.test(text)) {
+          const pattern = MARKETPLACE === 'ozon' ? CONFIG.ARTICLE_PATTERN_OZON : CONFIG.ARTICLE_PATTERN_WB;
+          if (pattern.test(text)) {
             return NodeFilter.FILTER_ACCEPT;
           }
 
