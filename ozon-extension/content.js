@@ -94,34 +94,25 @@
       return { article, size, full: text };
     } else if (MARKETPLACE === 'wb') {
       // WB: формат просто артикул (с возможным -суффиксом)
-      if (!CONFIG.ARTICLE_PATTERN_WB.test(text)) return null;
+      // Сначала проверяем точное совпадение
+      if (CONFIG.ARTICLE_PATTERN_WB.test(text)) {
+        return { article: text, size: null, full: text };
+      }
 
-      return { article: text, size: null, full: text };
+      // Если не совпало, ищем артикул внутри текста (например "Артикул продавца: 2013060166-1")
+      const match = text.match(/\d{7,}(-\d+)?/);
+      if (match) {
+        return { article: match[0], size: null, full: match[0] };
+      }
     }
 
     return null;
   }
 
   /**
-   * Получить базовую часть артикула (без суффикса -N для WB)
-   */
-  function getBaseArticle(article) {
-    if (MARKETPLACE === 'wb') {
-      // Убираем суффикс -N (например 2013060166-1 -> 2013060166)
-      return article.replace(/-\d+$/, '');
-    }
-    return article;
-  }
-
-  /**
    * Проверка, есть ли артикул в базе
    */
   function isKnownArticle(article) {
-    if (MARKETPLACE === 'wb') {
-      // Для WB ищем по базовой части артикула
-      const baseArticle = getBaseArticle(article);
-      return articlesCache.has(baseArticle) || articlesCache.has(article);
-    }
     return articlesCache.has(article);
   }
 
@@ -159,9 +150,7 @@
    * Получение данных о товаре WB (через background script)
    */
   async function getWBProductInfo(article, size) {
-    // Используем базовый артикул для запроса
-    const baseArticle = getBaseArticle(article);
-    const cacheKey = `wb:${baseArticle}`;
+    const cacheKey = `wb:${article}`;
 
     // Проверяем кеш
     if (productDataCache.has(cacheKey)) {
@@ -171,7 +160,7 @@
     try {
       const data = await chrome.runtime.sendMessage({
         action: 'fetchWBProductInfo',
-        article: baseArticle,
+        article: article,
         size: size
       });
 
@@ -471,9 +460,15 @@
 
           // Проверяем, похож ли текст на артикул
           const text = node.textContent.trim();
-          const pattern = MARKETPLACE === 'ozon' ? CONFIG.ARTICLE_PATTERN_OZON : CONFIG.ARTICLE_PATTERN_WB;
-          if (pattern.test(text)) {
-            return NodeFilter.FILTER_ACCEPT;
+          if (MARKETPLACE === 'ozon') {
+            if (CONFIG.ARTICLE_PATTERN_OZON.test(text)) {
+              return NodeFilter.FILTER_ACCEPT;
+            }
+          } else if (MARKETPLACE === 'wb') {
+            // Для WB ищем артикул внутри текста
+            if (/\d{7,}(-\d+)?/.test(text)) {
+              return NodeFilter.FILTER_ACCEPT;
+            }
           }
 
           return NodeFilter.FILTER_REJECT;
