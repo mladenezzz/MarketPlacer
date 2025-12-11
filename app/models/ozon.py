@@ -37,7 +37,7 @@ class OzonStock(db.Model):
 
 
 class OzonSale(db.Model):
-    """Модель продаж Ozon (FBS и FBO)"""
+    """Модель финансовых транзакций Ozon (из /v3/finance/transaction/list)"""
     __tablename__ = 'ozon_sales'
 
     id = db.Column(db.Integer, primary_key=True)
@@ -45,30 +45,48 @@ class OzonSale(db.Model):
     product_id = db.Column(db.Integer, db.ForeignKey('products.id'), nullable=True)
     warehouse_id = db.Column(db.Integer, db.ForeignKey('warehouses.id'), nullable=True)
 
-    # Unique identifier (posting can have multiple products, so unique by posting+sku)
-    posting_number = db.Column(db.String(200), nullable=False)
+    # Уникальный идентификатор операции из API
+    operation_id = db.Column(db.BigInteger, nullable=False, unique=True)
+
+    # Основные поля операции
+    operation_type = db.Column(db.String(100), nullable=False)
+    operation_type_name = db.Column(db.String(200), nullable=True)
+    operation_date = db.Column(db.DateTime, nullable=True)
+
+    # Финансовые поля
+    delivery_charge = db.Column(db.Numeric(12, 2), nullable=True)
+    return_delivery_charge = db.Column(db.Numeric(12, 2), nullable=True)
+    accruals_for_sale = db.Column(db.Numeric(12, 2), nullable=True)
+    sale_commission = db.Column(db.Numeric(12, 2), nullable=True)
+    amount = db.Column(db.Numeric(12, 2), nullable=True)  # Итоговая сумма (может быть отрицательной)
+    type = db.Column(db.String(50), nullable=True)  # Тип транзакции
+
+    # Posting info
+    posting_delivery_schema = db.Column(db.String(50), nullable=True)  # FBS/FBO
+    posting_order_date = db.Column(db.DateTime, nullable=True)
+    posting_posting_number = db.Column(db.String(200), nullable=True)
+    posting_warehouse_id = db.Column(db.BigInteger, nullable=True)
+
+    # Items (JSON для хранения массива товаров)
+    items = db.Column(db.JSON, nullable=True)
+
+    # Services (JSON для хранения массива услуг)
+    services = db.Column(db.JSON, nullable=True)
+
+    # Старые поля для совместимости (будут заполняться из items[0])
+    posting_number = db.Column(db.String(200), nullable=True)  # алиас для posting_posting_number
     order_id = db.Column(db.BigInteger, nullable=True)
     order_number = db.Column(db.String(200), nullable=True)
-
-    # Product info
-    offer_id = db.Column(db.String(200), nullable=False)
+    offer_id = db.Column(db.String(200), nullable=True)
     sku = db.Column(db.BigInteger, nullable=True)
-    quantity = db.Column(db.Integer, nullable=False)
-
-    # Dates
-    shipment_date = db.Column(db.DateTime, nullable=True)
+    quantity = db.Column(db.Integer, nullable=True)
+    shipment_date = db.Column(db.DateTime, nullable=True)  # алиас для operation_date
     in_process_at = db.Column(db.DateTime, nullable=True)
-
-    # Delivery type
-    delivery_schema = db.Column(db.String(50), nullable=True)  # FBS or FBO
-
-    # Financial
-    price = db.Column(db.Numeric(10, 2), nullable=True)
-    commission_amount = db.Column(db.Numeric(10, 2), nullable=True)
+    delivery_schema = db.Column(db.String(50), nullable=True)  # алиас для posting_delivery_schema
+    price = db.Column(db.Numeric(12, 2), nullable=True)  # алиас для accruals_for_sale
+    commission_amount = db.Column(db.Numeric(12, 2), nullable=True)
     commission_percent = db.Column(db.Integer, nullable=True)
-    payout = db.Column(db.Numeric(10, 2), nullable=True)
-
-    # Status
+    payout = db.Column(db.Numeric(12, 2), nullable=True)  # алиас для amount
     status = db.Column(db.String(100), nullable=True)
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -78,13 +96,15 @@ class OzonSale(db.Model):
     warehouse = db.relationship('Warehouse', backref=db.backref('ozon_sales', lazy=True))
 
     __table_args__ = (
-        db.Index('idx_ozon_sales_token_date', 'token_id', 'shipment_date'),
+        db.Index('idx_ozon_sales_token_date', 'token_id', 'operation_date'),
         db.Index('idx_ozon_sales_product', 'product_id'),
-        db.Index('idx_ozon_sales_posting', 'posting_number'),
+        db.Index('idx_ozon_sales_posting', 'posting_posting_number'),
+        db.Index('idx_ozon_sales_operation_id', 'operation_id'),
+        db.Index('idx_ozon_sales_operation_type', 'operation_type'),
     )
 
     def __repr__(self):
-        return f'<OzonSale {self.posting_number}>'
+        return f'<OzonSale {self.operation_id}>'
 
 
 class OzonOrder(db.Model):

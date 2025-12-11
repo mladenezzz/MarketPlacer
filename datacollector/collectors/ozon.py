@@ -632,7 +632,7 @@ class OzonCollector(BaseCollector):
                             "from": date_from_str,
                             "to": date_to_str
                         },
-                        "operation_type": ["OperationAgentDeliveredToCustomer"],
+                        # Без фильтра operation_type - получаем ВСЕ типы операций
                         "posting_number": "",
                         "transaction_type": "all"
                     },
@@ -663,11 +663,10 @@ class OzonCollector(BaseCollector):
                             has_next = False
                             break
 
-                        # Process operations from current page
+                        # Process operations from current page (все типы операций)
                         for operation in operations:
-                            if operation.get('operation_type') == 'OperationAgentDeliveredToCustomer':
-                                if self._save_finance_transaction(session, operation):
-                                    month_saved += 1
+                            if self._save_finance_transaction(session, operation):
+                                month_saved += 1
 
                         # Check if there are more pages
                         # If we got less than 1000 records - this is the last page
@@ -699,55 +698,71 @@ class OzonCollector(BaseCollector):
         return saved_count
 
     def _save_finance_transaction(self, session, operation: dict) -> bool:
-        """Save single finance transaction (sale) to ozon_sales database"""
+        """Save single finance transaction to ozon_sales database (all operation types)"""
         try:
-            posting_number = operation.get('posting', {}).get('posting_number')
-            if not posting_number:
-                return False
-
             # Get operation_id as unique identifier
             operation_id = operation.get('operation_id')
             if not operation_id:
                 return False
 
-            # Check if this transaction already exists
-            existing = session.query(OzonSale).filter_by(
-                token_id=self.token_id,
-                posting_number=posting_number
-            ).first()
+            # Check if this transaction already exists by operation_id
+            existing = session.query(OzonSale).filter_by(operation_id=operation_id).first()
             if existing:
                 return False
 
-            # Parse operation date
+            # Parse dates
             operation_date_str = operation.get('operation_date')
             operation_date = datetime.fromisoformat(operation_date_str.replace('Z', '+00:00')) if operation_date_str else None
 
-            # Extract posting info
             posting_info = operation.get('posting', {})
-            delivery_schema = posting_info.get('delivery_schema', '')
+            posting_order_date_str = posting_info.get('order_date')
+            posting_order_date = datetime.fromisoformat(posting_order_date_str.replace('Z', '+00:00')) if posting_order_date_str else None
 
-            # Get product info from items (if available)
+            # Get items and services
             items = operation.get('items', [])
-            sku = items[0].get('sku') if items else None
+            services = operation.get('services', [])
 
-            # Create sale record
+            # Get first item info for compatibility fields
+            first_item = items[0] if items else {}
+            sku = first_item.get('sku')
+
+            # Create sale record with all fields
             sale = OzonSale(
                 token_id=self.token_id,
-                product_id=None,  # Will be linked later if needed
-                posting_number=posting_number,
-                order_id=None,
-                order_number=None,
-                offer_id='',
+                product_id=None,
+
+                # Основные поля операции
+                operation_id=operation_id,
+                operation_type=operation.get('operation_type', ''),
+                operation_type_name=operation.get('operation_type_name'),
+                operation_date=operation_date,
+
+                # Финансовые поля
+                delivery_charge=operation.get('delivery_charge', 0),
+                return_delivery_charge=operation.get('return_delivery_charge', 0),
+                accruals_for_sale=operation.get('accruals_for_sale', 0),
+                sale_commission=operation.get('sale_commission', 0),
+                amount=operation.get('amount', 0),
+                type=operation.get('type'),
+
+                # Posting info
+                posting_delivery_schema=posting_info.get('delivery_schema'),
+                posting_order_date=posting_order_date,
+                posting_posting_number=posting_info.get('posting_number'),
+                posting_warehouse_id=posting_info.get('warehouse_id'),
+
+                # Items и Services как JSON
+                items=items if items else None,
+                services=services if services else None,
+
+                # Поля совместимости
+                posting_number=posting_info.get('posting_number'),
                 sku=sku,
-                quantity=1,  # Finance API doesn't provide quantity directly
                 shipment_date=operation_date,
-                in_process_at=None,
-                delivery_schema=delivery_schema,
-                price=operation.get('accruals_for_sale', 0),  # Using accruals_for_sale as price
-                commission_amount=None,
-                commission_percent=None,
+                delivery_schema=posting_info.get('delivery_schema'),
+                price=operation.get('accruals_for_sale', 0),
                 payout=operation.get('amount', 0),
-                status='delivered'  # OperationAgentDeliveredToCustomer means delivered
+                status=operation.get('operation_type', '')
             )
 
             session.add(sale)

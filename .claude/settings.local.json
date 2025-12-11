@@ -19,7 +19,20 @@
       "Bash(git reset:*)",
       "Bash(git fetch:*)",
       "Bash(gh pr list:*)",
-      "Bash(git for-each-ref:*)"
+      "Bash(git for-each-ref:*)",
+      "Bash(git merge:*)",
+      "Bash(git push:*)",
+      "Bash(git stash:*)",
+      "Bash(git stash pop:*)",
+      "Bash(git pull:*)",
+      "Bash(tasklist:*)",
+      "Bash(wmic:*)",
+      "Bash(sc queryex:*)",
+      "Bash(findstr:*)",
+      "Bash(mkdir:*)",
+      "Bash(del z:query_wb_goods.py)",
+      "Bash(z:\\venv\\Scripts\\python.exe:*)",
+      "Bash(z:venvScriptspython.exe z:migrationsmigrate_wb_goods_add_imt_id.py)"
     ],
     "deny": [],
     "ask": []
