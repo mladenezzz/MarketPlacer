@@ -211,6 +211,9 @@ class WBGood(db.Model):
     barcode = db.Column(db.String(200), nullable=False, unique=True)  # Штрихкод
     gtin = db.Column(db.String(20), nullable=True)  # GTIN (Global Trade Item Number)
 
+    # ID карточки (объединяет товары на одной странице)
+    imt_id = db.Column(db.BigInteger, nullable=True)
+
     # Фото (все ссылки через запятую)
     photos = db.Column(db.Text, nullable=True)
 

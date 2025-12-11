@@ -441,7 +441,19 @@
     .table-responsive {
         overflow-x: auto;
     }
+
+    /* CSS-классы для скрытия колонок (оптимизация производительности) */
+    .table.hide-ozon-stock .ozon-stock-col,
+    .table.hide-ozon-orders .ozon-orders-col,
+    .table.hide-ozon-delivered .ozon-delivered-col,
+    .table.hide-ozon-cancelled .ozon-cancelled-col,
+    .table.hide-ozon-percent .ozon-percent-col {
+        display: none !important;
+    }
+
+    /* Динамические классы для WB токенов генерируются в JS */
 </style>
+<style id="wb-hide-styles"></style>
 {% endblock %}
 
 {% block extra_js %}
@@ -453,6 +465,20 @@ document.addEventListener('DOMContentLoaded', function() {
     const tableBody = document.querySelector('table tbody');
     const visibleCount = document.getElementById('visibleCount');
     const totalCount = {{ ozon_products|length }};
+    const table = document.querySelector('table');
+
+    // === Утилита debounce для оптимизации производительности ===
+    function debounce(func, wait) {
+        let timeout;
+        return function executedFunction(...args) {
+            const later = () => {
+                clearTimeout(timeout);
+                func(...args);
+            };
+            clearTimeout(timeout);
+            timeout = setTimeout(later, wait);
+        };
+    }
 
     // === Управление видимостью колонок по типам для каждого токена ===
     const COLUMNS_STORAGE_KEY = 'buyouts_column_visibility';
@@ -460,6 +486,28 @@ document.addEventListener('DOMContentLoaded', function() {
     const ORDER_STORAGE_KEY = 'buyouts_token_order';
     const columnCheckboxes = document.querySelectorAll('.column-checkbox');
     const masterCheckboxes = document.querySelectorAll('.master-checkbox');
+
+    // Генерация CSS для скрытия WB колонок
+    function generateWbHideStyles() {
+        const wbStyleEl = document.getElementById('wb-hide-styles');
+        if (!wbStyleEl) return;
+
+        const wbTokenIds = new Set();
+        document.querySelectorAll('.wb-stock-col[data-token-id]').forEach(el => {
+            wbTokenIds.add(el.dataset.tokenId);
+        });
+
+        let css = '';
+        const colTypes = ['stock', 'orders', 'delivered', 'cancelled', 'percent'];
+
+        wbTokenIds.forEach(tokenId => {
+            colTypes.forEach(colType => {
+                css += `.table.hide-wb-${tokenId}-${colType} .wb-${colType}-col[data-token-id="${tokenId}"] { display: none !important; }\n`;
+            });
+        });
+
+        wbStyleEl.textContent = css;
+    }
 
     // Загрузка сохраненного состояния колонок из localStorage
     function loadColumnVisibility() {
@@ -474,8 +522,8 @@ document.addEventListener('DOMContentLoaded', function() {
         return null;
     }
 
-    // Сохранение состояния колонок в localStorage
-    function saveColumnVisibility() {
+    // Сохранение состояния колонок в localStorage (с debounce)
+    const saveColumnVisibility = debounce(function() {
         const state = {};
         columnCheckboxes.forEach(checkbox => {
             const tokenId = checkbox.dataset.tokenId;
@@ -484,21 +532,24 @@ document.addEventListener('DOMContentLoaded', function() {
             state[key] = checkbox.checked;
         });
         localStorage.setItem(COLUMNS_STORAGE_KEY, JSON.stringify(state));
-    }
+    }, 100);
 
-    // Обновление видимости конкретной колонки
+    // Обновление видимости колонки через CSS-класс (одна операция вместо сотен)
     function updateSingleColumnVisibility(tokenId, marketplace, colType, visible) {
+        if (!table) return;
+
+        let className;
         if (marketplace === 'ozon') {
-            document.querySelectorAll(`.ozon-${colType}-col`).forEach(el => {
-                el.style.display = visible ? '' : 'none';
-            });
+            className = `hide-ozon-${colType}`;
         } else if (marketplace === 'wildberries') {
-            document.querySelectorAll(`.wb-${colType}-col[data-token-id="${tokenId}"]`).forEach(el => {
-                el.style.display = visible ? '' : 'none';
-            });
+            className = `hide-wb-${tokenId}-${colType}`;
         }
-        // Обновляем colspan заголовка этого типа
-        updateAllHeaderColspans();
+
+        if (visible) {
+            table.classList.remove(className);
+        } else {
+            table.classList.add(className);
+        }
     }
 
     // Обновление colspan для конкретного типа заголовка
@@ -506,14 +557,10 @@ document.addEventListener('DOMContentLoaded', function() {
         const header = document.getElementById(headerId);
         if (!header) return;
 
-        const marketplaceRow = document.getElementById('marketplace-row');
-        if (!marketplaceRow) return;
-
-        // Считаем видимые колонки данного типа
-        const allCols = marketplaceRow.querySelectorAll(`.ozon-${colClass}-col, .wb-${colClass}-col`);
+        // Считаем видимые колонки по чекбоксам (быстрее чем проверять DOM)
         let visibleColsCount = 0;
-        allCols.forEach(col => {
-            if (col.style.display !== 'none') {
+        columnCheckboxes.forEach(checkbox => {
+            if (checkbox.dataset.colType === colClass && checkbox.checked) {
                 visibleColsCount++;
             }
         });
@@ -528,7 +575,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Обновление colspan всех заголовков
     function updateAllHeaderColspans() {
-        // Маппинг: id заголовка -> класс колонок
         const headerMapping = {
             'stocks-header': 'stock',
             'orders-header': 'orders',
@@ -541,8 +587,16 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
+    // Отложенное обновление тяжёлых операций
+    const debouncedHeavyUpdate = debounce(function() {
+        updateEmptyRowsVisibility();
+    }, 150);
+
     // Инициализация чекбоксов колонок
     function initColumnVisibility() {
+        // Генерируем CSS для WB токенов
+        generateWbHideStyles();
+
         const savedState = loadColumnVisibility();
 
         columnCheckboxes.forEach(checkbox => {
@@ -555,22 +609,27 @@ document.addEventListener('DOMContentLoaded', function() {
             if (savedState && savedState.hasOwnProperty(key)) {
                 checkbox.checked = savedState[key];
             } else {
-                // По умолчанию все включены
                 checkbox.checked = true;
             }
 
-            // Применяем видимость
+            // Применяем видимость через CSS-класс
             updateSingleColumnVisibility(tokenId, marketplace, colType, checkbox.checked);
 
             // Обработчик изменения чекбокса
             checkbox.addEventListener('change', function() {
+                // Быстрые операции - сразу
                 updateSingleColumnVisibility(tokenId, marketplace, colType, this.checked);
-                saveColumnVisibility();
-                updateEmptyRowsVisibility();
-                // Обновляем состояние мастер-галочки
+                updateAllHeaderColspans();
                 updateMasterCheckboxState(tokenId);
+
+                // Тяжёлые операции - с debounce
+                saveColumnVisibility();
+                debouncedHeavyUpdate();
             });
         });
+
+        // Применяем colspan после установки всех состояний
+        updateAllHeaderColspans();
 
         // Сохраняем начальное состояние если его не было
         if (!savedState) {
@@ -638,9 +697,13 @@ document.addEventListener('DOMContentLoaded', function() {
                     updateSingleColumnVisibility(tokenId, marketplace, colType, isChecked);
                 });
 
+                // Быстрые операции - сразу
+                updateAllHeaderColspans();
+
+                // Тяжёлые операции - с debounce
                 saveColumnVisibility();
                 saveMasterVisibility();
-                updateEmptyRowsVisibility();
+                debouncedHeavyUpdate();
             });
         });
     }
@@ -920,10 +983,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Обновление порядка колонок в таблице
     function reorderTableColumns() {
-        if (!tokenList || !tableBody) return;
-
-        const table = document.querySelector('table');
-        if (!table) return;
+        if (!tokenList || !tableBody || !table) return;
 
         const marketplaceRow = document.getElementById('marketplace-row');
         const tokenNameRow = document.getElementById('token-name-row');
@@ -1242,7 +1302,6 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // Сортировка таблицы
-    const table = document.querySelector('table');
     const headers = document.querySelectorAll('th.sortable');
     let currentSort = { column: null, direction: 'asc' };
 
@@ -1328,7 +1387,6 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     async function exportToExcel() {
-        const table = document.querySelector('table');
         if (!table) return;
 
         // Получаем видимые колонки на основе чекбоксов (в порядке токенов)

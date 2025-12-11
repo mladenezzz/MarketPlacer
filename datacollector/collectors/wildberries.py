@@ -505,6 +505,7 @@ class WildberriesCollector(BaseCollector):
                 brand = card.get("brand", "")
                 title = card.get("title", "")
                 description = card.get("description", "")
+                imt_id = card.get("imtID")  # ID объединения карточек
 
                 # Parse dates
                 created_at_str = card.get("createdAt")
@@ -545,9 +546,16 @@ class WildberriesCollector(BaseCollector):
                     existing = session.query(WBGood).filter_by(barcode=barcode).first()
 
                     if existing:
+                        # Update imt_id if changed
+                        needs_update = False
+                        if existing.imt_id != imt_id:
+                            existing.imt_id = imt_id
+                            needs_update = True
                         # Update if photos are empty
                         if not existing.photos and photos_str:
                             existing.photos = photos_str
+                            needs_update = True
+                        if needs_update:
                             updated += 1
                     else:
                         # Insert new
@@ -559,6 +567,7 @@ class WildberriesCollector(BaseCollector):
                             tech_size=tech_size,
                             wb_size=wb_size,
                             barcode=barcode,
+                            imt_id=imt_id,
                             photos=photos_str,
                             card_created_at=card_created_at,
                             card_updated_at=card_updated_at
