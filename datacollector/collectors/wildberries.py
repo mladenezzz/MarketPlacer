@@ -30,6 +30,7 @@ class WildberriesCollector(BaseCollector):
 
             logger.info(f"Token {self.token_id}: Initial data collection")
 
+            self.collect_goods(session)
             self.collect_incomes(session, initial=True)
             self.collect_sales(session, initial=True)
             self.collect_orders(session, initial=True)
@@ -591,6 +592,7 @@ class WildberriesCollector(BaseCollector):
         try:
             logger.info(f"Token {self.token_id}: Updating data")
 
+            self.collect_goods(session)
             self.collect_incomes(session)
             self.collect_sales(session)
             self.collect_orders(session)
