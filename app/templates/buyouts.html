@@ -786,27 +786,44 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!tableBody) return;
 
         const rows = tableBody.querySelectorAll('tr');
-        const visibleColumns = getVisibleColumnsForRow();
 
-        // Инициализация сумм
-        const sums = {};
-        const counts = {};  // Для подсчёта количества строк для процентов
+        // Считаем суммы напрямую по всем видимым строкам для всех возможных колонок
+        const sums = {
+            stock: 0,
+            total: 0,
+            delivered: 0,
+            cancelled: 0
+        };
 
-        visibleColumns.forEach(col => {
-            sums[col.dataKey] = 0;
-            counts[col.dataKey] = 0;
+        // Собираем все WB токены
+        const wbTokenIds = [];
+        document.querySelectorAll('.wb-stock-col[data-token-id]').forEach(el => {
+            const tokenId = el.dataset.tokenId;
+            if (tokenId && !wbTokenIds.includes(tokenId)) {
+                wbTokenIds.push(tokenId);
+                sums[`wb_stock_${tokenId}`] = 0;
+                sums[`wb_orders_${tokenId}`] = 0;
+                sums[`wb_delivered_${tokenId}`] = 0;
+                sums[`wb_cancelled_${tokenId}`] = 0;
+            }
         });
 
         // Суммируем по видимым строкам
         rows.forEach(row => {
             if (row.style.display === 'none') return;
 
-            visibleColumns.forEach(col => {
-                const value = parseFloat(row.dataset[col.dataKey]) || 0;
-                sums[col.dataKey] += value;
-                if (value > 0 || col.dataKey.includes('percent')) {
-                    counts[col.dataKey]++;
-                }
+            // Ozon данные
+            sums.stock += parseFloat(row.dataset.stock) || 0;
+            sums.total += parseFloat(row.dataset.total) || 0;
+            sums.delivered += parseFloat(row.dataset.delivered) || 0;
+            sums.cancelled += parseFloat(row.dataset.cancelled) || 0;
+
+            // WB данные для каждого токена
+            wbTokenIds.forEach(tokenId => {
+                sums[`wb_stock_${tokenId}`] += parseFloat(row.dataset[`wb_stock_${tokenId}`]) || 0;
+                sums[`wb_orders_${tokenId}`] += parseFloat(row.dataset[`wb_orders_${tokenId}`]) || 0;
+                sums[`wb_delivered_${tokenId}`] += parseFloat(row.dataset[`wb_delivered_${tokenId}`]) || 0;
+                sums[`wb_cancelled_${tokenId}`] += parseFloat(row.dataset[`wb_cancelled_${tokenId}`]) || 0;
             });
         });
 
@@ -818,27 +835,17 @@ document.addEventListener('DOMContentLoaded', function() {
         const ozonCancelled = document.getElementById('total-ozon-cancelled');
         const ozonPercent = document.getElementById('total-ozon-percent');
 
-        if (ozonStock) ozonStock.textContent = Math.round(sums['stock'] || 0);
-        if (ozonOrders) ozonOrders.textContent = Math.round(sums['total'] || 0);
-        if (ozonDelivered) ozonDelivered.textContent = Math.round(sums['delivered'] || 0);
-        if (ozonCancelled) ozonCancelled.textContent = Math.round(sums['cancelled'] || 0);
+        if (ozonStock) ozonStock.textContent = Math.round(sums.stock);
+        if (ozonOrders) ozonOrders.textContent = Math.round(sums.total);
+        if (ozonDelivered) ozonDelivered.textContent = Math.round(sums.delivered);
+        if (ozonCancelled) ozonCancelled.textContent = Math.round(sums.cancelled);
         if (ozonPercent) {
             // Для процента выкупа считаем по формуле: выкуплено / заказано * 100
-            const totalOrders = sums['total'] || 0;
-            const totalDelivered = sums['delivered'] || 0;
-            const avgPercent = totalOrders > 0 ? (totalDelivered / totalOrders * 100) : 0;
+            const avgPercent = sums.total > 0 ? (sums.delivered / sums.total * 100) : 0;
             ozonPercent.textContent = avgPercent.toFixed(1) + '%';
         }
 
         // WB колонки для каждого токена
-        const wbTokenIds = [];
-        document.querySelectorAll('.wb-stock-col[data-token-id]').forEach(el => {
-            const tokenId = el.dataset.tokenId;
-            if (tokenId && !wbTokenIds.includes(tokenId)) {
-                wbTokenIds.push(tokenId);
-            }
-        });
-
         wbTokenIds.forEach(tokenId => {
             const wbStock = document.getElementById(`total-wb-stock-${tokenId}`);
             const wbOrders = document.getElementById(`total-wb-orders-${tokenId}`);
@@ -846,14 +853,14 @@ document.addEventListener('DOMContentLoaded', function() {
             const wbCancelled = document.getElementById(`total-wb-cancelled-${tokenId}`);
             const wbPercent = document.getElementById(`total-wb-percent-${tokenId}`);
 
-            if (wbStock) wbStock.textContent = Math.round(sums[`wb_stock_${tokenId}`] || 0);
-            if (wbOrders) wbOrders.textContent = Math.round(sums[`wb_orders_${tokenId}`] || 0);
-            if (wbDelivered) wbDelivered.textContent = Math.round(sums[`wb_delivered_${tokenId}`] || 0);
-            if (wbCancelled) wbCancelled.textContent = Math.round(sums[`wb_cancelled_${tokenId}`] || 0);
+            if (wbStock) wbStock.textContent = Math.round(sums[`wb_stock_${tokenId}`]);
+            if (wbOrders) wbOrders.textContent = Math.round(sums[`wb_orders_${tokenId}`]);
+            if (wbDelivered) wbDelivered.textContent = Math.round(sums[`wb_delivered_${tokenId}`]);
+            if (wbCancelled) wbCancelled.textContent = Math.round(sums[`wb_cancelled_${tokenId}`]);
             if (wbPercent) {
                 // Для процента выкупа считаем по формуле: выкуплено / заказано * 100
-                const totalOrders = sums[`wb_orders_${tokenId}`] || 0;
-                const totalDelivered = sums[`wb_delivered_${tokenId}`] || 0;
+                const totalOrders = sums[`wb_orders_${tokenId}`];
+                const totalDelivered = sums[`wb_delivered_${tokenId}`];
                 const avgPercent = totalOrders > 0 ? (totalDelivered / totalOrders * 100) : 0;
                 wbPercent.textContent = avgPercent.toFixed(1) + '%';
             }
