@@ -1,8 +1,12 @@
-from flask import Blueprint, render_template, redirect, url_for, flash, request
+from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify
 from flask_login import login_required, current_user
 from functools import wraps
+import subprocess
+import logging
 from app.models import db, User
 from app.forms import ChangeRoleForm, CreateUserForm
+
+logger = logging.getLogger(__name__)
 
 admin_bp = Blueprint('admin', __name__, url_prefix='/admin')
 
@@ -147,3 +151,76 @@ def delete_user(user_id):
 def monitoring():
     """Страница мониторинга Grafana (только для администраторов)"""
     return render_template('admin_monitoring.html')
+
+
+# Список разрешённых сервисов для управления
+ALLOWED_SERVICES = ['datacollector', 'marketplacer']
+
+
+@admin_bp.route('/service/<service_name>/status', methods=['GET'])
+@login_required
+@admin_required
+def service_status(service_name):
+    """Получить статус сервиса"""
+    if service_name not in ALLOWED_SERVICES:
+        return jsonify({'error': 'Недопустимый сервис'}), 400
+
+    try:
+        result = subprocess.run(
+            ['sudo', 'systemctl', 'status', f'{service_name}.service'],
+            capture_output=True,
+            text=True,
+            timeout=10
+        )
+
+        is_active = 'active (running)' in result.stdout
+
+        return jsonify({
+            'service': service_name,
+            'active': is_active,
+            'status': 'running' if is_active else 'stopped'
+        })
+    except subprocess.TimeoutExpired:
+        return jsonify({'error': 'Таймаут при получении статуса'}), 500
+    except Exception as e:
+        logger.error(f"Ошибка получения статуса {service_name}: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@admin_bp.route('/service/<service_name>/restart', methods=['POST'])
+@login_required
+@admin_required
+def restart_service(service_name):
+    """Перезапустить сервис"""
+    if service_name not in ALLOWED_SERVICES:
+        return jsonify({'error': 'Недопустимый сервис'}), 400
+
+    try:
+        logger.info(f"Пользователь {current_user.username} перезапускает сервис {service_name}")
+
+        result = subprocess.run(
+            ['sudo', 'systemctl', 'restart', f'{service_name}.service'],
+            capture_output=True,
+            text=True,
+            timeout=30
+        )
+
+        if result.returncode == 0:
+            logger.info(f"Сервис {service_name} успешно перезапущен")
+            return jsonify({
+                'success': True,
+                'message': f'Сервис {service_name} успешно перезапущен'
+            })
+        else:
+            logger.error(f"Ошибка перезапуска {service_name}: {result.stderr}")
+            return jsonify({
+                'success': False,
+                'error': result.stderr or 'Неизвестная ошибка'
+            }), 500
+
+    except subprocess.TimeoutExpired:
+        logger.error(f"Таймаут при перезапуске {service_name}")
+        return jsonify({'error': 'Таймаут при перезапуске сервиса'}), 500
+    except Exception as e:
+        logger.error(f"Ошибка перезапуска {service_name}: {e}")
+        return jsonify({'error': str(e)}), 500
