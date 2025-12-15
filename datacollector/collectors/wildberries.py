@@ -1,11 +1,18 @@
 import logging
 import time
+import requests
 from datetime import datetime, timezone, timedelta
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
 from wb_api import WBApi
 from datacollector.collectors.base import BaseCollector
 from app.models import WBSale, WBOrder, WBIncome, WBIncomeItem, WBStock, WBGood
 
 logger = logging.getLogger(__name__)
+
+# Таймаут для API запросов (в секундах)
+API_TIMEOUT = 120
+# Максимальное количество попыток
+MAX_RETRIES = 3
 
 
 class WildberriesCollector(BaseCollector):
@@ -16,6 +23,43 @@ class WildberriesCollector(BaseCollector):
         self.token_id = token_id
         self.api = WBApi(token)
         self.marketplace = 'wildberries'
+
+    def _call_api_with_timeout(self, func, *args, **kwargs):
+        """
+        Вызов API с таймаутом и retry.
+        Использует ThreadPoolExecutor для ограничения времени выполнения.
+        """
+        last_error = None
+
+        for attempt in range(1, MAX_RETRIES + 1):
+            try:
+                with ThreadPoolExecutor(max_workers=1) as executor:
+                    future = executor.submit(func, *args, **kwargs)
+                    result = future.result(timeout=API_TIMEOUT)
+                    return result
+            except FuturesTimeoutError:
+                last_error = f"API timeout after {API_TIMEOUT}s"
+                logger.warning(f"Attempt {attempt}/{MAX_RETRIES}: {last_error}")
+                if attempt < MAX_RETRIES:
+                    time.sleep(10)
+            except requests.exceptions.RequestException as e:
+                last_error = f"Request error: {e}"
+                logger.warning(f"Attempt {attempt}/{MAX_RETRIES}: {last_error}")
+                if attempt < MAX_RETRIES:
+                    time.sleep(10)
+            except Exception as e:
+                last_error = str(e)
+                # Для ошибок 429 (rate limit) не делаем retry сразу
+                if '429' in str(e) or 'Too Many Requests' in str(e):
+                    logger.warning(f"Rate limit hit, waiting 60s before retry")
+                    time.sleep(60)
+                else:
+                    logger.warning(f"Attempt {attempt}/{MAX_RETRIES}: {last_error}")
+                    if attempt < MAX_RETRIES:
+                        time.sleep(10)
+
+        logger.error(f"Max retries exceeded")
+        raise Exception(last_error)
 
     def collect_all(self):
         """Collect all data for initial sync"""
@@ -58,7 +102,8 @@ class WildberriesCollector(BaseCollector):
 
             # Step 1: Fetch all incomes from API
             time.sleep(60)
-            all_incomes_data = self.api.statistics.get_data(
+            all_incomes_data = self._call_api_with_timeout(
+                self.api.statistics.get_data,
                 endpoint="incomes",
                 date_from=start_date.strftime('%Y-%m-%d'),
                 flag=0  # Get all data from start_date
@@ -146,7 +191,11 @@ class WildberriesCollector(BaseCollector):
 
             if initial or not sync_state.last_successful_sync:
                 time.sleep(60)
-                incomes = self.api.statistics.get_data(endpoint="incomes", date_from=datetime(2019, 1, 1, tzinfo=timezone.utc).strftime('%Y-%m-%d'))
+                incomes = self._call_api_with_timeout(
+                    self.api.statistics.get_data,
+                    endpoint="incomes",
+                    date_from=datetime(2019, 1, 1, tzinfo=timezone.utc).strftime('%Y-%m-%d')
+                )
                 if incomes:
                     first_income = min(datetime.fromisoformat(inc['date'].replace('Z', '+00:00')) for inc in incomes)
                     start_date = first_income.replace(hour=0, minute=0, second=0, microsecond=0)
@@ -169,7 +218,8 @@ class WildberriesCollector(BaseCollector):
                 logger.info(f"  Fetching sales for date: {current_date.strftime('%Y-%m-%d')}")
                 time.sleep(60)
 
-                sales_data = self.api.statistics.get_data(
+                sales_data = self._call_api_with_timeout(
+                    self.api.statistics.get_data,
                     endpoint="sales",
                     date_from=current_date.strftime('%Y-%m-%d'),
                     flag=1  # Get all data for this specific date
@@ -236,7 +286,11 @@ class WildberriesCollector(BaseCollector):
 
             if initial or not sync_state.last_successful_sync:
                 time.sleep(60)
-                incomes = self.api.statistics.get_data(endpoint="incomes", date_from=datetime(2019, 1, 1, tzinfo=timezone.utc).strftime('%Y-%m-%d'))
+                incomes = self._call_api_with_timeout(
+                    self.api.statistics.get_data,
+                    endpoint="incomes",
+                    date_from=datetime(2019, 1, 1, tzinfo=timezone.utc).strftime('%Y-%m-%d')
+                )
                 if incomes:
                     first_income = min(datetime.fromisoformat(inc['date'].replace('Z', '+00:00')) for inc in incomes)
                     start_date = first_income.replace(hour=0, minute=0, second=0, microsecond=0)
@@ -251,7 +305,8 @@ class WildberriesCollector(BaseCollector):
             time.sleep(60)
 
             # Используем flag=0 для получения всех данных от даты
-            orders_data = self.api.statistics.get_data(
+            orders_data = self._call_api_with_timeout(
+                self.api.statistics.get_data,
                 endpoint="orders",
                 date_from=start_date.strftime('%Y-%m-%dT%H:%M:%S'),
                 flag=0  # Все данные от указанной даты
@@ -357,7 +412,10 @@ class WildberriesCollector(BaseCollector):
             logger.info(f"Collecting stocks for token {self.token_id}")
 
             time.sleep(60)
-            stocks_data = self.api.statistics.get_stocks(date_from="2019-01-01")
+            stocks_data = self._call_api_with_timeout(
+                self.api.statistics.get_stocks,
+                date_from="2019-01-01"
+            )
 
             today = datetime.now(timezone.utc).date()
             saved_count = 0
@@ -421,8 +479,6 @@ class WildberriesCollector(BaseCollector):
 
     def collect_goods(self, session):
         """Collect goods (product cards) from WB Content API"""
-        import requests
-
         started_at = datetime.now(timezone.utc)
         try:
             logger.info(f"Collecting goods for token {self.token_id}")

@@ -10,6 +10,11 @@ from app.models import OzonStock, OzonSale, OzonOrder, OzonSupplyOrder, OzonSupp
 
 logger = logging.getLogger(__name__)
 
+# Таймаут для API запросов (в секундах)
+API_TIMEOUT = 120
+# Максимальное количество попыток
+MAX_RETRIES = 3
+
 
 class OzonCollector(BaseCollector):
     """Collector for Ozon marketplace data"""
@@ -27,6 +32,43 @@ class OzonCollector(BaseCollector):
             'Api-Key': api_key,
             'Content-Type': 'application/json'
         }
+
+    def _request_with_retry(self, method: str, url: str, **kwargs) -> requests.Response:
+        """
+        Выполнить HTTP запрос с retry и увеличенным timeout.
+        """
+        kwargs.setdefault('timeout', API_TIMEOUT)
+        kwargs.setdefault('headers', self.headers)
+        last_error = None
+
+        for attempt in range(1, MAX_RETRIES + 1):
+            try:
+                if method.upper() == 'GET':
+                    response = requests.get(url, **kwargs)
+                else:
+                    response = requests.post(url, **kwargs)
+
+                # Для 429 делаем retry с ожиданием
+                if response.status_code == 429:
+                    logger.warning(f"Attempt {attempt}/{MAX_RETRIES}: Rate limit 429, waiting 30s")
+                    time.sleep(30)
+                    continue
+
+                return response
+
+            except requests.exceptions.Timeout:
+                last_error = f"Request timeout after {kwargs.get('timeout')}s"
+                logger.warning(f"Attempt {attempt}/{MAX_RETRIES}: {last_error}")
+                if attempt < MAX_RETRIES:
+                    time.sleep(10)
+            except requests.exceptions.RequestException as e:
+                last_error = f"Request error: {e}"
+                logger.warning(f"Attempt {attempt}/{MAX_RETRIES}: {last_error}")
+                if attempt < MAX_RETRIES:
+                    time.sleep(10)
+
+        logger.error(f"Max retries exceeded for {url}")
+        raise requests.exceptions.RequestException(last_error)
 
     @staticmethod
     def parse_offer_id(offer_id: str) -> tuple:
@@ -110,7 +152,7 @@ class OzonCollector(BaseCollector):
             }
 
             logger.info("  Creating stocks report...")
-            response = requests.post(create_url, headers=self.headers, json=payload, timeout=30)
+            response = self._request_with_retry('POST', create_url, json=payload)
 
             if response.status_code != 200:
                 logger.error(f"Ozon create report API error {response.status_code}: {response.text}")
@@ -139,7 +181,7 @@ class OzonCollector(BaseCollector):
                 time.sleep(5)
 
                 info_payload = {"code": report_code}
-                response = requests.post(info_url, headers=self.headers, json=info_payload, timeout=30)
+                response = self._request_with_retry('POST', info_url, json=info_payload)
 
                 if response.status_code == 200:
                     info_data = response.json()
@@ -163,7 +205,7 @@ class OzonCollector(BaseCollector):
 
             # Step 3: Download report file
             logger.info("  Downloading report...")
-            response = requests.get(report_file_url, timeout=30)
+            response = self._request_with_retry('GET', report_file_url)
 
             if response.status_code != 200:
                 raise Exception(f"Failed to download report: {response.status_code}")
@@ -401,7 +443,7 @@ class OzonCollector(BaseCollector):
         }
 
         try:
-            response = requests.post(url, headers=self.headers, json=payload, timeout=30)
+            response = self._request_with_retry('POST', url, json=payload)
 
             if response.status_code == 200:
                 return 0  # Success
@@ -435,7 +477,7 @@ class OzonCollector(BaseCollector):
                 }
             }
 
-            response = requests.post(url, headers=self.headers, json=payload, timeout=30)
+            response = self._request_with_retry('POST', url, json=payload)
 
             if response.status_code == 200:
                 data = response.json()
@@ -489,7 +531,7 @@ class OzonCollector(BaseCollector):
                 }
             }
 
-            response = requests.post(url, headers=self.headers, json=payload, timeout=30)
+            response = self._request_with_retry('POST', url, json=payload)
 
             if response.status_code == 200:
                 data = response.json()
@@ -646,7 +688,7 @@ class OzonCollector(BaseCollector):
                 request_successful = False
 
                 while retry_count < max_retries and not request_successful:
-                    response = requests.post(url, headers=self.headers, json=params, timeout=30)
+                    response = self._request_with_retry('POST', url, json=params)
 
                     if response.status_code == 200:
                         request_successful = True
@@ -790,7 +832,7 @@ class OzonCollector(BaseCollector):
                 "sort_by": 1
             }
 
-            response_order_list = requests.post(url_list, headers=self.headers, json=payload_order_list, timeout=30)
+            response_order_list = self._request_with_retry('POST', url_list, json=payload_order_list)
 
             if response_order_list.status_code != 200:
                 logger.error(f"Ozon supply-order/list API error {response_order_list.status_code}: {response_order_list.text}")
@@ -832,7 +874,7 @@ class OzonCollector(BaseCollector):
                 batch = new_order_ids[i:i + batch_size]
                 payload_order_get = {"order_ids": batch}
 
-                response_order_get = requests.post(url_get, headers=self.headers, json=payload_order_get, timeout=30)
+                response_order_get = self._request_with_retry('POST', url_get, json=payload_order_get)
 
                 if response_order_get.status_code == 200:
                     get_response_data = response_order_get.json()
@@ -917,7 +959,7 @@ class OzonCollector(BaseCollector):
                     retry_count = 0
                     max_retries = 10
                     while retry_count < max_retries:
-                        response_order_bundle = requests.post(url_bundle, headers=self.headers, json=payload_order_bundle, timeout=30)
+                        response_order_bundle = self._request_with_retry('POST', url_bundle, json=payload_order_bundle)
 
                         if response_order_bundle.status_code == 200:
                             break
