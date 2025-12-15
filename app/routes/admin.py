@@ -3,6 +3,7 @@ from flask_login import login_required, current_user
 from functools import wraps
 import subprocess
 import logging
+import time
 from app.models import db, User
 from app.forms import ChangeRoleForm, CreateUserForm
 
@@ -213,15 +214,36 @@ def restart_service(service_name):
                 'message': f'Сервис {service_name} будет перезапущен через 1 секунду'
             })
 
-        # Для других сервисов - принудительный перезапуск (stop + start)
-        # Используем kill для быстрой остановки, т.к. restart может зависнуть
-        # если сервис долго обрабатывает запросы
+        # Для других сервисов - мягкий перезапуск с таймаутом
+        # Сначала пробуем SIGTERM (даём 5 сек на корректное завершение)
         subprocess.run(
-            ['/usr/bin/sudo', '/bin/systemctl', 'kill', '-s', 'SIGKILL', f'{service_name}.service'],
+            ['/usr/bin/sudo', '/bin/systemctl', 'kill', '-s', 'SIGTERM', f'{service_name}.service'],
             capture_output=True,
             text=True,
-            timeout=5
+            timeout=2
         )
+
+        # Ждём немного для корректного завершения
+        time.sleep(3)
+
+        # Проверяем, остановился ли сервис
+        check = subprocess.run(
+            ['/usr/bin/sudo', '/bin/systemctl', 'is-active', f'{service_name}.service'],
+            capture_output=True,
+            text=True,
+            timeout=2
+        )
+
+        # Если всё ещё активен - принудительно убиваем
+        if check.stdout.strip() == 'active':
+            logger.warning(f"Сервис {service_name} не остановился по SIGTERM, используем SIGKILL")
+            subprocess.run(
+                ['/usr/bin/sudo', '/bin/systemctl', 'kill', '-s', 'SIGKILL', f'{service_name}.service'],
+                capture_output=True,
+                text=True,
+                timeout=2
+            )
+            time.sleep(1)
 
         # Запускаем сервис заново
         result = subprocess.run(
