@@ -313,7 +313,8 @@
 
     // Инициализация при загрузке страницы
     document.addEventListener('DOMContentLoaded', function() {
-        document.getElementById('grafanaFrame').src = GRAFANA_URL + '/d/mplogs/marketplacer-logs?orgId=1&kiosk';
+        // По умолчанию открываем системные метрики
+        document.getElementById('grafanaFrame').src = GRAFANA_URL + '/d/mpsystem/marketplacer-system-metrics?orgId=1&kiosk&refresh=10s';
         document.getElementById('grafanaDirectLink').href = GRAFANA_URL;
     });
 
@@ -357,7 +358,7 @@
             </div>
         `;
         document.getElementById('loadingOverlay').style.display = 'flex';
-        document.getElementById('grafanaFrame').src = GRAFANA_URL + '/d/mplogs/marketplacer-logs?orgId=1&kiosk&refresh=5s&' + Date.now();
+        document.getElementById('grafanaFrame').src = GRAFANA_URL + '/d/mpsystem/marketplacer-system-metrics?orgId=1&kiosk&refresh=10s&' + Date.now();
     }
 
     function loadDashboard(type) {
