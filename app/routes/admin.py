@@ -139,3 +139,11 @@ def delete_user(user_id):
     flash(f'Пользователь "{username}" успешно удален.', 'success')
     return redirect(url_for('admin.users'))
 
+
+
+@admin_bp.route('/monitoring')
+@login_required
+@admin_required
+def monitoring():
+    """Страница мониторинга Grafana (только для администраторов)"""
+    return render_template('admin_monitoring.html')

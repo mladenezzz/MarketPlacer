@@ -1,0 +1,253 @@
+{% extends "base.html" %}
+
+{% block title %}Мониторинг - MarketPlacer{% endblock %}
+
+{% block extra_css %}
+<style>
+    .monitoring-container {
+        height: calc(100vh - 200px);
+        min-height: 600px;
+    }
+
+    .grafana-iframe {
+        width: 100%;
+        height: 100%;
+        border: none;
+        border-radius: 12px;
+    }
+
+    .monitoring-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+    }
+
+    .status-indicator {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem 1rem;
+        border-radius: 20px;
+        font-size: 0.875rem;
+        font-weight: 500;
+    }
+
+    .status-online {
+        background: linear-gradient(135deg, #86efac 0%, #a5f3fc 100%);
+        color: #14532d;
+    }
+
+    .status-offline {
+        background: linear-gradient(135deg, #fca5a5 0%, #f0abfc 100%);
+        color: #7f1d1d;
+    }
+
+    .status-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        animation: pulse 2s infinite;
+    }
+
+    .status-online .status-dot {
+        background: #16a34a;
+    }
+
+    .status-offline .status-dot {
+        background: #dc2626;
+    }
+
+    @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.5; }
+    }
+
+    .quick-links {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+    }
+
+    .quick-link {
+        padding: 0.5rem 1rem;
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.8);
+        border: 1px solid rgba(199, 210, 254, 0.5);
+        color: var(--text-dark);
+        text-decoration: none;
+        font-size: 0.875rem;
+        transition: all 0.2s;
+    }
+
+    .quick-link:hover {
+        background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+        border-color: transparent;
+        color: #1e1b4b;
+    }
+
+    .loading-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(255, 255, 255, 0.9);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 12px;
+        z-index: 10;
+    }
+
+    .loading-spinner {
+        width: 40px;
+        height: 40px;
+        border: 3px solid rgba(199, 210, 254, 0.3);
+        border-top-color: #8b5cf6;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+
+    .iframe-wrapper {
+        position: relative;
+        height: 100%;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="monitoring-header">
+        <div>
+            <h2 class="mb-1"><i class="bi bi-graph-up"></i> Мониторинг системы</h2>
+            <p class="text-muted mb-0">Grafana дашборд с логами и метриками</p>
+        </div>
+        <div class="d-flex align-items-center gap-3">
+            <div class="quick-links d-none d-md-flex">
+                <a href="#" class="quick-link" onclick="loadDashboard('logs')">
+                    <i class="bi bi-file-text"></i> Логи
+                </a>
+                <a href="#" class="quick-link" onclick="loadDashboard('system')">
+                    <i class="bi bi-cpu"></i> Система
+                </a>
+            </div>
+            <span id="grafanaStatus" class="status-indicator status-offline">
+                <span class="status-dot"></span>
+                <span class="status-text">Проверка...</span>
+            </span>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-body p-0 monitoring-container">
+            <div class="iframe-wrapper">
+                <div id="loadingOverlay" class="loading-overlay">
+                    <div class="text-center">
+                        <div class="loading-spinner mb-3"></div>
+                        <p class="text-muted mb-0">Загрузка Grafana...</p>
+                    </div>
+                </div>
+                <iframe
+                    id="grafanaFrame"
+                    class="grafana-iframe"
+                    src=""
+                    onload="onGrafanaLoad()"
+                    onerror="onGrafanaError()"
+                ></iframe>
+            </div>
+        </div>
+    </div>
+
+    <div class="mt-3 text-muted small">
+        <i class="bi bi-info-circle"></i>
+        Если дашборд не загружается, убедитесь что Grafana запущена на сервере.
+        <a id="grafanaDirectLink" href="#" target="_blank" class="ms-2">
+            Открыть Grafana напрямую <i class="bi bi-box-arrow-up-right"></i>
+        </a>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Используем тот же хост, с которого открыта страница, но порт 3000
+    const GRAFANA_URL = window.location.protocol + '//' + window.location.hostname + ':3000';
+
+    // Инициализация при загрузке страницы
+    document.addEventListener('DOMContentLoaded', function() {
+        document.getElementById('grafanaFrame').src = GRAFANA_URL + '/d/mplogs/marketplacer-logs?orgId=1&kiosk';
+        document.getElementById('grafanaDirectLink').href = GRAFANA_URL;
+    });
+
+    function onGrafanaLoad() {
+        document.getElementById('loadingOverlay').style.display = 'none';
+        updateStatus(true);
+    }
+
+    function onGrafanaError() {
+        document.getElementById('loadingOverlay').innerHTML = `
+            <div class="text-center">
+                <i class="bi bi-exclamation-triangle text-warning" style="font-size: 3rem;"></i>
+                <h5 class="mt-3">Grafana недоступна</h5>
+                <p class="text-muted">Убедитесь, что сервис grafana-server запущен на сервере</p>
+                <button class="btn btn-primary btn-sm" onclick="retryLoad()">
+                    <i class="bi bi-arrow-clockwise"></i> Повторить
+                </button>
+            </div>
+        `;
+        updateStatus(false);
+    }
+
+    function updateStatus(isOnline) {
+        const statusEl = document.getElementById('grafanaStatus');
+        const textEl = statusEl.querySelector('.status-text');
+
+        if (isOnline) {
+            statusEl.className = 'status-indicator status-online';
+            textEl.textContent = 'Online';
+        } else {
+            statusEl.className = 'status-indicator status-offline';
+            textEl.textContent = 'Offline';
+        }
+    }
+
+    function retryLoad() {
+        document.getElementById('loadingOverlay').innerHTML = `
+            <div class="text-center">
+                <div class="loading-spinner mb-3"></div>
+                <p class="text-muted mb-0">Загрузка Grafana...</p>
+            </div>
+        `;
+        document.getElementById('loadingOverlay').style.display = 'flex';
+        document.getElementById('grafanaFrame').src = GRAFANA_URL + '/d/mplogs/marketplacer-logs?orgId=1&kiosk&refresh=5s&' + Date.now();
+    }
+
+    function loadDashboard(type) {
+        const frame = document.getElementById('grafanaFrame');
+        document.getElementById('loadingOverlay').style.display = 'flex';
+
+        switch(type) {
+            case 'logs':
+                frame.src = GRAFANA_URL + '/d/mplogs/marketplacer-logs?orgId=1&kiosk&refresh=5s';
+                break;
+            case 'system':
+                frame.src = GRAFANA_URL + '/d/mpsystem/marketplacer-system-metrics?orgId=1&kiosk&refresh=10s';
+                break;
+        }
+    }
+
+    // Проверка доступности Grafana при загрузке
+    setTimeout(() => {
+        const overlay = document.getElementById('loadingOverlay');
+        if (overlay.style.display !== 'none') {
+            // Если через 10 секунд всё ещё загружается - показать ошибку
+            onGrafanaError();
+        }
+    }, 10000);
+</script>
+{% endblock %}
