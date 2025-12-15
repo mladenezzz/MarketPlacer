@@ -167,7 +167,7 @@ def service_status(service_name):
 
     try:
         result = subprocess.run(
-            ['sudo', 'systemctl', 'status', f'{service_name}.service'],
+            ['/usr/bin/sudo', '/bin/systemctl', 'status', f'{service_name}.service'],
             capture_output=True,
             text=True,
             timeout=10
@@ -199,7 +199,7 @@ def restart_service(service_name):
         logger.info(f"Пользователь {current_user.username} перезапускает сервис {service_name}")
 
         result = subprocess.run(
-            ['sudo', 'systemctl', 'restart', f'{service_name}.service'],
+            ['/usr/bin/sudo', '/bin/systemctl', 'restart', f'{service_name}.service'],
             capture_output=True,
             text=True,
             timeout=30
