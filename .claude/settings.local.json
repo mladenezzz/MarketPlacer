@@ -33,7 +33,12 @@
       "Bash(del z:query_wb_goods.py)",
       "Bash(z:\\venv\\Scripts\\python.exe:*)",
       "Bash(z:venvScriptspython.exe z:migrationsmigrate_wb_goods_add_imt_id.py)",
-      "Bash(C:UsersMike01VSCodeProjectsMarketPlacervenvScriptspython.exe z:check_columns.py)"
+      "Bash(C:UsersMike01VSCodeProjectsMarketPlacervenvScriptspython.exe z:check_columns.py)",
+      "Bash(z:venvScriptspython.exe -c \"import openpyxl; print(''ok'')\")",
+      "Bash(pip install:*)",
+      "Bash(chcp 6500)",
+      "Bash(z:venvScriptspython.exe z:analyze_orders.py)",
+      "Bash(curl:*)"
     ],
     "deny": [],
     "ask": []

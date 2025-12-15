@@ -198,6 +198,22 @@ def restart_service(service_name):
     try:
         logger.info(f"Пользователь {current_user.username} перезапускает сервис {service_name}")
 
+        # Для самого marketplacer используем отложенный перезапуск,
+        # чтобы успеть отправить ответ клиенту до остановки сервиса
+        if service_name == 'marketplacer':
+            # Запускаем перезапуск в фоне с задержкой 1 секунда
+            subprocess.Popen(
+                ['/bin/bash', '-c', 'sleep 1 && /usr/bin/sudo /bin/systemctl restart marketplacer.service'],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL
+            )
+            logger.info(f"Запланирован перезапуск сервиса {service_name}")
+            return jsonify({
+                'success': True,
+                'message': f'Сервис {service_name} будет перезапущен через 1 секунду'
+            })
+
+        # Для других сервисов - синхронный перезапуск
         result = subprocess.run(
             ['/usr/bin/sudo', '/bin/systemctl', 'restart', f'{service_name}.service'],
             capture_output=True,
