@@ -213,12 +213,22 @@ def restart_service(service_name):
                 'message': f'Сервис {service_name} будет перезапущен через 1 секунду'
             })
 
-        # Для других сервисов - синхронный перезапуск
-        result = subprocess.run(
-            ['/usr/bin/sudo', '/bin/systemctl', 'restart', f'{service_name}.service'],
+        # Для других сервисов - принудительный перезапуск (stop + start)
+        # Используем kill для быстрой остановки, т.к. restart может зависнуть
+        # если сервис долго обрабатывает запросы
+        subprocess.run(
+            ['/usr/bin/sudo', '/bin/systemctl', 'kill', '-s', 'SIGKILL', f'{service_name}.service'],
             capture_output=True,
             text=True,
-            timeout=30
+            timeout=5
+        )
+
+        # Запускаем сервис заново
+        result = subprocess.run(
+            ['/usr/bin/sudo', '/bin/systemctl', 'start', f'{service_name}.service'],
+            capture_output=True,
+            text=True,
+            timeout=10
         )
 
         if result.returncode == 0:
