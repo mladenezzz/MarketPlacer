@@ -357,11 +357,10 @@ class OzonCollector(BaseCollector):
                         logger.warning(f"180-day range failed, falling back to 90 days")
                         start_date = datetime.now(timezone.utc) - timedelta(days=90)
             else:
-                # Always collect orders from yesterday 00:00 to catch all orders with API delay
-                # Ozon API has significant delay - orders may appear hours after their in_process_at
-                # Duplicate check (by posting_number + sku) prevents creating duplicates
-                yesterday = datetime.now(timezone.utc).date() - timedelta(days=1)
-                start_date = datetime.combine(yesterday, datetime.min.time()).replace(tzinfo=timezone.utc)
+                # Collect orders from 60 days ago to update statuses of existing orders
+                # Ozon API has significant delay and statuses change over time (delivering -> delivered/cancelled)
+                # Duplicate check (by posting_number + sku) prevents creating duplicates, existing orders get updated
+                start_date = datetime.now(timezone.utc) - timedelta(days=60)
 
             logger.info(f"Collecting Ozon orders from {start_date.strftime('%Y-%m-%d %H:%M:%S')}")
 
