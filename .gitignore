@@ -50,3 +50,7 @@ htmlcov/
 dist/
 build/
 *.egg-info/
+
+# Test scripts and output
+py/
+output/
