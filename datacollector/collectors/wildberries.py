@@ -608,8 +608,8 @@ class WildberriesCollector(BaseCollector):
                         if existing.imt_id != imt_id:
                             existing.imt_id = imt_id
                             needs_update = True
-                        # Update if photos are empty
-                        if not existing.photos and photos_str:
+                        # Update photos if changed
+                        if existing.photos != photos_str and photos_str:
                             existing.photos = photos_str
                             needs_update = True
                         if needs_update:
