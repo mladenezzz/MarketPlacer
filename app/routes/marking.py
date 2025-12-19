@@ -29,7 +29,7 @@ def search_goods():
     # Поиск товаров по началу артикула
     goods = WBGood.query.filter(
         WBGood.vendor_code.ilike(f'{article}%')
-    ).order_by(WBGood.vendor_code, WBGood.tech_size).all()
+    ).all()
 
     result = []
     for good in goods:
@@ -41,6 +41,16 @@ def search_goods():
                 'gtin': good.gtin,
                 'barcode': good.barcode
             })
+
+    def size_sort_key(item):
+        """Ключ сортировки размера: запятая = точка"""
+        size = item['size'].replace(',', '.')
+        try:
+            return (0, float(size))
+        except ValueError:
+            return (1, size)
+
+    result.sort(key=lambda x: (x['article'], size_sort_key(x)))
 
     return jsonify({'success': True, 'data': result})
 
