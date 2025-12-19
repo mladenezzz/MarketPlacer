@@ -3,6 +3,7 @@ from flask_login import login_required
 from app.models import db
 from app.models.wildberries import WBGood
 from app.services.smb_service import SMBService
+from app.routes.main import get_size_sort_key
 from datetime import datetime
 import requests
 import io
@@ -42,15 +43,7 @@ def search_goods():
                 'barcode': good.barcode
             })
 
-    def size_sort_key(item):
-        """Ключ сортировки размера: запятая = точка"""
-        size = item['size'].replace(',', '.')
-        try:
-            return (0, float(size))
-        except ValueError:
-            return (1, size)
-
-    result.sort(key=lambda x: (x['article'], size_sort_key(x)))
+    result.sort(key=lambda x: (x['article'], get_size_sort_key(x['size'])))
 
     return jsonify({'success': True, 'data': result})
 

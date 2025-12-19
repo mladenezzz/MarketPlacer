@@ -203,27 +203,30 @@ def get_size_sort_key(size: str) -> tuple:
 
     # Для числовых размеров
     try:
+        # Нормализуем: запятая -> точка
+        size_norm = size.replace(',', '.')
+
         # Проверяем специальные форматы (65 -> 6.5, 105 -> 10.5)
-        if size.isdigit() and len(size) in [2, 3]:
-            num = int(size)
+        if size_norm.isdigit() and len(size_norm) in [2, 3]:
+            num = int(size_norm)
             # Размеры вида 65, 75, 85, 95 -> преобразуем в 6.5, 7.5, 8.5, 9.5
-            if len(size) == 2 and num % 10 == 5 and num >= 65 and num <= 95:
+            if len(size_norm) == 2 and num % 10 == 5 and num >= 65 and num <= 95:
                 return (10, num / 10, size)
             # Размеры вида 105, 115 -> преобразуем в 10.5, 11.5
-            elif len(size) == 3 and num % 10 == 5 and num >= 105 and num <= 115:
+            elif len(size_norm) == 3 and num % 10 == 5 and num >= 105 and num <= 115:
                 return (10, num / 10, size)
             # Размеры вида 658, 685 -> для сортировки берем первую часть
-            elif len(size) == 3:
-                first_digit = int(size[0])
+            elif len(size_norm) == 3:
+                first_digit = int(size_norm[0])
                 return (10, first_digit, size)
             else:
                 return (10, num, size)
-        # Проверяем, есть ли дробная часть (например, 6.5, 7.5)
-        elif '.' in size:
-            num = float(size)
+        # Проверяем, есть ли дробная часть (например, 6.5, 7.5 или 6,5, 7,5)
+        elif '.' in size_norm:
+            num = float(size_norm)
             return (10, num, size)
         else:
-            num = int(size)
+            num = int(size_norm)
             return (10, num, size)
     except ValueError:
         # Если не удалось распарсить как число, размещаем в конец
