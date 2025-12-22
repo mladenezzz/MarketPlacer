@@ -35,6 +35,10 @@ instance/
 .env
 .env.local
 
+# Config files with secrets
+config.py
+datacollector/config.py
+
 # Claude
 .claude/
 
