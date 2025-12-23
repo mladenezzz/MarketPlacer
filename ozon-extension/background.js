@@ -3,7 +3,7 @@
  * Выполняет HTTP запросы к API (обходит mixed content блокировку)
  */
 
-const API_BASE = 'http://192.168.0.44:5000/api/extension';
+const API_BASE = 'http://192.168.0.63:5000/api/extension';
 
 // Обработка сообщений от content script
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
