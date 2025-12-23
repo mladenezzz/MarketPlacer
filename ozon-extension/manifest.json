@@ -7,8 +7,8 @@
     "activeTab"
   ],
   "host_permissions": [
-    "http://192.168.0.63:5000/*",
-    "http://192.168.0.63/*"
+    "http://192.168.0.66:5000/*",
+    "http://192.168.0.66/*"
   ],
   "background": {
     "service_worker": "background.js"
